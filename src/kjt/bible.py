@@ -97,7 +97,11 @@ class BiblePage(Gtk.Box):
         lp = Gtk.GestureLongPress(); lp.connect('pressed', lambda g, x, y: self.on_menu(g, 1, x, y)); self.view.add_controller(lp)
         self.scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
         self.scroll.get_vadjustment().connect('value-changed', self.remember_place)
-        c = Adw.Clamp(maximum_size=860, tightening_threshold=600); c.set_child(self.view); self.scroll.set_child(c)
+        inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=22, margin_end=22, margin_top=12)
+        self.info.add_css_class('kjt-chapinfo')
+        inner.append(self.info); inner.append(self.view)
+        c = Adw.Clamp(maximum_size=860, tightening_threshold=600); c.set_child(inner); self.scroll.set_child(c)
         self.osv.set_content(self.scroll)
         side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         sh = Gtk.Box(spacing=6, margin_start=12, margin_end=6, margin_top=6, margin_bottom=2)
@@ -301,9 +305,30 @@ class BiblePage(Gtk.Box):
         box.append(Gtk.Label(label='Or go to a verse:', xalign=0, css_classes=['dim-label']))
         fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=10, min_children_per_line=5, homogeneous=True, row_spacing=4, column_spacing=4)
         for v, _t in rows:
-            b = Gtk.Button(label=str(v)); b.connect('clicked', lambda _b, v=v: (self.where.popdown(), self.go(code, ch, v))); fb.append(b)
+            b = Gtk.Button(label=str(v)); b.connect('clicked', lambda _b, v=v: self.pick_to(code, ch, v)); fb.append(b)
         box.append(fb)
         self.picker_page(box, 'verses')
+
+    def pick_to(self, code, ch, v1):
+        """the fourth step, as on the website: to which verse (for a range to bookmark or note)"""
+        rows = [v for v, _t in STORE.chapter(self.tr, code, ch) if v > v1]
+        if not rows:
+            self.where.popdown(); self.go(code, ch, v1); return
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=8, margin_bottom=8, margin_start=8, margin_end=8)
+        hb = Gtk.Box(spacing=8)
+        hb.append(ib('kjt-prev-symbolic', 'The verses', lambda: self.pstack.set_visible_child_name('verses')))
+        hb.append(Gtk.Label(label='%s %d:%d' % (book_name(code, tr=self.tr), ch, v1), css_classes=['title-4'], hexpand=True, xalign=0))
+        only = Gtk.Button(label='Only verse %d' % v1); only.add_css_class('suggested-action')
+        only.connect('clicked', lambda *_: (self.where.popdown(), self.go(code, ch, v1))); hb.append(only)
+        box.append(hb)
+        box.append(Gtk.Label(label='Or to verse:', xalign=0, css_classes=['dim-label']))
+        fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=10, min_children_per_line=5, homogeneous=True, row_spacing=4, column_spacing=4)
+        for v in rows:
+            b = Gtk.Button(label=str(v))
+            b.connect('clicked', lambda _b, v=v: (self.where.popdown(), self.go(code, ch, v1), self.choose_range(v1, v)))
+            fb.append(b)
+        box.append(fb)
+        self.picker_page(box, 'to')
 
     def set_tr(self, t):
         b = STORE.find_book(t, self.book) or (STORE.books(t)[0][0] if STORE.books(t) else self.book)
@@ -406,13 +431,14 @@ class BiblePage(Gtk.Box):
                 buf.apply_tag_by_name('hl-' + (col if col in COLORS else 'yellow'), buf.get_iter_at_offset(s2), end())
                 if r.get('note') and int(r.get('verse', 0)) == v:
                     buf.insert_with_tags_by_name(end(), ' ✎', 'note')
-                    buf.insert_with_tags_by_name(end(), '\n' + r['note'].strip() + '\n', 'notetext')
+                    first = r['note'].strip().split('\n')[0]
+                    buf.insert_with_tags_by_name(end(), '\n✎ ' + (first[:70] + '…' if len(first) > 70 or '\n' in r['note'].strip() else first) + '\n', 'notetext')
             if v in other:
                 buf.insert_with_tags_by_name(end(), '\n' + re.sub(r'<[^>]+>', '', other[v]).strip(), 'cmp')
             self.vpos.append(start); self.vnum.append(v); self.vend.append(buf.get_char_count())
             buf.insert(end(), '\n' if other else ' ')
         self.mark_selection()
-        self.chapter_names(buf)
+        self.fill_info(marks)
         if self.osv.get_show_sidebar():
             self.refresh_side()
         if keep:
@@ -492,14 +518,18 @@ class BiblePage(Gtk.Box):
         v = self.verse_at(x, y)
         if not v:
             return
-        st = g.get_current_event_state()
-        if st & Gdk.ModifierType.SHIFT_MASK and self.sel:
-            a, b = min(self.sel[0], v), max(self.sel[0], v)
-            self.sel = list(range(a, b + 1))
+        self.tap(v, g.get_current_event_state() if g else 0)
+
+    def tap(self, v, st=0):
+        if st & Gdk.ModifierType.CONTROL_MASK:
+            self.sel = sorted(set(self.sel) ^ {v})          # Ctrl: add or take away one verse
         elif v in self.sel:
-            self.sel.remove(v)
+            self.sel = [] if len(self.sel) == 1 else [v]      # tap the chosen verse again: let it go
+        elif self.sel:
+            a, b = min(self.sel + [v]), max(self.sel + [v])
+            self.sel = list(range(a, b + 1))                  # a second verse: everything from the first to it
         else:
-            self.sel = sorted(set(self.sel + [v])) if st & Gdk.ModifierType.CONTROL_MASK else [v]
+            self.sel = [v]
         self.mark_selection()
         if self.osv.get_show_sidebar():
             self.refresh_side()
@@ -522,7 +552,7 @@ class BiblePage(Gtk.Box):
             bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + (['#' + t for t in (r.get('tags') or [])])
             self.sel_state.set_label(' · '.join(bits))
         else:
-            self.sel_state.set_label('Not bookmarked yet')
+            self.sel_state.set_label('Not bookmarked yet' + (' · tap another verse to choose a range' if len(self.sel) == 1 else ''))
         self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r))
         self.note_btn.label.set_label('Edit note' if r and r.get('note') else 'Note')
         self.bar.set_reveal_child(True)
@@ -680,31 +710,70 @@ class BiblePage(Gtk.Box):
             self.show_words()
 
     # ---------- the people and places of the chapter ----------
-    def chapter_names(self, buf):
-        from .dictionary import entries
+    def fill_info(self, marks):
+        """above the chapter, as on the website: your bookmarks and notes here, the people and places, the Holy Fathers"""
+        while self.info.get_first_child():
+            self.info.remove(self.info.get_first_child())
+        recs = {}
+        for v, r in marks.items():
+            recs.setdefault(r['id'], (int(r.get('verse') or v), r))
+        mine = sorted(recs.values(), key=lambda x: x[0])
+        if mine:
+            notes = sum(1 for _, r in mine if r.get('note'))
+            row = Gtk.Box(spacing=8)
+            row.append(Gtk.Label(label=('📝 ' if notes else '🔖 ') + 'Your notes and bookmarks in this chapter: %d' % len(mine), xalign=0, hexpand=True, wrap=True))
+            nb = Gtk.Button(label='Next ↓', tooltip_text='Go to the next one'); nb.add_css_class('flat')
+            nb.connect('clicked', lambda *_: self.next_mark(mine)); row.append(nb)
+            self.info.append(row)
+            fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=1, column_spacing=4, row_spacing=4)
+            for v, r in mine:
+                ve = int(r.get('verse_end') or 0)
+                lab = '%d%s' % (v, '–%d' % ve if ve > v else '') + (' ✎' if r.get('note') else '') + ''.join(' #' + t for t in (r.get('tags') or [])[:2])
+                b = Gtk.Button(label=lab, tooltip_text=(r.get('note') or '').strip()[:300] or 'Bookmark')
+                b.add_css_class('kjt-chip'); b.add_css_class('kjt-chip-' + (r.get('color') or 'none'))
+                b.connect('clicked', lambda _b, v=v, ve=ve: self.choose_range(v, ve))
+                fb.append(b)
+            self.info.append(fb)
+        names = self.chapter_names()
+        if names:
+            self.info.append(Gtk.Label(label='People and places in this chapter', xalign=0, css_classes=['dim-label', 'caption']))
+            fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=4, row_spacing=4)
+            for i, n, kind in names[:60]:
+                b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text='Open in the Bible Dictionary'); b.add_css_class('kjt-chip')
+                b.connect('clicked', lambda _b, i=i: self.win.open_dict(i)); fb.append(b)
+            self.info.append(fb)
+        d = read_file('fathers/%s.json.gz' % canon(self.book))
+        n = len((d or {}).get('e', {}).get(str(self.ch), [])) if d else 0
+        if n:
+            b = Gtk.Button(label='☦ The Holy Fathers on this chapter: %d' % n, halign=Gtk.Align.START); b.add_css_class('flat')
+            b.connect('clicked', lambda *_: (setattr(self, 'sel', []), self.mark_selection(), self.hf_btn.set_active(True), self.side_show('hf')))
+            self.info.append(b)
+        self.info.set_visible(bool(self.info.get_first_child()))
+
+    def choose_range(self, v, ve=0):
+        self.sel = list(range(v, max(v, ve) + 1)); self.mark_selection(); self.scroll_to_verse(v)
+
+    def next_mark(self, mine):
+        top = self.top_verse()
+        nxt = next((v for v, _ in mine if v > top + 1), mine[0][0])
+        self.choose_range(nxt)
+
+    def chapter_names(self):
         key = '%s.%d.' % (canon(self.book), self.ch)
         found = []
         pl = read_file('maps/places.json') or {}
         for r in pl.get('p', []):
-            if key in (' ' + r[6] + ' ').replace(' ', ' ').replace(' ' , ' ') and (' ' + r[6]).find(' ' + key) >= 0:
+            if (' ' + r[6]).find(' ' + key) >= 0:
                 found.append((r[7] or 'p-' + r[0], r[1], 'place'))
         pe = read_file('dictionary/people.json') or {}
         for r in pe.get('p', []):
             if (' ' + r[5]).find(' ' + key) >= 0:
                 found.append((r[0], r[2] or r[1], 'person'))
-        if not found:
-            return
         seen, items = set(), []
-        for i, n, k in found:
+        for i, n, kind in found:
             if i not in seen:
-                seen.add(i); items.append((i, n))
-        end = buf.get_end_iter
-        buf.insert_with_tags_by_name(end(), '\n\nIn this chapter: ', 'names')
-        for k, (i, n) in enumerate(items[:60]):
-            t = buf.get_tag_table().lookup('link:#kd:' + i) or buf.create_tag('link:#kd:' + i, foreground='#8cc4e8' if Adw.StyleManager.get_default().get_dark() else '#2b6a8e', underline=Pango.Underline.SINGLE)
-            buf.insert_with_tags_by_name(end(), n, 'names', 'link:#kd:' + i)
-            if k < len(items[:60]) - 1:
-                buf.insert_with_tags_by_name(end(), ' · ', 'names')
+                seen.add(i); items.append((i, n, kind))
+        return items
 
     # ---------- the words of Christ in red (the King James text) ----------
     def red_letters(self):

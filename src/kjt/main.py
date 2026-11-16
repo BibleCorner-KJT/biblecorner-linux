@@ -10,7 +10,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.4'
+VERSION = '2.5'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -26,6 +26,12 @@ textview.kjt-bible, textview.kjt-text, textview.kjt-book { background: transpare
 .kjt-audio { border-top: 1px solid alpha(currentColor, 0.1); background: alpha(#f3c548, 0.06); }
 .kjt-step { border-radius: 12px; }
 .kjt-sel-label { font-weight: 700; }
+.kjt-chapinfo { background: alpha(#f3c548, 0.10); border-radius: 12px; padding: 10px 12px; }
+button.kjt-chip { min-height: 26px; padding: 2px 10px; border-radius: 999px; font-size: 0.92em; }
+button.kjt-chip-yellow { background: #f6d365; color: #1d1a1f; } button.kjt-chip-green { background: #9be3a4; color: #1d1a1f; }
+button.kjt-chip-blue { background: #9cc9f5; color: #1d1a1f; } button.kjt-chip-pink { background: #f7a8c4; color: #1d1a1f; }
+button.kjt-chip-purple { background: #c9a7f0; color: #1d1a1f; }
+
 .kjt-selbar { border-top: 1px solid alpha(currentColor, 0.1); }
 .kjt-sel-state { color: #7a1f6b; font-weight: 600; }
 button.kjt-dot.kjt-dot-on { border: 3px solid #3e093f; }
