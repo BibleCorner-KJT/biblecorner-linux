@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>today.knowingjesus.KJT</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>Knowing Jesus Today</name>
+  <summary>The Holy Bible and the Orthodox faith, also without internet</summary>
+  <description>
+    <p>A whole app of its own: the Holy Bible in many languages with search, comparison and listening; the Holy Fathers beside every chapter and their writings to read like books; the Bible Dictionary; the Bible Maps in the land's real colours with the story maps; Today with God with the readings of the day.</p>
+    <p>Everything is kept on your computer and works without the internet. Sign in to keep your bookmarks, colours, notes and Study Pads in step with My KJT on the website and your phone.</p>
+  </description>
+  <launchable type="desktop-id">today.knowingjesus.KJT.desktop</launchable>
+  <url type="homepage">https://knowingjesus.today/</url>
+  <developer id="today.knowingjesus"><name>Knowing Jesus Today</name></developer>
+  <url type="vcs-browser">https://github.com/BibleCorner-KJT/biblecorner-linux</url>
+  <screenshots>
+    <screenshot type="default"><caption>The Holy Bible with the Holy Fathers beside it</caption><image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/bible.png</image></screenshot>
+    <screenshot><caption>Bible Maps: the journeys of St Paul</caption><image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/maps.png</image></screenshot>
+    <screenshot><caption>Today with God</caption><image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/today.png</image></screenshot>
+  </screenshots>
+  <requires><display_length compare="ge">340</display_length></requires>
+  <supports><control>pointing</control><control>keyboard</control><control>touch</control></supports>
+  <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="2.3" date="2026-11-16"><description><p>Steadier: right click (or a long press) chooses the verse and shows the one action bar, now with words beside its icons; the maps use less memory; if the app ever freezes, a small log shows where.</p></description></release>
+    <release version="2.2" date="2026-11-16"><description><p>A richer reader: it always opens on the Holy Bible and offers to continue at the very verse where you stopped; choose a book, a chapter and a verse; books coloured by their kind with a legend; right click (or a long press) on a verse for everything you can do with it; cross-references; the Greek and Hebrew words with their meanings; the words of Christ in red; your notes under their verses; the people and places of each chapter.</p></description></release>
+    <release version="2.1" date="2026-11-16"><description><p>Faster, simpler and more modern: its own icons, smooth maps, pages that open at once, downloads four files at a time, and a layout that fits small screens and phones.</p></description></release>
+    <release version="2.0" date="2026-11-16"><description><p>A new app, made for the computer: no web pages any more. Signing in to My KJT works in the app.</p></description></release>
+    <release version="1.0" date="2026-11-16"/>
+  </releases>
+</component>

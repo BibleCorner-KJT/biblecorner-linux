@@ -1,0 +1,5 @@
+#!/usr/bin/env python3
+import os, sys
+sys.path.insert(0, os.environ.get('KJT_LIB', '/app/share/kjt'))
+from kjt.main import main
+sys.exit(main())

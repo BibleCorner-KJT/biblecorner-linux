@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Knowing Jesus Today
+GenericName=Holy Bible and the Orthodox faith
+Comment=The Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps, kept on your computer
+Exec=kjt
+Icon=today.knowingjesus.KJT
+Terminal=false
+Categories=Education;Literature;
+Keywords=Bible;Orthodox;Christian;Holy Fathers;KJT;Bible Corner;Maps;
+StartupNotify=true

@@ -1,0 +1,30 @@
+# Builds the app on GitHub's computers and puts a ready-to-install file on the Releases page.
+# Runs by itself for every version tag (v2.1, v2.2 ...), or by hand from the Actions tab.
+name: Build the app
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: knowing-jesus-today.flatpak
+          manifest-path: today.knowingjesus.KJT.yml
+          cache-key: kjt-${{ github.sha }}
+      - name: Put the file on the Releases page
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: knowing-jesus-today.flatpak
+          body: |
+            To install: download knowing-jesus-today.flatpak, then double-click it (it opens in Software) and press Install.
+            Or in a terminal: flatpak install --user knowing-jesus-today.flatpak
