@@ -1,83 +1,190 @@
-"""Fetching what the app keeps on this computer, in the background, with its progress."""
-import json, threading
+"""Fetching what the app keeps on this computer: a queue of downloads, two at a time, each with its own progress."""
+import json, threading, time
 from concurrent.futures import ThreadPoolExecutor
-PARALLEL = 4  # files fetched at the same time
 from gi.repository import GLib
-from .core import STORE, NET, LANGS, DEFAULT_BIBLES, info, write_file, read_file, lang
+from .core import STORE, NET, LANGS, DEFAULT_BIBLES, info, write_file, read_file, lang, OT, NT
 
+PARALLEL = 4   # files fetched at the same time, within one download
+WORKERS = 2    # downloads running at the same time; the others wait their turn
 MAP_FILES = ['base.json', 'places.json', 'stories.json', 'words.json', 'chapters.json', 'ident.json']
+
+
+class Job:
+    """one download: a Bible, the dictionary, the maps, the Holy Fathers ..."""
+    def __init__(self, kind, arg, title):
+        self.kind, self.arg, self.title = kind, arg, title
+        self.done = self.total = self.errors = 0
+        self.state = 'waiting'        # waiting · running · done · failed · cancelled
+        self.what = ''
+        self.cancel = False
+        self.lock = threading.Lock()
+
+    @property
+    def key(self):
+        return (self.kind, json.dumps(self.arg, sort_keys=True))
+
+    def fraction(self):
+        return 1.0 if self.state == 'done' else (self.done / self.total if self.total else 0.0)
 
 
 class Downloader:
     def __init__(self):
         self.listeners = []
-        self.busy = False
-        self.stop = False
-        self.done = self.total = 0
-        self.what = ''
-        self.errors = 0
+        self.jobs = []
         self.lock = threading.Lock()
+        self.running = 0
+        self.last_tell = 0
+
+    # --- what the rest of the app reads ---
+    @property
+    def busy(self):
+        return any(j.state in ('waiting', 'running') for j in self.jobs)
+
+    @property
+    def errors(self):
+        return sum(j.errors for j in self.jobs if j.state != 'cancelled')
+
+    @property
+    def stop(self):
+        return False
+
+    @stop.setter
+    def stop(self, v):
+        if v:
+            self.cancel_all()
+
+    @property
+    def done(self):
+        return sum(j.done for j in self.jobs)
+
+    @property
+    def total(self):
+        return sum(max(j.total, 1) for j in self.jobs)
+
+    @property
+    def what(self):
+        r = [j for j in self.jobs if j.state == 'running']
+        return ' · '.join(j.title for j in r)
 
     def listen(self, fn):
         self.listeners.append(fn)
 
-    def tell(self):
+    def tell(self, force=False):
+        now = time.time()
+        if not force and now - self.last_tell < 0.15:
+            return
+        self.last_tell = now
         for fn in list(self.listeners):
             GLib.idle_add(lambda fn=fn: (fn(self), False)[1])
 
+    # --- adding to the queue ---
     def start(self, plan):
-        """plan: {'bibles': [tr, ...], 'library': bool, 'commentary': bool, 'dict': [lang, ...], 'maps': bool, 'today': [lang, ...]}"""
-        if self.busy:
-            return
-        self.busy, self.stop, self.done, self.total, self.errors = True, False, 0, 0, 0
-        threading.Thread(target=self.run, args=(plan,), daemon=True).start()
-
-    def step(self, what):
+        """plan: {'bibles': [tr, ...], 'dict': [lang, ...], 'maps': bool, 'library': bool, 'commentary': bool, 'study': bool, 'today': [lang, ...]}
+        each part becomes its own download in the queue (a part already waiting or running is not added twice)"""
+        jobs = []
+        for tr in plan.get('bibles', []):
+            jobs.append(Job('bible', tr, 'The Holy Bible · ' + tr))
+        if plan.get('dict'):
+            jobs.append(Job('dict', sorted(set(plan['dict'])), 'Bible Dictionary'))
+        if plan.get('maps'):
+            jobs.append(Job('maps', sorted(set(plan.get('dict') or [lang()])), 'Bible Maps'))
+        if plan.get('library'):
+            jobs.append(Job('library', None, 'The Holy Fathers: their writings'))
+        if plan.get('commentary'):
+            jobs.append(Job('commentary', None, 'The Holy Fathers on the Bible'))
+        if plan.get('study', plan.get('commentary')):
+            jobs.append(Job('study', None, 'For the reader: cross-references, Greek and Hebrew'))
+        for lg in plan.get('today', []):
+            jobs.append(Job('today', lg, 'Today with God · ' + lg))
         with self.lock:
-            self.done += 1; self.what = what
+            busy = {j.key for j in self.jobs if j.state in ('waiting', 'running')}
+            # finished downloads leave the list when new ones come
+            self.jobs = [j for j in self.jobs if j.state in ('waiting', 'running')]
+            for j in jobs:
+                if j.key not in busy:
+                    self.jobs.append(j)
+        self.tell(True)
+        self.pump()
+
+    def pump(self):
+        with self.lock:
+            while self.running < WORKERS:
+                j = next((x for x in self.jobs if x.state == 'waiting'), None)
+                if not j:
+                    break
+                j.state = 'running'; self.running += 1
+                threading.Thread(target=self.run, args=(j,), daemon=True).start()
+
+    def run(self, job):
+        try:
+            if job.kind in ('commentary', 'study'):
+                job.arg = info(refresh=False).get('commentary') or []
+            getattr(self, 'get_' + job.kind)(job, job.arg)
+            job.state = 'cancelled' if job.cancel else ('done' if job.errors == 0 or job.done > job.errors else 'failed')
+        except Exception as e:
+            print('download', job.kind, job.arg, e)
+            job.errors += 1; job.state = 'cancelled' if job.cancel else 'failed'
+        finally:
+            with self.lock:
+                self.running -= 1
+            STORE.set_kv('downloaded', (STORE.kv('downloaded', 0) or 0) + 1)
+            self.tell(True)
+            self.pump()
+
+    def cancel(self, job):
+        job.cancel = True
+        if job.state == 'waiting':
+            job.state = 'cancelled'
+        self.tell(True)
+
+    def cancel_all(self):
+        for j in self.jobs:
+            if j.state in ('waiting', 'running'):
+                self.cancel(j)
+
+    def retry(self, job):
+        with self.lock:
+            j = Job(job.kind, job.arg, job.title)
+            self.jobs.append(j)
+        self.tell(True); self.pump()
+
+    def clear_finished(self):
+        with self.lock:
+            self.jobs = [j for j in self.jobs if j.state in ('waiting', 'running')]
+        self.tell(True)
+
+    # --- helpers for each kind ---
+    def step(self, job, what=''):
+        with job.lock:
+            job.done += 1
+            if what:
+                job.what = what
         self.tell()
 
-    def run(self, plan):
-        try:
-            i = info(refresh=True)
-            jobs = []
-            for tr in plan.get('bibles', []):
-                jobs.append(('bible', tr))
-            if plan.get('dict'):
-                jobs.append(('dict', plan['dict']))
-            if plan.get('maps'):
-                jobs.append(('maps', plan.get('dict') or [lang()]))
-            if plan.get('library'):
-                jobs.append(('library', None))
-            if plan.get('commentary'):
-                jobs.append(('commentary', i.get('commentary') or []))
-            if plan.get('study', plan.get('commentary')):
-                jobs.append(('study', i.get('commentary') or []))
-            for lg in plan.get('today', []):
-                jobs.append(('today', lg))
-            self.total = len(jobs); self.tell()
-            for kind, arg in jobs:
-                if self.stop:
-                    break
-                try:
-                    getattr(self, 'get_' + kind)(arg)
-                except Exception as e:
-                    self.errors += 1
-                    print('download', kind, arg, e)
-        finally:
-            self.busy = False; self.what = ''
-            STORE.set_kv('downloaded', STORE.kv('downloaded', 0) + 1)
-            self.tell()
+    def files(self, job, rels, label, dest=lambda f: f, quiet=False):
+        job.total += len(rels); self.tell()
+        def one(f):
+            if job.cancel:
+                return
+            try:
+                write_file(dest(f), NET.file(f))
+            except Exception:
+                if not quiet:
+                    job.errors += 1
+            self.step(job, label)
+        with ThreadPoolExecutor(PARALLEL) as ex:
+            list(ex.map(one, rels))
 
-    # each kind
-    def get_bible(self, tr):
-        self.what = 'The Holy Bible · ' + tr; self.tell()
+    # --- each kind ---
+    def get_bible(self, job, tr):
         r = NET.ajax('kjtb_data', op='books', tr=tr)
         books = (r.get('data') or []) if r.get('success') else []
-        self.total += len(books); self.tell()
+        if not books:
+            job.errors += 1; return
+        job.total += len(books); self.tell()
         def one(nb):
             n, b = nb
-            if self.stop:
+            if job.cancel:
                 return
             code = b['book_code']
             try:
@@ -87,93 +194,42 @@ class Downloader:
             if rr.get('success'):
                 STORE.put_book(tr, code, b.get('book') or code, n, rr['data'])
             else:
-                self.errors += 1
-            self.step('The Holy Bible · ' + tr + ' · ' + (b.get('book') or code))
+                job.errors += 1
+            self.step(job, b.get('book') or code)
         with ThreadPoolExecutor(PARALLEL) as ex:
             list(ex.map(one, enumerate(books)))
-        self.step('The Holy Bible · ' + tr)
 
-    def get_dict(self, langs):
+    def get_dict(self, job, langs):
         ls = sorted(set(['en'] + list(langs)))
-        self.total += len(ls)
-        for lg in ls:
-            write_file('dictionary/%s.json' % lg, NET.file('dictionary/%s.json' % lg))
-            self.step('Bible Dictionary · ' + lg)
-        try:
-            write_file('dictionary/people.json', NET.file('dictionary/people.json'))
-        except Exception:
-            self.errors += 1
-        self.step('Bible Dictionary')
+        self.files(job, ['dictionary/%s.json' % lg for lg in ls] + ['dictionary/people.json'], 'Bible Dictionary')
 
-    def get_maps(self, langs):
+    def get_maps(self, job, langs):
         files = MAP_FILES + ['names-%s.json' % l for l in set(langs) if l != 'en'] + ['relief/overview.jpg'] + ['relief/t%d-%d.jpg' % (r, c) for r in range(3) for c in range(6)]
-        self.total += len(files)
-        def one(f):
-            if self.stop:
-                return
-            try:
-                write_file('maps/' + f, NET.file('maps/' + f))
-            except Exception:
-                self.errors += 1
-            self.step('Bible Maps')
-        with ThreadPoolExecutor(PARALLEL) as ex:
-            list(ex.map(one, files))
-        self.step('Bible Maps')
+        self.files(job, ['maps/' + f for f in files], 'Bible Maps')
 
-    def get_library(self, _):
+    def get_library(self, job, _):
         idx = json.loads(NET.file('library/index.json').decode('utf-8'))
         write_file('library/index.json', json.dumps(idx).encode())
-        self.total += len(idx)
-        def one(f):
-            if self.stop:
-                return
-            try:
-                write_file('library/%s.json.gz' % f['id'], NET.file('library/%s.json.gz' % f['id']))
-            except Exception:
-                self.errors += 1
-            self.step('The Holy Fathers · ' + f['name'])
-        with ThreadPoolExecutor(PARALLEL) as ex:
-            list(ex.map(one, idx))
-        self.step('The Holy Fathers')
+        self.files(job, ['library/%s.json.gz' % f['id'] for f in idx], 'The Holy Fathers')
 
-    def get_commentary(self, books):
-        self.total += len(books)
-        def one(b):
-            if self.stop:
-                return
-            try:
-                write_file('fathers/%s.json.gz' % b, NET.file('fathers/%s.json.gz' % b))
-            except Exception:
-                self.errors += 1
-            self.step('The Holy Fathers on the Bible · ' + b)
-        with ThreadPoolExecutor(PARALLEL) as ex:
-            list(ex.map(one, books))
-        self.step('Commentary')
+    def get_commentary(self, job, books):
+        self.files(job, ['fathers/%s.json.gz' % b for b in books], 'The Holy Fathers on the Bible')
 
-    def get_study(self, books):
+    def get_study(self, job, _):
         """for the reader: the cross-references of every verse, the Greek and Hebrew words, and the words of Christ in red"""
-        from .core import OT, NT
-        codes = OT + NT
         en = (STORE.kv('info') or {}).get('books', {}).get('en', {})
-        files = ['xref/%s.json' % b for b in codes] + ['words/%s.json.gz' % b for b in codes] + ['words/lexicon.json.gz']
+        files = ['xref/%s.json' % b for b in OT + NT] + ['words/%s.json.gz' % b for b in OT + NT] + ['words/lexicon.json.gz']
         files += ['../assets/red-letters/%s.json' % en[b] for b in NT if b in en]
-        self.total += len(files)
-        def one(f):
-            if self.stop:
-                return
-            try:
-                write_file(f.replace('../assets/', ''), NET.file(f))
-            except Exception:
-                pass  # not every book has every kind
-            self.step('For the reader')
-        with ThreadPoolExecutor(PARALLEL) as ex:
-            list(ex.map(one, files))
+        self.files(job, files, 'For the reader', dest=lambda f: f.replace('../assets/', ''), quiet=True)  # not every book has every kind
 
-    def get_today(self, lg):
+    def get_today(self, job, lg):
+        job.total = 1
         r = NET.ajax('kjtb_desk', op='today', lang=lg, days=62)
         if r.get('success'):
             STORE.set_kv('today_' + lg, r['data'])
-        self.step('Today')
+        else:
+            job.errors += 1
+        self.step(job, 'Today with God')
 
 
 DL = Downloader()

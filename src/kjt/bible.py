@@ -115,24 +115,39 @@ class BiblePage(Gtk.Box):
         tv.set_content(self.osv)
 
         # the verses chosen: what to do with them
-        self.bar = Gtk.ActionBar(); self.bar.set_revealed(False)
-        self.sel_label = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END); self.sel_label.add_css_class('kjt-sel-label'); self.bar.pack_start(self.sel_label)
+        self.bar = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.SLIDE_UP)
+        barbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, margin_start=10, margin_end=10, margin_top=6, margin_bottom=6)
+        barbox.add_css_class('kjt-selbar'); self.bar.set_child(barbox)
+        top = Gtk.Box(spacing=8); barbox.append(top)
+        lbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER)
+        self.sel_label = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END); self.sel_label.add_css_class('kjt-sel-label'); lbox.append(self.sel_label)
+        self.sel_state = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, max_width_chars=40); self.sel_state.add_css_class('kjt-sel-state'); self.sel_state.add_css_class('caption'); lbox.append(self.sel_state)
+        lbox.set_hexpand(True); top.append(lbox)
         self.colors = Gtk.Box(spacing=5, valign=Gtk.Align.CENTER)
+        self.dots = {}
         for c, hexv in COLORS.items():
             b = Gtk.Button(tooltip_text='Highlight: ' + c, valign=Gtk.Align.CENTER); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + c)
-            b.connect('clicked', lambda _b, c=c: self.bookmark(c)); self.colors.append(b)
-        acts = Gtk.Box(spacing=2)
+            b.connect('clicked', lambda _b, c=c: self.bookmark(c)); self.colors.append(b); self.dots[c] = b
+        self.nocolor = Gtk.Button(tooltip_text='No colour (keep the bookmark)', valign=Gtk.Align.CENTER); self.nocolor.add_css_class('kjt-dot'); self.nocolor.add_css_class('kjt-dot-none')
+        self.nocolor.connect('clicked', lambda *_: self.uncolor()); self.colors.append(self.nocolor)
+        acts = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=10, min_children_per_line=2, column_spacing=2, row_spacing=2, homogeneous=False)
         def labelled(icon, text, fn):
             b = Gtk.Button(tooltip_text=text); b.add_css_class('flat')
             row = Gtk.Box(spacing=5); row.append(Gtk.Image(icon_name=icon)); lb = Gtk.Label(label=text); lb.add_css_class('kjt-act-label'); row.append(lb); b.set_child(row)
             b.connect('clicked', lambda *_: fn()); self.act_labels.append(lb)
+            b.label = lb
             return b
         self.act_labels = []
         for icon, tip, fn in (('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')), ('kjt-globe-symbolic', 'Greek and Hebrew words', lambda: self.side_show('words')),
                               ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-note-symbolic', 'Note', self.note),
                               ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
-            acts.append(labelled(icon, tip.split(' (')[0], fn))
-        self.bar.pack_end(acts); self.bar.pack_end(self.colors)
+            btn = labelled(icon, tip.split(' (')[0], fn); acts.append(btn)
+            if tip == 'Bookmark':
+                self.bm_btn = btn
+            elif tip == 'Note':
+                self.note_btn = btn
+        self.del_btn = labelled('kjt-trash-symbolic', 'Remove bookmark', lambda: self.remove()); acts.insert(self.del_btn, 2)
+        top.append(self.colors); barbox.append(acts)
         tv.add_bottom_bar(self.bar)
 
         # small screens: the tools at the bottom
@@ -470,6 +485,10 @@ class BiblePage(Gtk.Box):
                 nm = t.get_property('name') or ''
                 if nm.startswith('link:'):
                     self.win.open_link(nm[5:]); return
+                if nm in ('note', 'notetext'):
+                    v = self.verse_at(x, y)
+                    if v:
+                        self.sel = [v]; self.mark_selection(); self.note(); return
         v = self.verse_at(x, y)
         if not v:
             return
@@ -485,12 +504,28 @@ class BiblePage(Gtk.Box):
         if self.osv.get_show_sidebar():
             self.refresh_side()
 
+    def current(self):
+        """the bookmark the chosen verse already has (or None)"""
+        return STUDY.in_chapter(self.tr, self.book, self.ch).get(min(self.sel)) if self.sel else None
+
     def update_bar(self):
         if not self.sel:
-            self.bar.set_revealed(False); return
+            self.bar.set_reveal_child(False); return
         a, b = min(self.sel), max(self.sel)
         self.sel_label.set_label('%s %d:%d%s' % (book_name(self.book, tr=self.tr), self.ch, a, '–%d' % b if b > a else ''))
-        self.bar.set_revealed(True)
+        r = self.current()
+        col = (r or {}).get('color')
+        for c, btn in self.dots.items():
+            (btn.add_css_class if c == col else btn.remove_css_class)('kjt-dot-on')
+        self.nocolor.set_visible(bool(r and col))
+        if r:
+            bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + (['#' + t for t in (r.get('tags') or [])])
+            self.sel_state.set_label(' · '.join(bits))
+        else:
+            self.sel_state.set_label('Not bookmarked yet')
+        self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r))
+        self.note_btn.label.set_label('Edit note' if r and r.get('note') else 'Note')
+        self.bar.set_reveal_child(True)
 
     def unselect(self):
         self.sel = []; self.mark_selection()
@@ -506,9 +541,36 @@ class BiblePage(Gtk.Box):
 
     def bookmark(self, color=None):
         a, b = min(self.sel), max(self.sel)
+        old = self.current()
         r = STUDY.save(self.tr, self.book, self.ch, a, b if b > a else 0, color=color)
-        self.win.toast(('Highlighted: ' if color else 'Bookmarked: ') + self.sel_label.get_label())
+        if old is None:
+            self.win.toast(('Highlighted: ' if color else 'Bookmarked: ') + self.sel_label.get_label(), undo=lambda: STUDY.delete(r))
+        elif color and color != old.get('color'):
+            prev = old.get('color')
+            self.win.toast('Colour changed', undo=lambda: STUDY.set_color(r, prev))
+        GLib.idle_add(lambda: (self.update_bar(), False)[1])
         return r
+
+    def uncolor(self):
+        r = self.current()
+        if r and r.get('color'):
+            prev = r['color']; STUDY.set_color(r, None)
+            self.win.toast('Colour removed (the bookmark stays)', undo=lambda: STUDY.set_color(r, prev))
+
+    def remove(self):
+        """remove the bookmark (and its colour, note and Study Pads), with Undo"""
+        r = self.current()
+        if not r:
+            return
+        keep = dict(r)
+        STUDY.delete(r)
+        def undo():
+            n = STUDY.save(keep['translation'], keep['book'], int(keep['chapter']), int(keep.get('verse') or 1), int(keep.get('verse_end') or 0), color=keep.get('color'))
+            if keep.get('note'):
+                STUDY.set_note(n, keep['note'])
+            if keep.get('tags'):
+                STUDY.set_tags(dict(n, note=keep.get('note', '')), keep['tags'])
+        self.win.toast('Bookmark removed: ' + self.sel_label.get_label(), undo=undo)
 
     def record(self):
         return STUDY.in_chapter(self.tr, self.book, self.ch).get(min(self.sel)) or self.bookmark()
@@ -520,10 +582,16 @@ class BiblePage(Gtk.Box):
         tvw.get_buffer().set_text(r.get('note') or '')
         sc = Gtk.ScrolledWindow(min_content_height=150, min_content_width=260); sc.set_child(tvw); sc.add_css_class('card')
         d.set_extra_child(sc)
-        d.add_response('cancel', 'Cancel'); d.add_response('save', 'Save'); d.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)
+        d.add_response('cancel', 'Cancel')
+        if r.get('note'):
+            d.add_response('delete', 'Delete note'); d.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE)
+        d.add_response('save', 'Save'); d.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)
         def resp(dlg, res):
             if res == 'save':
                 b = tvw.get_buffer(); STUDY.set_note(r, b.get_text(b.get_start_iter(), b.get_end_iter(), False).strip()[:5000])
+            elif res == 'delete':
+                old = r.get('note', ''); STUDY.set_note(r, '')
+                self.win.toast('Note deleted', undo=lambda: STUDY.set_note(r, old))
         d.connect('response', resp); d.present(self.win)
         GLib.idle_add(lambda: (tvw.grab_focus(), False)[1])
 

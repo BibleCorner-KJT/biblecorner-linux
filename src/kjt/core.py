@@ -60,8 +60,17 @@ class Settings:
 SET = Settings()
 
 
+def system_lang():
+    import locale
+    l = (os.environ.get('LANG') or locale.getlocale()[0] or 'en')[:2].lower()
+    return l if l in LANGS else 'en'
+
+
 def lang():
-    return SET.get('lang', 'en')
+    """the language of Today with God, the dictionary and the maps: the one chosen in Downloads, else the computer's own"""
+    if SET.get('lang_chosen'):
+        return SET.get('lang', 'en')
+    return system_lang()
 
 
 # ------------------------------------------------------------------------------------------------
@@ -363,7 +372,21 @@ def info(refresh=False):
     return i or {}
 
 
+BIBLE_LANGS = {'English': 'en', 'Arabic': 'ar', 'Greek': 'el', 'Russian': 'ru', 'Chinese': 'zh', 'French': 'fr', 'Hindi': 'hi', 'Spanish': 'es', 'Tagalog': 'tl', 'Filipino': 'tl'}
+
+
+def bible_lang(tr):
+    """the language a Bible is written in (its book names follow it)"""
+    v = ((STORE.kv('info') or {}).get('versions') or {}).get(tr)
+    for code, t in DEFAULT_BIBLES.items():
+        if t == tr:
+            return code
+    return BIBLE_LANGS.get(v[0]) if v else None
+
+
 def book_name(code, lg=None, tr=None):
+    if not lg and tr:
+        lg = bible_lang(tr)
     lg = lg or lang()
     i = STORE.kv('info') or {}
     c = canon(code)

@@ -10,7 +10,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.3'
+VERSION = '2.4'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -26,6 +26,10 @@ textview.kjt-bible, textview.kjt-text, textview.kjt-book { background: transpare
 .kjt-audio { border-top: 1px solid alpha(currentColor, 0.1); background: alpha(#f3c548, 0.06); }
 .kjt-step { border-radius: 12px; }
 .kjt-sel-label { font-weight: 700; }
+.kjt-selbar { border-top: 1px solid alpha(currentColor, 0.1); }
+.kjt-sel-state { color: #7a1f6b; font-weight: 600; }
+button.kjt-dot.kjt-dot-on { border: 3px solid #3e093f; }
+button.kjt-dot-none { background: transparent; border: 2px dashed alpha(currentColor, 0.45); }
 .kjt-nav row { border-radius: 8px; }
 .kjt-nav-icon { color: #7a1f6b; }
 button.kjt-dot { min-width: 22px; min-height: 22px; padding: 0; border-radius: 999px; border: 2px solid alpha(black, 0.12); }
@@ -162,8 +166,12 @@ class Window(Adw.ApplicationWindow):
         hb.pack_start(b)
         return b
 
-    def toast(self, text):
-        self.toasts.add_toast(Adw.Toast(title=GLib.markup_escape_text(text), timeout=3))
+    def toast(self, text, undo=None):
+        t = Adw.Toast(title=GLib.markup_escape_text(text), timeout=5 if undo else 3)
+        if undo:
+            t.set_button_label('Undo')
+            t.connect('button-clicked', lambda *_: undo())
+        self.toasts.add_toast(t)
 
     def show(self, key, from_nav=False):
         page = self.page(key)
@@ -287,7 +295,7 @@ class Window(Adw.ApplicationWindow):
             if res != 'go':
                 return
             langs = [l for l, cb in checks.items() if cb.get_active()] or ['en']
-            SET.set('lang', next((l for l in langs if l != 'en'), 'en'))
+            # the app's language stays the computer's own; the other languages are only downloaded
             if not NET.online():
                 self.toast('Downloading needs the internet. Choose Downloads when you are online.'); return
             DL.start(default_plan(langs, allr.get_active()))
