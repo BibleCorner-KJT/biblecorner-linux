@@ -4,6 +4,8 @@ name: Build the app
 on:
   push:
     tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
 permissions:
   contents: write
@@ -21,9 +23,10 @@ jobs:
           manifest-path: today.knowingjesus.KJT.yml
           cache-key: kjt-${{ github.sha }}
       - name: Put the file on the Releases page
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
           files: knowing-jesus-today.flatpak
           body: |
             To install: download knowing-jesus-today.flatpak, then double-click it (it opens in Software) and press Install.
