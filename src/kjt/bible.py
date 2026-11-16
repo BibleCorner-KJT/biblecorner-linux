@@ -143,13 +143,16 @@ class BiblePage(Gtk.Box):
             return b
         self.act_labels = []
         for icon, tip, fn in (('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')), ('kjt-globe-symbolic', 'Greek and Hebrew words', lambda: self.side_show('words')),
-                              ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-note-symbolic', 'Note', self.note),
-                              ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
+                              ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-picture-symbolic', 'Share as picture', self.share_picture),
+                              ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-edit-symbolic', 'Edit', self.edit), ('kjt-note-symbolic', 'Note', self.note),
+                              ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-plus-symbolic', 'Next verse too', self.grow), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
             btn = labelled(icon, tip.split(' (')[0], fn); acts.append(btn)
             if tip == 'Bookmark':
                 self.bm_btn = btn
             elif tip == 'Note':
                 self.note_btn = btn
+            elif tip == 'Edit':
+                self.edit_btn = btn
         self.del_btn = labelled('kjt-trash-symbolic', 'Remove bookmark', lambda: self.remove()); acts.insert(self.del_btn, 2)
         top.append(self.colors); barbox.append(acts)
         tv.add_bottom_bar(self.bar)
@@ -521,15 +524,17 @@ class BiblePage(Gtk.Box):
         self.tap(v, g.get_current_event_state() if g else 0)
 
     def tap(self, v, st=0):
-        if st & Gdk.ModifierType.CONTROL_MASK:
-            self.sel = sorted(set(self.sel) ^ {v})          # Ctrl: add or take away one verse
-        elif v in self.sel:
-            self.sel = [] if len(self.sel) == 1 else [v]      # tap the chosen verse again: let it go
-        elif self.sel:
-            a, b = min(self.sel + [v]), max(self.sel + [v])
-            self.sel = list(range(a, b + 1))                  # a second verse: everything from the first to it
+        """a click chooses that one verse, always. Shift+click: from the first chosen verse to this one. Ctrl+click: add or take away one verse."""
+        anchor = getattr(self, 'anchor', 0)
+        if st & Gdk.ModifierType.SHIFT_MASK and self.sel and anchor:
+            a, b = min(anchor, v), max(anchor, v)
+            self.sel = list(range(a, b + 1))
+        elif st & Gdk.ModifierType.CONTROL_MASK:
+            self.sel = sorted(set(self.sel) ^ {v}); self.anchor = v
+        elif self.sel == [v]:
+            self.sel = []                                      # click the chosen verse again: let it go
         else:
-            self.sel = [v]
+            self.sel = [v]; self.anchor = v
         self.mark_selection()
         if self.osv.get_show_sidebar():
             self.refresh_side()
@@ -549,11 +554,11 @@ class BiblePage(Gtk.Box):
             (btn.add_css_class if c == col else btn.remove_css_class)('kjt-dot-on')
         self.nocolor.set_visible(bool(r and col))
         if r:
-            bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + (['#' + t for t in (r.get('tags') or [])])
+            bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
             self.sel_state.set_label(' · '.join(bits))
         else:
-            self.sel_state.set_label('Not bookmarked yet' + (' · tap another verse to choose a range' if len(self.sel) == 1 else ''))
-        self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r))
+            self.sel_state.set_label('Not bookmarked yet' + (' · more verses: Shift+click the last one, or “Next verse too”' if len(self.sel) == 1 else ''))
+        self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r)); self.edit_btn.get_parent().set_visible(bool(r))
         self.note_btn.label.set_label('Edit note' if r and r.get('note') else 'Note')
         self.bar.set_reveal_child(True)
 
@@ -631,17 +636,16 @@ class BiblePage(Gtk.Box):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         checks = {}
         for p in STUDY.pads():
-            cb = Gtk.CheckButton(label=p['tag']); cb.set_active(p['tag'] in (r.get('tags') or [])); box.append(cb); checks[p['tag']] = cb
-        new = Gtk.Entry(placeholder_text='New Study Pad (one word)'); box.append(new)
+            cb = Gtk.CheckButton(label=STUDY.pad_label(p['tag'])); cb.set_active(p['tag'] in (r.get('tags') or [])); box.append(cb); checks[p['tag']] = cb
+        new = Gtk.Entry(placeholder_text='A new Study Pad: type its name'); box.append(new)
         d.set_extra_child(box)
         d.add_response('cancel', 'Cancel'); d.add_response('save', 'Save'); d.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)
         def resp(dlg, res):
             if res != 'save':
                 return
             tags = [t for t, cb in checks.items() if cb.get_active()]
-            nt = re.sub(r'[^\w-]', '', new.get_text().strip().lower())[:30]
-            if nt:
-                tags.append(nt)
+            if new.get_text().strip():
+                tags.append(STUDY.new_pad(new.get_text()))
             STUDY.set_tags(r, tags)
         d.connect('response', resp); d.present(self.win)
 
@@ -728,10 +732,12 @@ class BiblePage(Gtk.Box):
             fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=1, column_spacing=4, row_spacing=4)
             for v, r in mine:
                 ve = int(r.get('verse_end') or 0)
-                lab = '%d%s' % (v, '–%d' % ve if ve > v else '') + (' ✎' if r.get('note') else '') + ''.join(' #' + t for t in (r.get('tags') or [])[:2])
+                lab = '%d%s' % (v, '–%d' % ve if ve > v else '') + (' ✎' if r.get('note') else '') + ''.join('  ' + STUDY.pad_label(t) for t in (r.get('tags') or [])[:2])
                 b = Gtk.Button(label=lab, tooltip_text=(r.get('note') or '').strip()[:300] or 'Bookmark')
                 b.add_css_class('kjt-chip'); b.add_css_class('kjt-chip-' + (r.get('color') or 'none'))
                 b.connect('clicked', lambda _b, v=v, ve=ve: self.choose_range(v, ve))
+                rc = Gtk.GestureClick(button=3); rc.connect('pressed', lambda *_a, v=v, ve=ve: (self.choose_range(v, ve), self.edit())); b.add_controller(rc)
+                b.set_tooltip_text(((r.get('note') or '').strip()[:300] + '\n' if r.get('note') else '') + 'Click to choose it · right-click to edit')
                 fb.append(b)
             self.info.append(fb)
         names = self.chapter_names()
@@ -751,7 +757,28 @@ class BiblePage(Gtk.Box):
         self.info.set_visible(bool(self.info.get_first_child()))
 
     def choose_range(self, v, ve=0):
+        self.anchor = v
         self.sel = list(range(v, max(v, ve) + 1)); self.mark_selection(); self.scroll_to_verse(v)
+
+    def grow(self):
+        """add the next verse to the choice"""
+        if not self.sel:
+            return
+        last = max(self.vnum) if getattr(self, 'vnum', None) else 999
+        b = max(self.sel)
+        if b < last:
+            self.anchor = min(self.sel); self.sel = list(range(min(self.sel), b + 2)); self.mark_selection()
+
+    def share_picture(self):
+        from . import picture
+        rows = dict(STORE.chapter(self.tr, self.book, self.ch))
+        a, b = min(self.sel), max(self.sel)
+        txt = ' '.join(re.sub(r'<[^>]+>', '', rows.get(v, '')).strip() for v in range(a, b + 1) if v in rows)
+        picture.share(self.win, txt, '%s (%s)' % (self.sel_label.get_label(), bible_name(self.tr).split(' · ')[0]))
+
+    def edit(self):
+        from .mystudy import edit
+        edit(self.win, self.record())
 
     def next_mark(self, mine):
         top = self.top_verse()

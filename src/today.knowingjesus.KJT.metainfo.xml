@@ -12,17 +12,12 @@
   <launchable type="desktop-id">today.knowingjesus.KJT.desktop</launchable>
   <url type="homepage">https://knowingjesus.today/</url>
   <developer id="today.knowingjesus"><name>Knowing Jesus Today</name></developer>
-  <url type="vcs-browser">https://github.com/BibleCorner-KJT/biblecorner-linux</url>
-  <screenshots>
-    <screenshot type="default"><caption>The Holy Bible with the Holy Fathers beside it</caption><image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/bible.png</image></screenshot>
-    <screenshot><caption>Bible Maps: the journeys of St Paul</caption><image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/maps.png</image></screenshot>
-    <screenshot><caption>Today with God</caption><image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/today.png</image></screenshot>
-  </screenshots>
   <requires><display_length compare="ge">340</display_length></requires>
   <supports><control>pointing</control><control>keyboard</control><control>touch</control></supports>
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.6" date="2026-11-16"><description><p>A new app icon. Choosing verses is steady: a click chooses one verse; Shift+click (or "Next verse too") makes a range; Ctrl+click adds one verse. Share a verse as a picture, as on the website: eight looks or your own photo from this computer, four shapes, three kinds of letters; copy it or save it. Study Pads show by their names, not as tags, and a new Study Pad is made with its own name. Edit a bookmark in one place: its colour, note and Study Pads. In My Study, fold the Study Pads and the bookmarks away, sort them (Bible order, newest, oldest, last changed, colour), rename a Study Pad, and edit each bookmark.</p></description></release>
     <release version="2.5" date="2026-11-16"><description><p>Like the website reader: tap a verse, then another, to choose everything between them (or choose "from verse … to verse" in the book picker), then bookmark, highlight or write a note on the whole range. Above each chapter: your notes and bookmarks in it (with Next), the people and places named in it, and the Holy Fathers on it. Notes show as one short line under their verse; click to read or edit the whole note.</p></description></release>
     <release version="2.4" date="2026-11-16"><description><p>Clearer bookmarks: the bar shows what a verse already has (bookmark, colour, note, Study Pads); remove a bookmark or its colour, edit or delete a note, and undo each change. Downloads in a queue, two at a time, each with its own progress, to stop or try again. Book names follow the language of the Bible being read. The app's language follows the computer unless chosen. The Orthodox cross drawn the right way.</p></description></release>
     <release version="2.3" date="2026-11-16"><description><p>Steadier: right click (or a long press) chooses the verse and shows the one action bar, now with words beside its icons; the maps use less memory; if the app ever freezes, a small log shows where.</p></description></release>

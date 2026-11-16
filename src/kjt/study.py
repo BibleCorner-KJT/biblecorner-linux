@@ -40,7 +40,42 @@ class Study:
         return out
 
     def pads(self):
-        return sorted(STORE.pads(), key=lambda p: p.get('tag', ''))
+        return sorted(STORE.pads(), key=lambda p: self.pad_name(p.get('tag', '')).casefold())
+
+    def pad(self, tag):
+        return next((p for p in STORE.pads() if p.get('tag') == tag), None)
+
+    def pad_name(self, tag):
+        """the Study Pad's own name, as on the website (the short code behind it stays hidden)"""
+        p = self.pad(tag)
+        return ((p or {}).get('name') or '').strip() or tag.replace('-', ' ').replace('_', ' ').capitalize()
+
+    def pad_label(self, tag):
+        p = self.pad(tag) or {}
+        return (p.get('icon') or '🗂') + ' ' + self.pad_name(tag)
+
+    def new_pad(self, name):
+        """a new Study Pad with the name you give it; it returns the pad's code"""
+        import re
+        name = ' '.join(name.split())[:60]
+        tag = re.sub(r'[^\w-]+', '-', name.lower()).strip('-')[:30] or 'pad'
+        base, n = tag, 2
+        while self.pad(tag) and self.pad_name(tag).casefold() != name.casefold():
+            tag = '%s-%d' % (base, n); n += 1
+        if not self.pad(tag):
+            pad = {'tag': tag, 'name': name, 'color': '', 'updated': int(time.time()), 'items': []}
+            STORE.put_pads([pad])
+            self.send({'op': 'save', 'pad': json.dumps(pad), 'merge': 1}, pads=True)
+            self.changed()
+        return tag
+
+    def rename_pad(self, tag, name):
+        p = self.pad(tag)
+        if not p or not name.strip():
+            return
+        base = int(p.get('updated') or 0)
+        p = dict(p, name=' '.join(name.split())[:60], updated=int(time.time())); STORE.put_pads([p])
+        self.send({'op': 'save', 'pad': json.dumps(dict(p, base=base)), 'merge': 1}, pads=True); self.changed()
 
     def pad_color(self, tag):
         for p in STORE.pads():
