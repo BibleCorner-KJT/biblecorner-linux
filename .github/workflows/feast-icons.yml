@@ -2,7 +2,7 @@ name: Icons of the great feasts (Wikimedia Commons)
 on:
   push:
     branches: [main]
-    paths: ['icons/feasts.py', '.github/workflows/feast-icons.yml']
+    paths: ['icons/*.py', '.github/workflows/feast-icons.yml']
 jobs:
   get:
     runs-on: ubuntu-latest
@@ -10,8 +10,4 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - run: python3 icons/feasts.py
-      - run: |
-          cd out && git init -q -b feast-icons && git add -A
-          git -c user.name="KJT" -c user.email="noreply@knowingjesus.today" commit -qm "Icons of the great feasts"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" feast-icons
+      - run: python3 icons/look.py
