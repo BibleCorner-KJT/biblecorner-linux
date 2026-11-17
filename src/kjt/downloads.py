@@ -212,6 +212,10 @@ class Downloader:
     def get_library(self, job, _):
         idx = json.loads(NET.file('library/index.json').decode('utf-8'))
         write_file('library/index.json', json.dumps(idx).encode())
+        try:   # the topics, eras and colours of the Holy Fathers page (the same as on the website)
+            write_file('library/topics.json', NET.file('library/topics.json'))
+        except Exception:
+            pass
         self.files(job, ['library/%s.json.gz' % f['id'] for f in idx], 'The Holy Fathers')
 
     def get_commentary(self, job, books):

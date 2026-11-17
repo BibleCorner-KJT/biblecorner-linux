@@ -10,7 +10,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.7.3'
+VERSION = '2.7.4'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -28,6 +28,7 @@ textview.kjt-bible, textview.kjt-text, textview.kjt-book { background: transpare
 .kjt-sel-label { font-weight: 700; }
 .kjt-chapinfo { background: alpha(#f3c548, 0.10); border-radius: 12px; padding: 10px 12px; }
 .kjt-grip { background: alpha(currentColor, 0.06); } .kjt-grip:hover { background: alpha(@accent_color, 0.35); }
+.kjt-tile { padding: 10px 14px; } .kjt-tile-icon { font-size: 1.6em; }
 .kjt-padcard { padding: 10px 8px 10px 12px; border-left: 7px solid #999; }
 .kjt-padcard.kjt-pad-on { box-shadow: inset 0 0 0 2px @accent_color; }
 .kjt-padbadge { border-radius: 999px; min-width: 34px; min-height: 34px; font-size: 1.15em; font-weight: bold; }
