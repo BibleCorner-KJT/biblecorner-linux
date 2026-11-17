@@ -135,7 +135,13 @@ class LibraryPage(Gtk.Box):
             items = [c for c in mine if c['_kind'] == k]
             if not items:
                 continue
-            g = self.group(title)
+            # 2.13: each kind a list that opens and closes (remembered)
+            g = self.group('')
+            ex = Adw.ExpanderRow(title=_(title), subtitle='%d' % len(items))
+            key = 'lib_open_' + k; op = SET.get(key)
+            ex.set_expanded(op if op is not None else len(items) <= 8)
+            ex.connect('notify::expanded', lambda e, _p, key=key: SET.set(key, e.get_expanded()))
+            g.add(ex)
             for c in sorted(items, key=lambda c: (not S.ORTHODOX_FIRST.search((c.get('Description') or '') + ' ' + c['_name']), (c.get('Description') or c['_name']).casefold())):
                 row = Adw.ActionRow(title=GLib.markup_escape_text(c.get('Description') or c['_name']),
                                     subtitle=GLib.markup_escape_text('%s · %s' % (c['_name'], lang_label(lang_of(c)))), activatable=True)
@@ -143,7 +149,7 @@ class LibraryPage(Gtk.Box):
                 d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove from this computer'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
                 d.connect('clicked', lambda _b, c=c: self.ask_remove(c)); row.add_suffix(d)
                 row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
-                g.add(row)
+                ex.add_row(row)
 
     def fill_get(self):
         if self.cat is None:
@@ -176,14 +182,19 @@ class LibraryPage(Gtk.Box):
                          wrap=True, xalign=0, css_classes=['dim-label']); self.box.append(info)
         ortho = [c for c in rows if S.ORTHODOX_FIRST.search((c.get('Description') or '') + ' ' + c['_name'] + ' ' + S.about(c)[:300])]
         if ortho:
-            g = self.group('For Orthodox readers', 'The Septuagint, the Byzantine and Patriarchal texts, the Holy Fathers and the early Church')
+            g = self.group('')
+            ex = Adw.ExpanderRow(title='☦ ' + _('For Orthodox readers'), subtitle=_('The Septuagint, the Byzantine and Patriarchal texts, the Holy Fathers and the early Church') + ' · %d' % len(ortho[:60]))
+            op = SET.get('lib_open_ortho')
+            ex.set_expanded(bool(self.q.get_text().strip()) or (op if op is not None else len(ortho) <= 8))
+            ex.connect('notify::expanded', lambda e, _p: SET.set('lib_open_ortho', e.get_expanded()))
             for c in ortho[:60]:
-                g.add(self.get_row(c, c['_name'].lower() in have))
+                ex.add_row(self.get_row(c, c['_name'].lower() in have))
+            g.add(ex)
         for k, title in KINDS:
             items = [c for c in rows if c['_kind'] == k and c not in ortho]
             if not items:
                 continue
-            ex = Adw.ExpanderRow(title=title, subtitle='%d' % len(items))
+            ex = Adw.ExpanderRow(title=_(title), subtitle='%d' % len(items))
             ex.set_expanded(bool(self.q.get_text().strip()) or len(items) < 8)
             for c in sorted(items, key=lambda c: (c.get('Description') or c['_name']).casefold())[:400]:
                 ex.add_row(self.get_row(c, c['_name'].lower() in have))

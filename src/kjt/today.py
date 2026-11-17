@@ -21,6 +21,13 @@ class TodayPage(Gtk.Box):
         hb.set_title_widget(t)
         # 2.10: a plain 'Today' button (the sun looked like a light/dark switch); it shows only on another day
         self.home = home = Gtk.Button(label=_('Today'), tooltip_text=_('Back to today'), visible=False); home.add_css_class('flat'); home.connect('clicked', lambda *_: self.goto(datetime.date.today())); hb.pack_start(home)
+        # 2.13: the Orthodox calendar (as in the Android app): any day of any month, the great feasts marked
+        self.cal_btn = Gtk.MenuButton(icon_name='x-office-calendar-symbolic', tooltip_text=_('Orthodox calendar')); self.cal_btn.add_css_class('flat')
+        pop = Gtk.Popover(); self.cal = Gtk.Calendar(margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
+        self.cal.connect('day-selected', lambda c: (pop.popdown(), self.goto(datetime.date(c.get_date().get_year(), c.get_date().get_month(), c.get_date().get_day_of_month()))))
+        self.cal.connect('notify::month', lambda *_a: self.mark_month()); self.cal.connect('notify::year', lambda *_a: self.mark_month())
+        pop.connect('show', lambda *_a: self.mark_month())
+        pop.set_child(self.cal); self.cal_btn.set_popover(pop); hb.pack_end(self.cal_btn)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         c = Adw.Clamp(maximum_size=760); c.set_child(self.box)
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc); tv.set_content(sc)
@@ -35,7 +42,39 @@ class TodayPage(Gtk.Box):
             self.label.set_label(self.day.strftime('%a %-d %b %Y' if c else '%A %-d %B %Y'))
 
     def data(self):
-        return STORE.kv('today_' + lang()) or STORE.kv('today_en') or {}
+        d = dict(STORE.kv('today_' + lang()) or STORE.kv('today_en') or {})
+        extra = STORE.kv('today_more_' + lang()) or {}   # 2.13: days fetched for the calendar
+        if extra:
+            have = {x['date'] for x in d.get('days') or []}
+            d['days'] = list(d.get('days') or []) + [x for x in extra.values() if x['date'] not in have]
+        return d
+
+    def mark_month(self):
+        """the great feasts of the month shown in the calendar, marked"""
+        self.cal.clear_marks()
+        g = self.cal.get_date(); y, m = g.get_year(), g.get_month()
+        prefix = '%04d-%02d-' % (y, m)
+        days = [x for x in (self.data().get('days') or []) if x['date'].startswith(prefix)]
+        for x in days:
+            if x.get('icon') or int(x.get('level', 0) or 0) >= 7:
+                self.cal.mark_day(int(x['date'][8:10]))
+        if len(days) < 28 and NET.online() and getattr(self, 'cal_asked', '') != prefix:
+            self.cal_asked = prefix
+            self.fetch_from(datetime.date(y, m, 1), then=self.mark_month)
+
+    def fetch_from(self, day, then=None):
+        lg = lang()
+        def work():
+            r = NET.ajax('kjtb_desk', op='today', lang=lg, days=42, **{'from': day.isoformat()})
+            if r.get('success'):
+                more = dict(STORE.kv('today_more_' + lg) or {})
+                for x in r['data'].get('days') or []:
+                    more[x['date']] = x
+                if len(more) > 800:   # keep it small: the newest months
+                    more = dict(sorted(more.items())[-800:])
+                STORE.set_kv('today_more_' + lg, more); return True
+            return False
+        run_bg(work, lambda ok: then() if ok is True and then else None)
 
     def refresh(self, force=False):
         """fetch the coming days now and then, so the app always knows today without the internet"""
@@ -145,7 +184,12 @@ class TodayPage(Gtk.Box):
         if not d:
             box = self.card('Today with God', '☦')
             box.append(self.text('This day is not on this computer yet. It comes with the internet: the app keeps the next two months each time it can reach the website.', 'dim-label'))
-            self.refresh(force=True)
+            if NET.online() and getattr(self, 'asked_day', None) != iso:
+                self.asked_day = iso
+                want = self.day
+                self.fetch_from(self.day, then=lambda: self.show() if self.day == want else None)
+            else:
+                self.refresh(force=True)
             return
         # the day in the Church
         day_name = self.day.strftime('%A %-d %B %Y')

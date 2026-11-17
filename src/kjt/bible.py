@@ -113,6 +113,10 @@ class BiblePage(Gtk.Box):
         from .journey import MarkBar
         self.markbar = MarkBar(self); inner.append(self.markbar)
         self.scroll.get_vadjustment().connect('value-changed', lambda a: self.markbar.scrolled(a))
+        # 2.13: the reader scrolling away from the verse being read (not the app following it)
+        self.auto_scroll_until = 0
+        sc = Gtk.EventControllerScroll(flags=Gtk.EventControllerScrollFlags.VERTICAL)
+        sc.connect('scroll', lambda *_a: (self.win.audio.user_scrolled(), False)[1]); self.scroll.add_controller(sc)
         c = Adw.Clamp(maximum_size=860, tightening_threshold=600); c.set_child(inner); self.scroll.set_child(c)
         from .ui import steady; steady(self.scroll)
         self.osv.set_content(self.scroll)
@@ -168,7 +172,8 @@ class BiblePage(Gtk.Box):
         for icon, tip, fn in (('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')), ('kjt-globe-symbolic', 'Greek and Hebrew words', lambda: self.side_show('words')),
                               ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-picture-symbolic', 'Share as picture', self.share_picture),
                               ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-edit-symbolic', 'Edit', self.edit), ('kjt-note-symbolic', 'Note', self.note),
-                              ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
+                              ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-listen-symbolic', 'Listen from here', self.listen_here),
+                              ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
             btn = labelled(icon, _(tip.split(' (')[0]), fn); acts.append(btn)
             if tip == 'Bookmark':
                 self.bm_btn = btn
@@ -176,6 +181,8 @@ class BiblePage(Gtk.Box):
                 self.note_btn = btn
             elif tip == 'Edit':
                 self.edit_btn = btn
+            elif tip == 'Listen from here':
+                self.here_btn = btn
         self.del_btn = labelled('kjt-trash-symbolic', _('Remove bookmark'), lambda: self.remove()); acts.insert(self.del_btn, 2)
         topflow.append(self.colors); barbox.append(acts)
         tv.add_bottom_bar(self.bar)
@@ -393,7 +400,10 @@ class BiblePage(Gtk.Box):
         self.size = 1.0 if f == 0 else max(0.7, min(2.4, self.size * f)); SET.set('size', self.size); self.show(keep=True)
 
     def listen(self):
-        self.win.audio.play_chapter(self.tr, self.book, self.ch)
+        a = self.win.audio
+        if a.cur and a.cur[1:] == (self.book, int(self.ch)):
+            a.toggle(); a.set_reveal_child(True); return
+        a.play_chapter(self.tr, self.book, self.ch)
 
     def map(self):
         self.win.map_chapter(self.book, self.ch)
@@ -476,6 +486,7 @@ class BiblePage(Gtk.Box):
             buf.insert(end(), '\n' if other else ' ')
         buf.place_cursor(buf.get_start_iter())
         self.markbar.chapter_shown()
+        self.win.audio.reapply()
         self.mark_selection()
         self.fill_info(marks)
         if self.osv.get_show_sidebar():
@@ -501,6 +512,29 @@ class BiblePage(Gtk.Box):
             return False
         go.n = tries
         GLib.timeout_add(40, go)
+
+    def audio_verse(self, v, follow=True):
+        """2.13: the verse being read glows, and the page follows it (as on the website and the phone)"""
+        buf = self.view.get_buffer(); t = buf.get_tag_table()
+        if not t.lookup('now'):
+            dark = Adw.StyleManager.get_default().get_dark()
+            buf.create_tag('now', background='rgba(243,197,72,%s)' % ('0.30' if dark else '0.38'))
+        buf.remove_tag_by_name('now', buf.get_start_iter(), buf.get_end_iter())
+        if not v or v not in self.vnum:
+            return
+        i = self.vnum.index(v)
+        a, b = buf.get_iter_at_offset(self.vpos[i] + 1), buf.get_iter_at_offset(self.vend[i])
+        buf.apply_tag_by_name('now', a, b)
+        if follow:
+            r = self.view.get_iter_location(a); r2 = self.view.get_iter_location(b)
+            adj = self.scroll.get_vadjustment(); top = adj.get_value(); page = adj.get_page_size()
+            if r.y < top + 40 or r2.y + r2.height > top + page - 40:
+                adj.set_value(max(0, min(r.y - page / 3, adj.get_upper() - page)))
+
+    def listen_here(self):
+        """2.13: Listen from here (the first chosen verse)"""
+        if self.sel:
+            self.win.audio.from_verse(self.tr, self.book, self.ch, min(self.sel))
 
     def top_verse(self):
         """the verse at the top of the screen (kept, to continue reading there)"""
@@ -635,6 +669,7 @@ class BiblePage(Gtk.Box):
             self.sel_state.set_label(_('Not bookmarked yet') + (' · ' + _('for more verses, click the last one') if len(self.sel) == 1 else ''))
         self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r)); self.edit_btn.get_parent().set_visible(bool(r))
         self.note_btn.label.set_label(_('Edit note') if r and r.get('note') else _('Note'))
+        self.here_btn.get_parent().set_visible(self.win.audio.has_audio(self.tr, self.book, self.ch))
         self.bar.set_reveal_child(True)
 
     def unselect(self):

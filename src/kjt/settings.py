@@ -103,8 +103,18 @@ class DownloadsPage(Gtk.Box):
         by_lang = {}
         for tr, v in vers.items():
             by_lang.setdefault(v[0], []).append((tr, v))
-        for lg in sorted(by_lang, key=lambda x: (x != 'English', x)):
-            ex = Adw.ExpanderRow(title=lg, subtitle=_('%d kept here') % sum(1 for tr, _ in by_lang[lg] if tr in have))
+        # 2.13: the languages of the site and those with a Bible kept here first; the other languages in a list
+        # that opens only when you wish (the list of all Bibles was too long)
+        MAIN = {'English', 'Arabic', 'Greek', 'Ancient Greek', 'Russian', 'Chinese', 'French', 'Hindi', 'Spanish', 'Tagalog', 'Filipino', 'Church Slavonic'}
+        main = [lg for lg in by_lang if lg in MAIN or any(tr in have for tr, _v in by_lang[lg])]
+        rest = [lg for lg in by_lang if lg not in main]
+        others = None
+        if rest:
+            others = Adw.PreferencesGroup(title=_('Bibles in other languages') + ' (%d)' % len(rest))
+            tg = Gtk.ToggleButton(label=_('Show'), active=bool(SET.get('dl_others')), valign=Gtk.Align.CENTER); tg.add_css_class('flat')
+            others.set_header_suffix(tg)
+        def lang_row(lg):
+            ex = Adw.ExpanderRow(title=lg, subtitle=_('%d kept here') % sum(1 for tr, _v in by_lang[lg] if tr in have))
             for tr, v in by_lang[lg]:
                 row = Adw.ActionRow(title=GLib.markup_escape_text(v[1]))
                 if tr in have:
@@ -116,8 +126,21 @@ class DownloadsPage(Gtk.Box):
                     b = Gtk.Button(icon_name='folder-download-symbolic', tooltip_text=_('Keep on this computer'), valign=Gtk.Align.CENTER)
                     b.connect('clicked', lambda _b, tr=tr: DL.start({'bibles': [tr]})); row.add_suffix(b)
                 ex.add_row(row)
-            g.add(ex)
+            return ex
+        for lg in sorted(main, key=lambda x: (x != 'English', x)):
+            g.add(lang_row(lg))
         self.add(g)
+        if others:
+            rows = []
+            def show_rest(on):
+                SET.set('dl_others', on); tg.set_label(_('Hide') if on else _('Show'))
+                if on and not rows:
+                    for lg in sorted(rest):
+                        rows.append(lang_row(lg)); others.add(rows[-1])
+                for r in rows:
+                    r.set_visible(on)
+            tg.connect('toggled', lambda b: show_rest(b.get_active())); show_rest(tg.get_active())
+            self.add(others)
         # 2.9: the app's icon (as in the Android app)
         self.add(icon_group())
         # the rest

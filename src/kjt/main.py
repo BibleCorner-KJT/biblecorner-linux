@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.12'
+VERSION = '2.13'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -321,7 +321,12 @@ class Window(Adw.ApplicationWindow):
         talk = Gio.Menu(); talk.append(_('Talk to us on SimpleX'), 'app.simplex'); talk.append(_('The Android app (Bible Corner)'), 'app.android'); menu.append_section(None, talk)
         look = Gio.Menu(); look.append(_('Follow the computer'), 'app.style::auto'); look.append(_('Light'), 'app.style::light'); look.append(_('Dark'), 'app.style::dark')
         menu.append_section(_('Appearance'), look)
-        more = Gio.Menu(); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Bible Corner - KJT'), 'app.about'); menu.append_section(None, more)
+        # 2.13: the pages of the site that the Android app has in its menu (opened on the website, in your browser)
+        site = Gio.Menu()
+        for key, title in (('pray', 'Prayer'), ('you', 'You Today'), ('fun', 'Good Fun'), ('church', 'Churches near me'), ('kjt', 'KJT Website')):
+            site.append(_(title) + ' ↗', 'app.page::' + key)
+        menu.append_section(_('On the website'), site)
+        more = Gio.Menu(); more.append(_('Report a problem'), 'app.report'); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Bible Corner - KJT'), 'app.about'); menu.append_section(None, more)
         return menu
 
     def language_changed(self):
@@ -438,6 +443,51 @@ class App(Adw.Application):
             a = Gio.SimpleAction.new(name, None); a.connect('activate', fn); self.add_action(a)
             if keys:
                 self.set_accels_for_action('app.' + name, keys)
+        a = Gio.SimpleAction.new('page', GLib.VariantType.new('s')); a.connect('activate', lambda _a, v: self.open_page(v.get_string())); self.add_action(a)
+        a = Gio.SimpleAction.new('report', None); a.connect('activate', lambda *_: self.report()); self.add_action(a)
+
+    def open_page(self, key):
+        from .core import STORE
+        pages = (STORE.kv('info') or {}).get('pages') or {}
+        fallback = {'pray': 'https://knowingjesus.today/prayer/', 'you': 'https://knowingjesus.today/how-are-you-today/',
+                    'fun': 'https://knowingjesus.today/fun-and-games/', 'church': 'https://knowingjesus.today/', 'kjt': 'https://knowingjesus.today/'}
+        self.open_uri(pages.get(key) or fallback.get(key, 'https://knowingjesus.today/'))
+
+    def report(self):
+        """2.13: Report a problem, as in the Android app: only what you write and a few details (no name, no e-mail)"""
+        import platform, threading
+        from .core import NET, DATA, lang
+        win = self.props.active_window
+        try:
+            osname = platform.freedesktop_os_release().get('PRETTY_NAME', '')
+        except Exception:
+            osname = platform.system()
+        log = ''
+        try:
+            with open(os.path.join(DATA, 'problems.log'), errors='replace') as f:
+                log = f.read()[-1500:]
+        except Exception:
+            pass
+        info = 'Linux app %s · %s · %s: %s%s' % (VERSION, osname, _('Language'), lang(), ('\n' + log) if log.strip() else '')
+        d = Adw.AlertDialog(heading=_('Report a problem'), body=_('Tell us what went wrong, and what you were doing just before. No name, email or account is sent: only what you write and the details below.'))
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        tv = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, height_request=120, top_margin=6, left_margin=6, right_margin=6); tv.add_css_class('card')
+        box.append(tv)
+        ex = Gtk.Expander(label=_('Details sent with it')); ex.set_child(Gtk.Label(label=info, wrap=True, xalign=0, selectable=True, css_classes=['caption', 'dim-label'])); box.append(ex)
+        d.set_extra_child(box)
+        d.add_response('cancel', _('Cancel')); d.add_response('send', _('Send')); d.set_response_appearance('send', Adw.ResponseAppearance.SUGGESTED)
+        def resp(_d, r):
+            if r != 'send':
+                return
+            b = tv.get_buffer(); msg = b.get_text(b.get_start_iter(), b.get_end_iter(), False).strip()
+            if not msg:
+                win.toast(_('Please write a few words first.')); return
+            def work():
+                return NET.ajax('kjtb_app_report', {'msg': msg, 'info': info})
+            def done(r):
+                win.toast(('✓ ' + _('Thank you! Your report was sent.')) if isinstance(r, dict) and r.get('success') else _('Could not send. Please try again later.'))
+            run_bg(work, done)
+        d.connect('response', resp); d.present(win)
 
     def do_startup(self):
         Adw.Application.do_startup(self)
