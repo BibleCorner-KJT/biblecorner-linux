@@ -17,22 +17,46 @@ class StudyPage(Gtk.Box):
         hb.pack_end(self.sync_btn)
         self.q = Gtk.SearchEntry(placeholder_text='Search your notes'); self.q.connect('search-changed', lambda *_: self.fill())
         hb.pack_start(self.q)
-        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, margin_top=16, margin_bottom=30, margin_start=16, margin_end=16)
-        c = Adw.Clamp(maximum_size=820); c.set_child(self.box)
-        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); tv.set_content(sc)
+        # two columns side by side (the Study Pads on the left, the bookmarks on the right), each scrolling
+        # on its own; on a narrow window they are one column again
+        self.left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, margin_top=16, margin_bottom=30, margin_start=16, margin_end=8)
+        self.left_sc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True); self.left_sc.set_child(self.left)
+        self.left_sc.set_size_request(260, -1)
+        self.right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, margin_top=16, margin_bottom=30, margin_start=8, margin_end=16)
+        c = Adw.Clamp(maximum_size=900); c.set_child(self.right)
+        self.right_sc = Gtk.ScrolledWindow(vexpand=True, hexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.right_sc.set_child(c)
+        from .ui import steady
+        steady(self.left_sc); steady(self.right_sc)
+        self.sep = Gtk.Paned(start_child=self.left_sc, end_child=self.right_sc, shrink_start_child=False, resize_start_child=False, wide_handle=True,
+                             position=SET.get('w_study_pads', 320))
+        self.sep.connect('notify::position', lambda p, _x: SET.set('w_study_pads', p.get_position()) if self.wide and p.get_position() > 200 else None)
+        tv.set_content(self.sep)
+        self.wide = None
+        self.box = self.right
         STUDY.listen(self.refresh)
+
+    WIDE = 700
+
+    def do_size_allocate(self, width, height, baseline):
+        Gtk.Box.do_size_allocate(self, width, height, baseline)
+        if width > 0 and (width >= self.WIDE) != self.wide:
+            GLib.idle_add(lambda: (self.fill(), False)[1])
 
     def refresh(self):
         if self.get_mapped() or True:
             self.fill()
 
     def clear(self):
-        while self.box.get_first_child():
-            self.box.remove(self.box.get_first_child())
+        w = self.get_width() or self.win.get_width() - 260
+        self.wide = w >= self.WIDE
+        self.left_sc.set_visible(self.wide)
+        for b in (self.left, self.right):
+            while b.get_first_child():
+                b.remove(b.get_first_child())
 
     SORTS = [('bible', 'Bible order'), ('new', 'Newest first'), ('old', 'Oldest first'), ('changed', 'Last changed'), ('color', 'By colour')]
 
-    def section(self, key, title, count, extra=None, child=None):
+    def section(self, key, title, count, extra=None, child=None, parent=None):
         """a heading you can click to fold the list away (remembered), with its list under it"""
         open_ = not SET.get('fold_' + key)
         head = Gtk.Box(spacing=6)
@@ -53,7 +77,7 @@ class StudyPage(Gtk.Box):
             arrow.set_from_icon_name('pan-down-symbolic' if now else 'pan-end-symbolic'); SET.set('fold_' + key, 0 if now else 1)
         b.connect('clicked', flip)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); box.append(head); box.append(rv)
-        self.box.append(box)
+        (parent or self.right).append(box)
         return lb
 
     def sort_key(self, how):
@@ -66,13 +90,14 @@ class StudyPage(Gtk.Box):
 
     def fill(self):
         self.clear()
-        self.account()
+        side = self.left if self.wide else self.right
+        self.account(side)
         recs = STUDY.records()
         q = self.q.get_text().strip().casefold()
         pads = STUDY.pads()
         # Study Pads: a grid of coloured cards
-        grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=1, max_children_per_line=5, column_spacing=8, row_spacing=8)
-        self.section('pads', 'Study Pads', len(pads), child=grid)
+        grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=1, max_children_per_line=1 if self.wide else 3, column_spacing=8, row_spacing=8)
+        self.section('pads', 'Study Pads', len(pads), child=grid, parent=side)
         for p in pads:
             grid.append(self.pad_card(p['tag'], sum(1 for r in recs if p['tag'] in (r.get('tags') or []))))
         add = Gtk.Button(); add.add_css_class('card'); add.set_tooltip_text('Make a new Study Pad')
@@ -157,7 +182,7 @@ class StudyPage(Gtk.Box):
         self.filter = t; self.fill()
 
     # the account
-    def account(self):
+    def account(self, parent=None):
         i = STORE.kv('info') or {}
         u = i.get('user')
         g = Adw.PreferencesGroup(title='My KJT account')
@@ -176,7 +201,7 @@ class StudyPage(Gtk.Box):
             row.set_subtitle_lines(3)
             b = Gtk.Button(label='Sign in', valign=Gtk.Align.CENTER); b.add_css_class('suggested-action'); b.connect('clicked', lambda *_: self.sign_in_dialog()); row.add_suffix(b)
             g.add(row)
-        self.box.append(g)
+        (parent or self.right).append(g)
 
     def sign_in_dialog(self):
         d = Adw.AlertDialog(heading='Sign in to My KJT', body='Use the name (or e-mail) and password of your account on knowingjesus.today.')

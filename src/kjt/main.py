@@ -10,7 +10,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.7.2'
+VERSION = '2.7.3'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -109,7 +109,7 @@ class Window(Adw.ApplicationWindow):
         self.split.set_sidebar(resizable(self.split, st, 'nav', lo=180, hi=420))
 
         # the pages (each made the first time it is opened, so the app starts at once)
-        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=120, vexpand=True)
+        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=120, vexpand=True, hhomogeneous=False, vhomogeneous=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); content.append(self.stack); content.append(self.audio)
         self.split.set_content(content)
         self.set_content(self.toasts)
@@ -120,8 +120,12 @@ class Window(Adw.ApplicationWindow):
         self.add_breakpoint(bp)
         bp2 = Adw.Breakpoint.new(Adw.BreakpointCondition.parse('max-width: 620sp'))
         bp2.add_setter(self.split, 'collapsed', True)
-        bp2.connect('apply', lambda *_: self.set_compact(True)); bp2.connect('unapply', lambda *_: self.set_compact(False))
         self.add_breakpoint(bp2)
+        # the small-screen layout follows the room the pages really have (the window less the sidebar)
+        self.connect('notify::default-width', lambda *_: GLib.idle_add(self.fit_layout))
+        self.split.connect('notify::collapsed', lambda *_: GLib.idle_add(self.fit_layout))
+        self.split.connect('notify::show-sidebar', lambda *_: GLib.idle_add(self.fit_layout))
+        GLib.timeout_add(300, self.fit_layout)
 
         k = Gtk.ShortcutController(scope=Gtk.ShortcutScope.GLOBAL)
         for n, (key, _, _) in enumerate(PAGES):
@@ -167,6 +171,24 @@ class Window(Adw.ApplicationWindow):
     study = property(lambda self: self.page('study'))
     library = property(lambda self: self.page('library'))
     downloads = property(lambda self: self.page('downloads'))
+
+    NARROW = 800   # below this much room the pages use their small-screen layout
+
+    def fit_layout(self):
+        w = self.get_width() or self.get_default_size()[0]
+        if w <= 0:
+            return False
+        room = w - (self.split.get_max_sidebar_width() if (self.split.get_show_sidebar() and not self.split.get_collapsed()) else 0)
+        c = room < self.NARROW
+        if c != self.compact:
+            self.set_compact(c)
+        return False
+
+    def do_size_allocate(self, width, height, baseline):
+        Adw.ApplicationWindow.do_size_allocate(self, width, height, baseline)
+        if getattr(self, '_last_w', None) != width:
+            self._last_w = width
+            GLib.idle_add(self.fit_layout)
 
     def set_compact(self, c):
         self.compact = c
