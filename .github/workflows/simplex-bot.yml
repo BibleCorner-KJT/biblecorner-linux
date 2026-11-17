@@ -1,0 +1,34 @@
+name: SimpleX daily posts
+on:
+  schedule:
+    - cron: '41 13 * * *'      # 08:41 at the website's time (-05:00)
+  push:
+    branches: [main]
+    paths: ['sx-bot/**', '.github/workflows/simplex-bot.yml']
+concurrency: simplex-bot
+jobs:
+  post:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: SimpleX Chat (the program)
+        run: |
+          mkdir -p ~/sxbin
+          curl -fsSL -o ~/sxbin/simplex-chat https://github.com/simplex-chat/simplex-chat/releases/latest/download/simplex-chat-ubuntu-22_04-x86_64
+          chmod +x ~/sxbin/simplex-chat
+      - name: The bot's keys (kept from the last run)
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/sxdata
+          key: sxdata-${{ github.run_id }}
+          restore-keys: sxdata-
+      - name: Post
+        env:
+          MODE: ${{ github.event_name == 'schedule' && 'post' || 'setup' }}
+        run: bash sx-bot/run.sh
+      - name: Keep the bot's keys
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/sxdata
+          key: sxdata-${{ github.run_id }}
