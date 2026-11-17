@@ -1,7 +1,7 @@
 """The Holy Bible: reading, comparing, searching, listening, the Holy Fathers beside each chapter, and your study."""
-import bisect, re, unicodedata
+import bisect, math, re, unicodedata
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
-from .core import STORE, SET, OT, NT, DEFAULT_BIBLES, canon, book_name, lang, read_file
+from .core import STORE, SET, OT, NT, DEFAULT_BIBLES, canon, book_name, lang, read_file, version
 from .study import STUDY, COLORS
 from .richtext import html_into, make_view, setup_tags
 
@@ -24,12 +24,12 @@ def cat_of(code):
 
 
 def bible_name(tr):
-    v = (STORE.kv('info') or {}).get('versions', {}).get(tr)
+    v = version(tr)
     return v[1] if v else tr
 
 
 def bible_dir(tr):
-    v = (STORE.kv('info') or {}).get('versions', {}).get(tr)
+    v = version(tr)
     return (v[2] if v and len(v) > 2 else 'ltr') == 'rtl' or tr.startswith(('arb', 'urd', 'pes', 'heb'))
 
 
@@ -92,7 +92,8 @@ class BiblePage(Gtk.Box):
         self.view = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD_CHAR, left_margin=28, right_margin=28,
                                  top_margin=18, bottom_margin=40, pixels_below_lines=6, pixels_inside_wrap=5)
         self.view.add_css_class('kjt-bible')
-        click = Gtk.GestureClick(); click.connect('released', self.on_click); self.view.add_controller(click)
+        click = Gtk.GestureClick(); click.connect('pressed', self.on_press); click.connect('released', self.on_click); self.view.add_controller(click)
+        self.press = (0, 0, 0)
         rclick = Gtk.GestureClick(button=3); rclick.connect('pressed', self.on_menu); self.view.add_controller(rclick)
         lp = Gtk.GestureLongPress(); lp.connect('pressed', lambda g, x, y: self.on_menu(g, 1, x, y)); self.view.add_controller(lp)
         self.scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
@@ -114,7 +115,8 @@ class BiblePage(Gtk.Box):
         self.xref_view = make_view(self.on_link); xs = Gtk.ScrolledWindow(); xs.set_child(self.xref_view); self.side.add_named(xs, 'xref')
         self.words_view = make_view(self.on_link); ws = Gtk.ScrolledWindow(); ws.set_child(self.words_view); self.side.add_named(ws, 'words')
         side.append(self.side)
-        self.osv.set_sidebar(side)
+        from .ui import resizable
+        self.osv.set_sidebar(resizable(self.osv, side, 'reader_side', end=True, lo=260, hi=900))
         self.osv.connect('notify::show-sidebar', self.side_closed)
         tv.set_content(self.osv)
 
@@ -410,7 +412,10 @@ class BiblePage(Gtk.Box):
         end = buf.get_end_iter
         buf.insert_with_tags_by_name(end(), '%s %d\n' % (name, self.ch), 'title')
         if not rows:
-            buf.insert_with_tags_by_name(end(), 'This chapter is not on this computer. Open Downloads to keep this Bible.\n', 'vt')
+            if STORE.books(self.tr) and not STORE.find_book(self.tr, self.book):
+                buf.insert_with_tags_by_name(end(), '%s does not have this book. Choose another Bible at the top left.\n' % bible_name(self.tr).split(' · ')[0], 'vt')
+            else:
+                buf.insert_with_tags_by_name(end(), 'This chapter is not on this computer. Open Downloads to keep this Bible.\n', 'vt')
         other = {}
         if self.tr2 and self.tr2 != self.tr:
             b2 = STORE.find_book(self.tr2, self.book)
@@ -430,8 +435,16 @@ class BiblePage(Gtk.Box):
                     buf.apply_tag_by_name('red', buf.get_iter_at_offset(s2 + a), buf.get_iter_at_offset(min(s2 + z, s2 + len(plain))))
             r = marks.get(v)
             if r:
-                col = r.get('color') or 'yellow'
-                buf.apply_tag_by_name('hl-' + (col if col in COLORS else 'yellow'), buf.get_iter_at_offset(s2), end())
+                col = r.get('color')
+                if not col and r.get('tags'):
+                    # a bookmark in a Study Pad, without a colour of its own, takes the pad's colour (as on the website)
+                    hx = STUDY.pad_color(r['tags'][0]).lstrip('#'); nm = 'pad-' + hx + ('d' if dark else '')
+                    if not t.lookup(nm):
+                        rgb_ = tuple(int(hx[i:i + 2], 16) for i in (0, 2, 4))
+                        buf.create_tag(nm, background='rgba(%d,%d,%d,%.2f)' % (rgb_ + ((0.55,) if dark else (0.33,))))
+                    buf.apply_tag_by_name(nm, buf.get_iter_at_offset(s2), end())
+                else:
+                    buf.apply_tag_by_name('hl-' + (col if col in COLORS else 'yellow'), buf.get_iter_at_offset(s2), end())
                 if r.get('note') and int(r.get('verse', 0)) == v:
                     buf.insert_with_tags_by_name(end(), ' ✎', 'note')
                     first = r['note'].strip().split('\n')[0]
@@ -504,9 +517,24 @@ class BiblePage(Gtk.Box):
         i = bisect.bisect_right(self.vpos, it.get_offset()) - 1
         return self.vnum[i] if i >= 0 else 0
 
+    def on_press(self, g, n, x, y):
+        self.press = (x, y, GLib.get_monotonic_time())
+
+    def drop_text_selection(self):
+        buf = self.view.get_buffer()
+        if buf.get_has_selection():
+            it = buf.get_iter_at_mark(buf.get_insert()); buf.select_range(it, it)
+        return False
+
     def on_click(self, g, n, x, y):
-        if self.view.get_buffer().get_has_selection():
-            return
+        """a click (even a shaky one, or a double click) chooses a verse; only a real drag selects words to copy"""
+        px, py, t0 = self.press
+        moved = math.hypot(x - px, y - py)
+        quick = (GLib.get_monotonic_time() - t0) < 350000
+        if self.view.get_buffer().get_has_selection() and n == 1 and moved > 14 and not quick:
+            return                                   # a real drag: keep the words chosen, for Ctrl+C
+        self.drop_text_selection(); GLib.idle_add(self.drop_text_selection); GLib.timeout_add(120, self.drop_text_selection)
+        x, y = (px, py) if moved > 0 else (x, y)
         bx, by = self.view.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, int(x), int(y))
         ok, it = self.view.get_iter_at_location(bx, by)
         if ok:
@@ -922,6 +950,11 @@ class BiblePage(Gtk.Box):
                     src = 'from the Catena Aurea'
                 q = re.sub(r'^\(in loco\.?\)\s*', '', q)
                 h.append('<h3>%s</h3><p><small>%s%s</small></p><blockquote>%s</blockquote><p><small>%s</small></p>' % (esc(nm), (esc(yrs) + ' · ') if yrs else '', vv, esc(q), esc(src)))
+        try:
+            from .library import commentaries_html
+            h.append(commentaries_html(self.book, self.ch, sorted(set(self.sel))))
+        except Exception as e:
+            print('library side', e)
         html_into(self.hf_view, ''.join(h), self.on_link, 0.95)
 
     def do_search(self, *_):

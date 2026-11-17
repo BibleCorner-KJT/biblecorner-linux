@@ -1,7 +1,8 @@
 """Today with God: the verse of the day, the day in the Church (feast, fast, saints) and its readings, read from the Bibles kept here."""
 import datetime, re
-from gi.repository import Gtk, Adw, GLib, Pango
+from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, NET, DEFAULT_BIBLES, lang, book_name, run_bg, strip_tags
+from .bible import bible_name
 
 
 class TodayPage(Gtk.Box):
@@ -72,7 +73,23 @@ class TodayPage(Gtk.Box):
         while self.box.get_first_child():
             self.box.remove(self.box.get_first_child())
 
-    def card(self, title, icon=None):
+    def share_btn(self, get):
+        """share this part of the day: as a picture, or as text to paste"""
+        mb = Gtk.MenuButton(icon_name='kjt-share-symbolic', tooltip_text='Share', valign=Gtk.Align.START); mb.add_css_class('flat'); mb.add_css_class('circular')
+        pop = Gtk.Popover(); bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
+        def pic():
+            from . import picture
+            text, ref = get(); picture.share(self.win, text, ref)
+        def copy():
+            text, ref = get()
+            Gdk.Display.get_default().get_clipboard().set('%s\n— %s' % (text, ref)); self.win.toast('Copied: paste it in a message or a post')
+        for lab, fn in (('Share as a picture…', pic), ('Copy the text', copy)):
+            b = Gtk.Button(label=lab); b.add_css_class('flat'); b.get_child().set_xalign(0)
+            b.connect('clicked', lambda _b, fn=fn: (pop.popdown(), fn())); bx.append(b)
+        pop.set_child(bx); mb.set_popover(pop)
+        return mb
+
+    def card(self, title, icon=None, share=None):
         f = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         f.add_css_class('card'); f.add_css_class('kjt-card')
         inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=14, margin_bottom=14, margin_start=16, margin_end=16)
@@ -83,6 +100,8 @@ class TodayPage(Gtk.Box):
             if ic:
                 im = Gtk.Image(icon_name=ic, pixel_size=18, valign=Gtk.Align.START, margin_top=3); im.add_css_class('kjt-nav-icon'); row.append(im)
             l = Gtk.Label(label=title, xalign=0, wrap=True, hexpand=True); l.add_css_class('kjt-card-title'); row.append(l)
+            if share:
+                row.append(self.share_btn(share))
             inner.append(row)
         self.box.append(f)
         return inner
@@ -104,7 +123,9 @@ class TodayPage(Gtk.Box):
             self.refresh(force=True)
             return
         # the day in the Church
-        head = self.card(d.get('title') or d.get('feast') or self.day.strftime('%A'), '☦')
+        day_name = self.day.strftime('%A %-d %B %Y')
+        head = self.card(d.get('title') or d.get('feast') or self.day.strftime('%A'), '☦',
+                         share=lambda: ('\n'.join(x for x in (d.get('title'), d.get('feast'), ('🍃 ' + d['fast']) if d.get('fast') else '', d.get('saints')) if x), 'Today with God · ' + day_name))
         if d.get('feast'):
             head.append(self.text(d['feast'], 'kjt-feast'))
         if d.get('fast'):
@@ -114,13 +135,15 @@ class TodayPage(Gtk.Box):
         # the verse of the day
         v = d.get('votd')
         if v:
-            box = self.card('Verse of the day', '✝')
             tr = self.bible_for(v['book'])
+            box = self.card('Verse of the day', '✝', share=lambda: (vtext['t'], vtext['ref']))
+            vtext = {}
             rows = STORE.passage(tr, v['book'], v['c'], v['v1'], v['c'], v['v2']) if tr else []
             txt = ' '.join(strip_tags(r[2]).strip() for r in rows) if rows else (strip_tags(v.get('text', '')) if lang() == 'en' else '')
             if txt.strip():
                 box.append(self.text('“%s”' % txt.strip(), 'kjt-verse', sel=False))
             ref = '%s %d:%d%s' % (book_name(v['book'], tr=tr), v['c'], v['v1'], '–%d' % v['v2'] if v['v2'] > v['v1'] else '')
+            vtext.update(t=txt.strip(), ref=ref + (' (%s)' % bible_name(tr).split(' · ')[0] if tr else ''))
             b = Gtk.Button(label=ref + '  →', halign=Gtk.Align.START); b.add_css_class('flat'); b.add_css_class('kjt-ref')
             b.connect('clicked', lambda *_: self.win.open_passage(v['book'], v['c'], v['v1'])); box.append(b)
         # the readings
@@ -130,7 +153,7 @@ class TodayPage(Gtk.Box):
                 for ref in r.get('refs') or []:
                     self.reading(box, r, ref)
         if d.get('news'):
-            box = self.card('Coming soon', '🕯')
+            box = self.card('Coming soon', '🕯', share=lambda: ('\n'.join(('🍃 ' if k == 'fast' else '✦ ') + n + (' — until ' + e if e else '') for k, n, e in d['news']), 'Coming soon in the Church'))
             for kind, name, end in d['news']:
                 box.append(self.text(('🍃 ' if kind == 'fast' else '✦ ') + name + (' — until ' + end if end else ''), sel=False))
         self.prev.set_sensitive(True); self.next.set_sensitive(True)
@@ -153,5 +176,11 @@ class TodayPage(Gtk.Box):
         else:
             inner.append(self.text('This book is not in the Bibles on this computer. Choose Downloads in the sidebar.', 'dim-label'))
         b = Gtk.Button(label='Read in the Holy Bible  →', halign=Gtk.Align.START); b.add_css_class('flat'); b.add_css_class('kjt-ref')
-        b.connect('clicked', lambda *_: self.win.open_passage(book, c1, v1)); inner.append(b)
+        b.connect('clicked', lambda *_: self.win.open_passage(book, c1, v1))
+        acts = Gtk.Box(spacing=6); acts.append(b)
+        if rows:
+            ref = '%s %d:%d%s' % (book_name(book, tr=tr), c1, v1, ('–%d' % v2 if c2 == c1 else '–%d:%d' % (c2, v2)) if (c2, v2) != (c1, v1) else '')
+            words = ' '.join(strip_tags(t).strip() for _c, _v, t in rows)
+            acts.append(self.share_btn(lambda: (words, ref + ' (%s)' % bible_name(tr).split(' · ')[0])))
+        inner.append(acts)
         ex.set_child(inner); box.append(ex)

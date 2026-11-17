@@ -7,8 +7,9 @@ from .core import STORE, SET, lang, read_file, file_path, book_name, strip_tags
 COL = {'s': '#7a1f6b', 'r': '#8a7a5a', 'm': '#6d4c2f', 'w': '#1f6f9b', 'i': '#2e7d6b', 'v': '#6b7a2e', 'c': '#b5442c', 'o': '#555555'}
 WATERS = [['w_med', 27.6, 33.3, 1.6], ['w_dead', 35.47, 31.1, 0], ['w_gal', 35.6, 32.95, 0], ['w_red', 38.6, 20.5, 1.2], ['w_black', 34.5, 43.4, 1.3],
           ['w_casp', 50.6, 41.2, 1], ['w_pers', 51.2, 27.3, 1], ['w_nile', 31.0, 25.2, 0.6], ['w_euph', 41.0, 34.9, 0.6], ['w_tig', 43.9, 35.9, 0.4], ['w_jor', 35.57, 32.35, 0]]
+KIND = {'s': '●', 'r': '▭', 'm': '▲', 'w': '≈', 'i': '◆', 'v': '⌄', 'c': '⛺', 'o': '•'}
 KIND_KEYS = ['s', 'r', 'm', 'w', 'i', 'v', 'c', 'o']
-MINS, MAXS = 0.05, 900
+MINS, MAXS = 0.03, 900
 
 
 def rgb(h, a=1.0):
@@ -72,6 +73,9 @@ class Map:
         self.ident = read_file('maps/ident.json') or {}
         self.set_lang(lang())
         self.relief = {}
+        w = read_file('maps/world.json') or {}
+        self.wland = parse_path(w.get('land')); self.wborders = parse_path(w.get('borders'))
+        self.countries = w.get('countries') or []; self.capitals = w.get('capitals') or []
         self.ok = True
         return True
 
@@ -85,6 +89,13 @@ class Map:
         for i, x in enumerate(a):
             s = s.replace('{%d}' % i, str(x))
         return s
+
+    def wn(self, names):
+        return names.get(self.lang) or names.get('en') or ''
+
+    def inside(self, x, y):
+        """inside the Bible map itself (the world around it shows only countries and capitals)"""
+        return 0 <= x <= self.w and 0 <= y <= self.h
 
     def nm(self, p):
         return self.names.get(p['id']) or p['en']
@@ -187,7 +198,7 @@ class MapView(Gtk.DrawingArea):
         self.cx = self.d0[0] - dx / self.s; self.cy = self.d0[1] - dy / self.s; self.queue_draw()
 
     def on_scroll(self, c, dx, dy):
-        self.touched = True; self.zooming(); self.zoom_to(self.s * (1.25 ** (-dy)), *self.mouse); return True
+        self.touched = True; self.zooming(); self.zoom_to(self.s * (1.12 ** (-max(-3, min(3, dy)))), *self.mouse); return True
 
     def on_click(self, g, n, x, y):
         if self.moved:
@@ -243,6 +254,14 @@ class MapView(Gtk.DrawingArea):
         b.set_source_rgba(*rgb('#dbe7ee')); b.paint()
         b.translate(W / 2, H / 2); b.scale(self.s, self.s); b.translate(-self.cx, -self.cy)
         lw = 1 / self.s
+        if M.wland:   # the rest of the world, plain: only outside the Bible map's own frame
+            b.save(); b.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+            b.rectangle(-1e6, -1e6, 2e6, 2e6); b.rectangle(0, 0, M.w, M.h); b.clip()
+            b.set_fill_rule(cairo.FILL_RULE_WINDING)
+            self.poly(b, M.wland, True); b.set_source_rgba(*rgb('#ece5d3')); b.fill()
+            self.poly(b, M.wborders); b.set_source_rgba(*rgb('#b3a588', 0.75)); b.set_line_width(0.8 * lw); b.stroke()
+            b.restore()
+            b.rectangle(0, 0, M.w, M.h); b.set_source_rgba(*rgb('#cdbf9f', 0.5)); b.set_line_width(lw); b.stroke()
         self.poly(b, M.land, True)
         b.set_source_rgba(*rgb('#efe6cf')); b.fill_preserve()
         b.save(); b.clip()
@@ -352,7 +371,42 @@ class MapView(Gtk.DrawingArea):
                 key = (round(p['x'] * 10), round(p['y'] * 10))
                 if key not in seen:
                     seen.add(key); self.text(cr, str(p['i'] + 1), sx, sy, 9.5, '#ffffff', mid=True, bold=True, halo=False)
+        if not st and M.capitals and self.s > 0.06:
+            for x, y, rk, names in M.capitals:
+                if M.inside(x, y) or not self.in_view(x, y) or rk > self.world_rank():
+                    continue
+                sx, sy = self.to_screen(x, y)
+                cr.rectangle(sx - 2.5, sy - 2.5, 5, 5); cr.set_source_rgba(1, 1, 1, .9); cr.fill_preserve()
+                cr.set_source_rgba(*rgb('#7b8088')); cr.set_line_width(1.4); cr.stroke()
         self.labels(cr, vw, vh)
+        self.scale_bar(cr, vw, vh)
+
+    def world_rank(self):
+        s = self.s
+        return 1 if s < 0.05 else 3 if s < 0.09 else 5 if s < 0.2 else 7 if s < 0.6 else 10
+
+    def scale_bar(self, cr, vw, vh):
+        """a ruler at the bottom: how far that is on the ground"""
+        km_px = 111.32 / (M.k * self.s)
+        best = None
+        for e in range(-2, 5):
+            for m in (1, 2, 5):
+                d = m * 10 ** e
+                if d / km_px <= 130:
+                    best = d
+        if not best:
+            return
+        w = best / km_px
+        x, y = 14, vh - 16
+        lab = ('%g km' % best) if best >= 1 else ('%d m' % round(best * 1000))
+        mi = best * 0.621371
+        lab += '  ·  ' + (('%g mi' % float('%.2g' % mi)) if mi >= 1 else ('%d ft' % round(mi * 5280, -1)))
+        tw, th = self.text(cr, lab, 0, 0, 9.5, '#000000', measure=True)
+        cr.set_source_rgba(1, 1, 1, .78); cr.rectangle(x - 6, y - th - 12, max(w, tw) + 12, th + 20); cr.fill()
+        cr.set_source_rgba(*rgb('#3a2e3f')); cr.set_line_width(2)
+        cr.move_to(x, y - 5); cr.line_to(x, y); cr.line_to(x + w, y); cr.line_to(x + w, y - 5); cr.stroke()
+        cr.set_source_rgba(*rgb('#3a2e3f')); cr.rectangle(x, y - 2, w / 2, 2); cr.fill()
+        self.text(cr, lab, x, y - th / 2 - 7, 9.5, '#3a2e3f')
 
     def text(self, cr, s, x, y, size, color, mid=False, bold=False, italic=False, halo=True, measure=False):
         cr.new_path()
@@ -398,6 +452,14 @@ class MapView(Gtk.DrawingArea):
                     continue
                 if p in self.visible:
                     cand.append((p['n'] + (2 if p['c'] == 2 else 0), p['x'], p['y'], M.nm(p), 'pin'))
+            rk = self.world_rank()
+            for x, y, r, names in M.countries:
+                if r <= rk + 1 and not M.inside(x, y) and self.in_view(x, y):
+                    cand.append((300 - r * 10, x, y, M.wn(names), 'country'))
+            if s > 0.06:
+                for x, y, r, names in M.capitals:
+                    if r <= rk and not M.inside(x, y) and self.in_view(x, y):
+                        cand.append((100 - r, x, y, M.wn(names), 'capital'))
         else:
             for p in self.stops:
                 cand.append((1e8 - p['i'], p['x'], p['y'], p['label'], 'stop'))
@@ -411,21 +473,34 @@ class MapView(Gtk.DrawingArea):
         for pr, x, y, t, kind in cand:
             if n > 220:
                 break
-            size = {'water': 11, 'region': 11.5, 'sel': 12.5, 'stop': 11}.get(kind, 10.5)
+            size = {'water': 11, 'region': 11.5, 'sel': 12.5, 'stop': 11, 'country': 10.5, 'capital': 9.5}.get(kind, 10.5)
             w, h = self.text(cr, t, 0, 0, size, '#000000', measure=True, bold=kind in ('sel', 'stop'), italic=kind == 'water')
             sx, sy = self.to_screen(x, y)
-            mid = kind in ('water', 'region')
+            mid = kind in ('water', 'region', 'country')
             x0 = sx - w / 2 if mid else sx + 8
             y0 = sy - h / 2 - (12 if kind == 'stop' else 0)
             if x0 < 2 or x0 + w > vw - 2 or y0 < 2 or y0 + h > vh - 2:
                 continue
             if not free(x0, y0, w, h):
                 continue
-            color = {'water': '#2a6a93', 'region': '#6d5a3a', 'sel': '#3e093f', 'stop': '#3e093f'}.get(kind, '#3a2e3f')
-            if kind == 'region':
+            color = {'water': '#2a6a93', 'region': '#6d5a3a', 'sel': '#3e093f', 'stop': '#3e093f', 'country': '#8d8170', 'capital': '#6b7079'}.get(kind, '#3a2e3f')
+            if kind in ('region', 'country'):
                 t = t.upper()
             self.text(cr, t, x0, y0 + h / 2, size, color, bold=kind in ('sel', 'stop'), italic=kind == 'water')
             n += 1
+
+
+_PAINTED = set()
+
+
+def paint_class(hexcol):
+    h = (hexcol or '#999999').lstrip('#').lower()
+    if h not in _PAINTED:
+        css = '.kjt-story.kjt-sb-%s { border-left: 6px solid #%s; }' % (h, h)
+        pr = Gtk.CssProvider(); pr.load_from_string(css) if hasattr(pr, 'load_from_string') else pr.load_from_data(css, -1)
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        _PAINTED.add(h)
+    return h
 
 
 def hsl(h, s, l, a):
@@ -450,7 +525,7 @@ class MapsPage(Gtk.Box):
         self.kind_checks = kb; pop.set_child(kb); kinds.set_popover(pop); hb.pack_end(kinds)
         self.mv = MapView(self)
         ov = Gtk.Overlay(); ov.set_child(self.mv)
-        self.credit = Gtk.Label(css_classes=['kjt-map-credit'], halign=Gtk.Align.START, valign=Gtk.Align.END, wrap=True, max_width_chars=70, margin_start=6, margin_bottom=6, margin_end=70)
+        self.credit = Gtk.Label(css_classes=['kjt-map-credit'], halign=Gtk.Align.START, valign=Gtk.Align.END, wrap=True, max_width_chars=70, margin_start=190, margin_bottom=6, margin_end=70)
         ov.add_overlay(self.credit)
         # the map's own buttons, on the map
         ctl = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=10, margin_bottom=10)
@@ -469,9 +544,17 @@ class MapsPage(Gtk.Box):
         self.snav.get_last_child().connect('clicked', lambda *_: self.go_step(min(len(self.mv.stops) - 1, self.mv.step_i + 1)))
         ov.add_overlay(self.snav)
         self.side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=12, margin_bottom=12, margin_start=12, margin_end=12)
-        ss = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER); ss.set_child(self.side)
+        ss = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True); ss.set_child(self.side); self.side_scroll = ss
+        # two tabs, as on the website: all the places, or the story maps
+        tabs = Gtk.Box(spacing=0, halign=Gtk.Align.CENTER, margin_top=10, margin_start=10, margin_end=10); tabs.add_css_class('linked')
+        self.tab_p = Gtk.ToggleButton(label='📍 All places'); self.tab_s = Gtk.ToggleButton(label='🧭 Story maps', group=self.tab_p)
+        self.tab_p.connect('toggled', lambda b: b.get_active() and self.mode != 'places' and self.set_mode('places'))
+        self.tab_s.connect('toggled', lambda b: b.get_active() and self.mode != 'stories' and self.set_mode('stories'))
+        tabs.append(self.tab_p); tabs.append(self.tab_s)
+        sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); sidebox.append(tabs); sidebox.append(ss)
+        self.mode = ''
         self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, min_sidebar_width=300, max_sidebar_width=380, sidebar_width_fraction=0.3, show_sidebar=True)
-        self.osv.set_content(ov); self.osv.set_sidebar(ss)
+        self.osv.set_content(ov); from .ui import resizable; self.osv.set_sidebar(resizable(self.osv, sidebox, 'maps_side', end=True, lo=260, hi=800))
         self.osv.bind_property('show-sidebar', self.list_btn, 'active', 1 | 2)
         tv.set_content(self.osv)
 
@@ -531,19 +614,53 @@ class MapsPage(Gtk.Box):
         self.side.append(l); return l
 
     def home_side(self):
-        self.clear_side(); self.mv.story = None; self.mv.stops = []; self.snav.set_visible(False)
-        self.label(M.T('title'), 'title-2'); self.label(M.T('sub'), 'dim-label')
-        self.label(M.T('stories'), 'heading').set_margin_top(10)
-        for st in M.stories:
-            b = Gtk.Button(); b.add_css_class('flat')
-            bx = Gtk.Box(spacing=8); dot = Gtk.Label(label='●'); dot.set_markup('<span foreground="%s">●</span>' % st['c']); bx.append(dot)
-            bx.append(Gtk.Label(label=M.T('s_' + st['id']), xalign=0, wrap=True)); b.set_child(bx)
-            b.connect('clicked', lambda _b, i=st['id']: self.open_story(i)); self.side.append(b)
+        self.set_mode(self.mode or 'places')
+
+    def set_mode(self, m):
+        self.mode = m
+        self.tab_p.set_label('📍 ' + M.T('tab_places')); self.tab_s.set_label('🧭 ' + M.T('tab_stories'))
+        (self.tab_p if m == 'places' else self.tab_s).set_active(True)
+        self.clear_side(); self.mv.story = None; self.mv.stops = []; self.mv.sel = None; self.snav.set_visible(False)
+        self.side_scroll.get_vadjustment().set_value(0)
+        if m == 'stories':
+            self.mv.only = None; self.stories_home()
+        else:
+            self.places_home()
         self.mv.queue_draw()
+
+    def places_home(self):
+        self.label(M.T('title'), 'title-2'); self.label(M.T('sub'), 'dim-label')
+        # the places named most often, as chips
+        fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=6, column_spacing=4, row_spacing=4, margin_top=6)
+        for p in sorted((p for p in M.P if p['t'] != 'r'), key=lambda p: -p['n'])[:24]:
+            b = Gtk.Button(label=M.nm(p)); b.add_css_class('kjt-chip'); b.set_tooltip_text(M.T('verses', p['n']))
+            b.connect('clicked', lambda _b, p=p: self.choose(p, True)); fb.append(b)
+        self.side.append(fb)
+        # what the colours of the pins mean (and which to show)
+        self.label(M.T('kinds'), 'heading').set_margin_top(10)
+        kf = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=2, min_children_per_line=2)
+        for k in KIND_KEYS:
+            cb = Gtk.CheckButton(active=self.mv.shown.get(k, True))
+            lb = Gtk.Label(); lb.set_markup('<span foreground="%s">%s</span>  %s' % (COL[k], KIND[k], GLib.markup_escape_text(M.T('k_' + k)))); cb.set_child(lb)
+            cb.connect('toggled', lambda b, k=k: (self.mv.shown.__setitem__(k, b.get_active()), self.mv.queue_draw())); kf.append(cb)
+        self.side.append(kf)
+        sb = Gtk.Button(label='🧭 ' + M.T('tab_stories'), margin_top=10); sb.add_css_class('pill'); sb.connect('clicked', lambda *_: self.set_mode('stories')); self.side.append(sb)
+        note = self.label("Grey squares are today’s capitals, to find your way; they are not places of the Bible.", 'caption', 'dim-label'); note.set_margin_top(8)
+
+    def stories_home(self):
+        self.label(M.T('stories'), 'title-2')
+        for st in M.stories:
+            h = paint_class(st['c'])
+            b = Gtk.Button(); b.add_css_class('card'); b.add_css_class('kjt-story'); b.add_css_class('kjt-sb-' + h)
+            bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=8, margin_bottom=8, margin_start=10, margin_end=8)
+            t = Gtk.Label(xalign=0, wrap=True); t.set_markup('<span foreground="%s"><b>%s</b></span>' % (st['c'], GLib.markup_escape_text(M.T('s_' + st['id'])))); bx.append(t)
+            i = Gtk.Label(label=M.T('i_' + st['id']), xalign=0, wrap=True, lines=2, ellipsize=Pango.EllipsizeMode.END, css_classes=['caption', 'dim-label']); bx.append(i)
+            b.set_child(bx); b.connect('clicked', lambda _b, i=st['id']: self.open_story(i)); self.side.append(b)
+        self.later(self.mv.home)
 
     def clear_only(self):
         self.snav.set_visible(False)
-        self.mv.only = None; self.mv.story = None; self.mv.sel = None; self.home_side()
+        self.mv.only = None; self.mv.story = None; self.mv.sel = None; self.set_mode('places')
 
     def suggest(self, *_):
         pass
@@ -610,6 +727,8 @@ class MapsPage(Gtk.Box):
         st = next((x for x in M.stories if x['id'] == sid), None)
         if not st:
             return
+        if self.mode != 'stories':
+            self.mode = 'stories'; self.tab_s.set_active(True)
         self.mv.sel = None; self.mv.only = None; self.mv.story = st; self.mv.step_i = -1
         self.reveal()
         stops, i = [], 0
@@ -622,7 +741,7 @@ class MapsPage(Gtk.Box):
                 stops.append({'x': p['x'], 'y': p['y'], 'i': i, 'r': p.get('r'), 'id': p.get('id'), 'n': p.get('n'), 'leg': li, 'col': col, 'label': lab}); i += 1
         self.mv.stops = stops
         self.clear_side()
-        back = Gtk.Button(label='← ' + M.T('back'), halign=Gtk.Align.START); back.add_css_class('flat'); back.connect('clicked', lambda *_: self.home_side()); self.side.append(back)
+        back = Gtk.Button(label='← ' + M.T('back'), halign=Gtk.Align.START); back.add_css_class('flat'); back.connect('clicked', lambda *_: self.set_mode('stories')); self.side.append(back)
         h = self.label(M.T('s_' + sid), 'title-2'); h.set_markup('<span foreground="%s">%s</span>' % (st['c'], GLib.markup_escape_text(M.T('s_' + sid))))
         self.label(M.T('i_' + sid))
         nav = Gtk.Box(spacing=6, homogeneous=True)

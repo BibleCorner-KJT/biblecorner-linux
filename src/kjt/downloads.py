@@ -6,7 +6,7 @@ from .core import STORE, NET, LANGS, DEFAULT_BIBLES, info, write_file, read_file
 
 PARALLEL = 4   # files fetched at the same time, within one download
 WORKERS = 2    # downloads running at the same time; the others wait their turn
-MAP_FILES = ['base.json', 'places.json', 'stories.json', 'words.json', 'chapters.json', 'ident.json']
+MAP_FILES = ['base.json', 'places.json', 'stories.json', 'words.json', 'chapters.json', 'ident.json', 'world.json']
 
 
 class Job:
@@ -96,6 +96,8 @@ class Downloader:
             jobs.append(Job('study', None, 'For the reader: cross-references, Greek and Hebrew'))
         for lg in plan.get('today', []):
             jobs.append(Job('today', lg, 'Today with God · ' + lg))
+        for c in plan.get('sword', []):
+            jobs.append(Job('sword', {k: v for k, v in c.items() if not k.startswith('_') or k in ('_name', '_source', '_kind')}, 'Library · ' + (c.get('Description') or c['_name'])))
         with self.lock:
             busy = {j.key for j in self.jobs if j.state in ('waiting', 'running')}
             # finished downloads leave the list when new ones come
@@ -221,6 +223,25 @@ class Downloader:
         files = ['xref/%s.json' % b for b in OT + NT] + ['words/%s.json.gz' % b for b in OT + NT] + ['words/lexicon.json.gz']
         files += ['../assets/red-letters/%s.json' % en[b] for b in NT if b in en]
         self.files(job, files, 'For the reader', dest=lambda f: f.replace('../assets/', ''), quiet=True)  # not every book has every kind
+
+    def get_sword(self, job, c):
+        """one book of the free libraries (CrossWire, AndBible); a Bible is also made one of the app's Bibles"""
+        from . import sword
+        job.total = 1; self.tell()
+        def step(what):
+            if job.total == 1:
+                job.total = 1 + 90
+            self.step(job, what)
+        sword.install(c, step, lambda: job.cancel)
+        self.step(job, 'done'); job.done = job.total
+        self.tell(True)
+        GLib.idle_add(lambda: (self.after_sword(), False)[1])
+
+    def after_sword(self):
+        for fn in self.sword_listeners:
+            fn()
+
+    sword_listeners = []
 
     def get_today(self, job, lg):
         job.total = 1

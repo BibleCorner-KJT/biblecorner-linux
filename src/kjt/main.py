@@ -10,7 +10,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.6'
+VERSION = '2.7'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -27,6 +27,12 @@ textview.kjt-bible, textview.kjt-text, textview.kjt-book { background: transpare
 .kjt-step { border-radius: 12px; }
 .kjt-sel-label { font-weight: 700; }
 .kjt-chapinfo { background: alpha(#f3c548, 0.10); border-radius: 12px; padding: 10px 12px; }
+.kjt-grip { background: alpha(currentColor, 0.06); } .kjt-grip:hover { background: alpha(@accent_color, 0.35); }
+.kjt-padcard { padding: 10px 8px 10px 12px; border-left: 7px solid #999; }
+.kjt-padcard.kjt-pad-on { box-shadow: inset 0 0 0 2px @accent_color; }
+.kjt-padbadge { border-radius: 999px; min-width: 34px; min-height: 34px; font-size: 1.15em; font-weight: bold; }
+.kjt-swatch { min-width: 26px; min-height: 26px; padding: 0; border-radius: 999px; }
+.kjt-swatch.kjt-dot-on { box-shadow: 0 0 0 3px @accent_color; }
 button.kjt-chip { min-height: 26px; padding: 2px 10px; border-radius: 999px; font-size: 0.92em; }
 button.kjt-chip-yellow { background: #f6d365; color: #1d1a1f; } button.kjt-chip-green { background: #9be3a4; color: #1d1a1f; }
 button.kjt-chip-blue { background: #9cc9f5; color: #1d1a1f; } button.kjt-chip-pink { background: #f7a8c4; color: #1d1a1f; }
@@ -53,7 +59,7 @@ DARK = 'button.kjt-bk-law { background: alpha(#dc2626, 0.16); color: #f2eaf4; }\
 
 PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy Bible', 'kjt-bible-symbolic'),
          ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
-         ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('study', 'My Study', 'kjt-study-symbolic'),
+         ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'), ('study', 'My Study', 'kjt-study-symbolic'),
          ('downloads', 'Downloads', 'kjt-download-symbolic')]
 
 
@@ -99,7 +105,8 @@ class Window(Adw.ApplicationWindow):
             self.nav.append(row)
         self.nav.connect('row-activated', lambda _l, row: self.show(row.key, from_nav=True))
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(self.nav); st.set_content(sc)
-        self.split.set_sidebar(st)
+        from .ui import resizable
+        self.split.set_sidebar(resizable(self.split, st, 'nav', lo=180, hi=420))
 
         # the pages (each made the first time it is opened, so the app starts at once)
         self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=120, vexpand=True)
@@ -142,6 +149,8 @@ class Window(Adw.ApplicationWindow):
                 from .maps import MapsPage as P
             elif key == 'study':
                 from .mystudy import StudyPage as P
+            elif key == 'library':
+                from .library import LibraryPage as P
             else:
                 from .settings import DownloadsPage as P
             p = P(self); self.pages[key] = p; self.stack.add_named(p, key)
@@ -156,6 +165,7 @@ class Window(Adw.ApplicationWindow):
     today = property(lambda self: self.page('today'))
     fathers = property(lambda self: self.page('fathers'))
     study = property(lambda self: self.page('study'))
+    library = property(lambda self: self.page('library'))
     downloads = property(lambda self: self.page('downloads'))
 
     def set_compact(self, c):
@@ -238,6 +248,14 @@ class Window(Adw.ApplicationWindow):
 
     def open_link(self, href):
         if not href:
+            return
+        if href.startswith('library:'):
+            self.show('library'); self.library.open_href(href); return
+        if href.startswith('sword-ref:'):
+            from .library import osis_ref
+            r = osis_ref(href[10:])
+            if r:
+                self.open_passage(*r)
             return
         v = verse_link(href)
         if v:
@@ -381,6 +399,7 @@ class App(Adw.Application):
         d.set_developer_name('Knowing Jesus Today')
         d.add_credit_section('Places', ['OpenBible.info Bible Geocoding Data (CC BY 4.0)'])
         d.add_credit_section('Maps', ['Natural Earth (public domain)'])
+        d.add_credit_section('Library', ['CrossWire Bible Society https://crosswire.org', 'AndBible https://andbible.org', 'PySword versification tables (MIT)'])
         d.present(self.props.active_window)
 
     def keys(self, *_):

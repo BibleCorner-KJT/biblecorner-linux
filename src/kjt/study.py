@@ -1,5 +1,5 @@
 """Your study: bookmarks (with colours and notes) and Study Pads, kept here and in step with My KJT."""
-import hashlib, json, time
+import hashlib, json, re, time
 from gi.repository import GLib
 from .core import STORE, NET, info, run_bg
 
@@ -54,34 +54,62 @@ class Study:
         p = self.pad(tag) or {}
         return (p.get('icon') or '🗂') + ' ' + self.pad_name(tag)
 
-    def new_pad(self, name):
+    PALETTE = ['#e53935', '#fb8c00', '#fdd835', '#c0ca33', '#43a047', '#00897b', '#00acc1', '#1e88e5', '#3949ab', '#8e24aa', '#d81b60', '#6d4c41']
+    NAMED = {'yellow': '#fdd835', 'green': '#43a047', 'blue': '#1e88e5', 'pink': '#d81b60', 'purple': '#8e24aa'}
+
+    def pad_color(self, tag):
+        """the pad's colour, as on the website; a pad without one gets a steady colour from the same palette"""
+        c = ((self.pad(tag) or {}).get('color') or '').strip().lower()
+        c = self.NAMED.get(c, c)
+        if re.match(r'^#[0-9a-f]{6}$', c):
+            return c
+        return self.PALETTE[sum(map(ord, tag)) % len(self.PALETTE)]
+
+    def free_color(self):
+        used = {(p.get('color') or '').lower() for p in STORE.pads()}
+        return next((c for c in self.PALETTE if c not in used), self.PALETTE[len(used) % len(self.PALETTE)])
+
+    def new_pad(self, name, color=None):
         """a new Study Pad with the name you give it; it returns the pad's code"""
-        import re
         name = ' '.join(name.split())[:60]
         tag = re.sub(r'[^\w-]+', '-', name.lower()).strip('-')[:30] or 'pad'
         base, n = tag, 2
         while self.pad(tag) and self.pad_name(tag).casefold() != name.casefold():
             tag = '%s-%d' % (base, n); n += 1
         if not self.pad(tag):
-            pad = {'tag': tag, 'name': name, 'color': '', 'updated': int(time.time()), 'items': []}
+            pad = {'tag': tag, 'name': name, 'color': color or self.free_color(), 'updated': int(time.time()), 'items': []}
             STORE.put_pads([pad])
             self.send({'op': 'save', 'pad': json.dumps(pad), 'merge': 1}, pads=True)
             self.changed()
         return tag
 
-    def rename_pad(self, tag, name):
-        p = self.pad(tag)
-        if not p or not name.strip():
-            return
+    def update_pad(self, tag, name=None, color=None, icon=None):
+        """change a Study Pad's name, colour or small picture (emoji)"""
+        p = self.pad(tag) or {'tag': tag, 'items': []}
         base = int(p.get('updated') or 0)
-        p = dict(p, name=' '.join(name.split())[:60], updated=int(time.time())); STORE.put_pads([p])
+        p = dict(p, updated=int(time.time()))
+        if name is not None and name.strip():
+            p['name'] = ' '.join(name.split())[:60]
+        if color:
+            p['color'] = color
+        if icon is not None:
+            if icon.strip():
+                p['icon'] = icon.strip()[:4]
+            else:
+                p.pop('icon', None)
+        STORE.put_pads([p])
         self.send({'op': 'save', 'pad': json.dumps(dict(p, base=base)), 'merge': 1}, pads=True); self.changed()
 
-    def pad_color(self, tag):
-        for p in STORE.pads():
-            if p.get('tag') == tag and p.get('color'):
-                return p['color']
-        return None
+    def rename_pad(self, tag, name):
+        self.update_pad(tag, name=name)
+
+    def delete_pad(self, tag):
+        """the Study Pad goes; the bookmarks stay, without it"""
+        for r in self.records():
+            if tag in (r.get('tags') or []):
+                self.set_tags(r, [t for t in r['tags'] if t != tag])
+        STORE.del_pad(tag)
+        self.send({'op': 'delete', 'tag': tag}, pads=True); self.changed()
 
     # changing (here at once; on the website now, or as soon as it can be reached)
     def save(self, tr, book, ch, v, v_end=0, color=None, note=None):

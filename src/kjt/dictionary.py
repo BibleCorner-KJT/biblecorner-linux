@@ -154,7 +154,8 @@ class DictPage(Gtk.Box):
         self.list.connect('row-activated', lambda _l, row: self.open(row.entry))
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(self.list); lt.set_content(sc)
         self.count = Gtk.Label(css_classes=['dim-label', 'caption'], margin_bottom=4); lt.add_bottom_bar(self.count)
-        self.split.set_sidebar(Adw.NavigationPage(title='Bible Dictionary', child=lt))
+        from .ui import resizable
+        self.split.set_sidebar(Adw.NavigationPage(title='Bible Dictionary', child=resizable(self.split, lt, 'dict_side', lo=220, hi=700)))
         # the article
         at = Adw.ToolbarView(); self.ah = Adw.HeaderBar(); at.add_top_bar(self.ah)
         self.map_btn = Gtk.Button(icon_name='kjt-map-symbolic', tooltip_text='Show on the Bible Maps'); self.map_btn.add_css_class('flat'); self.map_btn.connect('clicked', lambda *_: self.win.show_on_map(self.cur.get('map')))
@@ -164,7 +165,8 @@ class DictPage(Gtk.Box):
         asc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); asc.set_child(c); at.set_content(asc)
         self.article = Adw.NavigationPage(title='', child=at)
         self.split.set_content(self.article)
-        self.split.set_min_sidebar_width(260); self.split.set_max_sidebar_width(360)
+        if not SET.get('w_dict_side'):
+            self.split.set_min_sidebar_width(260); self.split.set_max_sidebar_width(360)
 
     def set_compact(self, c):
         self.split.set_collapsed(c)

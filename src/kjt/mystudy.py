@@ -1,6 +1,6 @@
 """My Study: bookmarks, highlights, notes and Study Pads; and your My KJT account (signing in here, in the app)."""
 import time
-from gi.repository import Gtk, Adw, GLib, Pango
+from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, NET, OT, NT, info, book_name, strip_tags, canon
 from .study import STUDY, COLORS
 
@@ -32,7 +32,7 @@ class StudyPage(Gtk.Box):
 
     SORTS = [('bible', 'Bible order'), ('new', 'Newest first'), ('old', 'Oldest first'), ('changed', 'Last changed'), ('color', 'By colour')]
 
-    def section(self, key, title, count, extra=None):
+    def section(self, key, title, count, extra=None, child=None):
         """a heading you can click to fold the list away (remembered), with its list under it"""
         open_ = not SET.get('fold_' + key)
         head = Gtk.Box(spacing=6)
@@ -44,7 +44,9 @@ class StudyPage(Gtk.Box):
         b.set_child(hb); b.set_tooltip_text('Fold away or show'); head.append(b)
         if extra:
             head.append(extra)
-        lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list')
+        lb = child or Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        if not child:
+            lb.add_css_class('boxed-list')
         rv = Gtk.Revealer(reveal_child=open_, transition_type=Gtk.RevealerTransitionType.SLIDE_DOWN); rv.set_child(lb)
         def flip(*_):
             now = not rv.get_reveal_child(); rv.set_reveal_child(now)
@@ -68,20 +70,17 @@ class StudyPage(Gtk.Box):
         recs = STUDY.records()
         q = self.q.get_text().strip().casefold()
         pads = STUDY.pads()
-        # Study Pads
-        if pads:
-            lb = self.section('pads', 'Study Pads', len(pads))
-            for p in pads:
-                n = sum(1 for r in recs if p['tag'] in (r.get('tags') or []))
-                row = Adw.ActionRow(title=GLib.markup_escape_text(STUDY.pad_label(p['tag'])), subtitle='%d passage%s' % (n, '' if n == 1 else 's'), activatable=True)
-                row.connect('activated', lambda _r, t=p['tag']: self.set_filter('' if self.filter == t else t))
-                if self.filter == p['tag']:
-                    row.add_suffix(Gtk.Image(icon_name='kjt-check-symbolic'))
-                rn = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Rename this Study Pad', valign=Gtk.Align.CENTER); rn.add_css_class('flat')
-                rn.connect('clicked', lambda _b, t=p['tag']: self.rename(t)); row.add_suffix(rn)
-                lb.append(row)
-            if self.filter:
-                row = Adw.ActionRow(title='Show everything', activatable=True); row.connect('activated', lambda *_: self.set_filter('')); lb.append(row)
+        # Study Pads: a grid of coloured cards
+        grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=1, max_children_per_line=5, column_spacing=8, row_spacing=8)
+        self.section('pads', 'Study Pads', len(pads), child=grid)
+        for p in pads:
+            grid.append(self.pad_card(p['tag'], sum(1 for r in recs if p['tag'] in (r.get('tags') or []))))
+        add = Gtk.Button(); add.add_css_class('card'); add.set_tooltip_text('Make a new Study Pad')
+        ab = Gtk.Box(spacing=8, margin_top=8, margin_bottom=8, margin_start=8, margin_end=8, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+        ab.append(Gtk.Image(icon_name='kjt-plus-symbolic')); ab.append(Gtk.Label(label='New Study Pad')); add.set_child(ab)
+        add.connect('clicked', lambda *_: pad_dialog(self.win)); grid.append(add)
+        if self.filter:
+            allb = Gtk.Button(label='Show everything'); allb.add_css_class('pill'); allb.connect('clicked', lambda *_: self.set_filter('')); grid.append(allb)
         # bookmarks and notes, sorted as you choose
         shown = [r for r in recs if (not self.filter or self.filter in (r.get('tags') or [])) and
                  (not q or q in (r.get('note') or '').casefold() or q in book_name(r['book'], tr=r.get('translation')).casefold()
@@ -109,10 +108,10 @@ class StudyPage(Gtk.Box):
     def row(self, r):
         rows = STORE.passage(r['translation'], r['book'], int(r['chapter']), int(r.get('verse') or 1), int(r['chapter']), int(r.get('verse_end') or r.get('verse') or 1))
         text = ' '.join(strip_tags(x[2]).strip() for x in rows)
-        sub = (r.get('note') or '').strip() or text
+        sub = GLib.markup_escape_text(((r.get('note') or '').strip() or text)[:300])
         if r.get('tags'):
-            sub = '  '.join(STUDY.pad_label(t) for t in r['tags']) + '\n' + sub
-        row = Adw.ActionRow(title=GLib.markup_escape_text(self.ref(r)), subtitle=GLib.markup_escape_text(sub[:300]), activatable=True)
+            sub = '  '.join('<span foreground="%s">●</span> %s' % (STUDY.pad_color(t), GLib.markup_escape_text(STUDY.pad_name(t))) for t in r['tags']) + '\n' + sub
+        row = Adw.ActionRow(title=GLib.markup_escape_text(self.ref(r)), subtitle=sub, activatable=True)
         row.set_subtitle_lines(3)
         if r.get('color') in COLORS:
             dot = Gtk.Label(); dot.set_markup('<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']]); row.add_prefix(dot)
@@ -122,6 +121,26 @@ class StudyPage(Gtk.Box):
         d.connect('clicked', lambda *_: self.remove(r)); row.add_suffix(d)
         row.connect('activated', lambda *_: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation')))
         return row
+
+    def pad_card(self, tag, n):
+        col = STUDY.pad_color(tag); h = paint(None, col)
+        card = Gtk.Box(spacing=10); card.add_css_class('card'); card.add_css_class('kjt-padcard'); card.add_css_class('kjt-pb-' + h)
+        if self.filter == tag:
+            card.add_css_class('kjt-pad-on')
+        p = STUDY.pad(tag) or {}
+        badge = Gtk.Label(label=p.get('icon') or STUDY.pad_name(tag)[:1].upper(), valign=Gtk.Align.CENTER); badge.add_css_class('kjt-padbadge'); badge.add_css_class('kjt-pc-' + h)
+        card.append(badge)
+        txt = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
+        nm = Gtk.Label(label=STUDY.pad_name(tag), xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['heading']); nm.set_tooltip_text(STUDY.pad_name(tag)); txt.append(nm)
+        txt.append(Gtk.Label(label='%d passage%s' % (n, '' if n == 1 else 's'), xalign=0, css_classes=['dim-label', 'caption']))
+        card.append(txt)
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Name, colour, emoji', valign=Gtk.Align.CENTER); e.add_css_class('flat'); e.add_css_class('circular')
+        e.connect('clicked', lambda *_: pad_dialog(self.win, tag)); card.append(e)
+        g = Gtk.GestureClick(); g.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); txt.add_controller(g)
+        gb = Gtk.GestureClick(); gb.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); badge.add_controller(gb)
+        card.set_tooltip_text('Click to show only this Study Pad')
+        card.set_cursor(Gdk.Cursor.new_from_name('pointer'))
+        return card
 
     def rename(self, tag):
         d = Adw.AlertDialog(heading='Rename the Study Pad')
@@ -210,6 +229,77 @@ class StudyPage(Gtk.Box):
             self.win.toast('In step with My KJT' if res == 'ok' else ('Not signed in' if res == 'guest' else 'The website could not be reached'))
             self.fill()
         STUDY.sync(done)
+
+
+_PAINTED = set()
+
+
+def paint(widget, hexcol):
+    """give a widget a colour of its own (a Study Pad's colour)"""
+    h = (hexcol or '#999999').lstrip('#').lower()
+    if h not in _PAINTED:
+        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+        fg = '#1d1d1d' if (r * 299 + g * 587 + b * 114) / 1000 > 150 else '#ffffff'
+        css = '.kjt-pc-%s { background-color: #%s; color: %s; } .kjt-padcard.kjt-pb-%s { border-left-color: #%s; }' % (h, h, fg, h, h)
+        pr = Gtk.CssProvider(); pr.load_from_string(css) if hasattr(pr, 'load_from_string') else pr.load_from_data(css, -1)
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        _PAINTED.add(h)
+    return h
+
+
+def pad_dialog(win, tag=None, done=None):
+    """make a Study Pad, or change its name, colour and emoji; or remove it"""
+    p = STUDY.pad(tag) if tag else None
+    d = Adw.AlertDialog(heading='Study Pad' if tag else 'A new Study Pad')
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    name = Gtk.Entry(text=STUDY.pad_name(tag) if tag else '', placeholder_text='Its name', activates_default=True); box.append(name)
+    icon = Gtk.Entry(text=(p or {}).get('icon', ''), placeholder_text='An emoji for it, if you like (optional)', max_length=4); box.append(icon)
+    box.append(Gtk.Label(label='Colour', xalign=0, css_classes=['heading'], margin_top=4))
+    pick = {'c': STUDY.pad_color(tag) if tag else STUDY.free_color()}
+    fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=6, min_children_per_line=6, column_spacing=6, row_spacing=6)
+    sw = {}
+    def choose(c):
+        pick['c'] = c
+        for k, b in sw.items():
+            (b.add_css_class if k == c else b.remove_css_class)('kjt-dot-on')
+    for c in STUDY.PALETTE:
+        b = Gtk.Button(tooltip_text=c, halign=Gtk.Align.CENTER); b.add_css_class('kjt-swatch'); b.add_css_class('kjt-pc-' + paint(b, c))
+        b.connect('clicked', lambda _b, c=c: choose(c)); fb.append(b); sw[c] = b
+    box.append(fb)
+    try:
+        any_c = Gtk.ColorDialogButton(dialog=Gtk.ColorDialog(with_alpha=False), halign=Gtk.Align.START, tooltip_text='Any colour')
+        rgba = Gdk.RGBA(); rgba.parse(pick['c']); any_c.set_rgba(rgba)
+        def other(btn, _p):
+            c = btn.get_rgba(); choose('#%02x%02x%02x' % (int(c.red * 255), int(c.green * 255), int(c.blue * 255)))
+        any_c.connect('notify::rgba', other)
+        row = Gtk.Box(spacing=8); row.append(Gtk.Label(label='Or any colour:')); row.append(any_c); box.append(row)
+    except Exception:
+        pass
+    choose(pick['c'])
+    d.set_extra_child(box)
+    d.add_response('cancel', 'Cancel')
+    if tag:
+        d.add_response('delete', 'Remove'); d.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE)
+    d.add_response('save', 'Save' if tag else 'Make it'); d.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)
+    d.set_default_response('save'); d.set_close_response('cancel')
+    def resp(_d, res):
+        if res == 'save':
+            if tag:
+                STUDY.update_pad(tag, name=name.get_text(), color=pick['c'], icon=icon.get_text())
+            elif name.get_text().strip():
+                t = STUDY.new_pad(name.get_text(), color=pick['c'])
+                if icon.get_text().strip():
+                    STUDY.update_pad(t, icon=icon.get_text())
+            if done:
+                done()
+        elif res == 'delete':
+            n = sum(1 for r in STUDY.records() if tag in (r.get('tags') or []))
+            c = Adw.AlertDialog(heading='Remove “%s”?' % STUDY.pad_name(tag),
+                                body='The Study Pad goes away. Its %d bookmarks stay, without it.' % n if n else 'The Study Pad goes away.')
+            c.add_response('cancel', 'Keep it'); c.add_response('go', 'Remove'); c.set_response_appearance('go', Adw.ResponseAppearance.DESTRUCTIVE)
+            c.connect('response', lambda _c, r2: (STUDY.delete_pad(tag), done and done()) if r2 == 'go' else None); c.present(win)
+    d.connect('response', resp); d.present(win)
+    GLib.idle_add(lambda: (name.grab_focus(), False)[1])
 
 
 def ref_of(r):

@@ -375,9 +375,18 @@ def info(refresh=False):
 BIBLE_LANGS = {'English': 'en', 'Arabic': 'ar', 'Greek': 'el', 'Russian': 'ru', 'Chinese': 'zh', 'French': 'fr', 'Hindi': 'hi', 'Spanish': 'es', 'Tagalog': 'tl', 'Filipino': 'tl'}
 
 
+def version(tr):
+    """[language, name, direction] of a Bible: the website's, or one from the library (CrossWire, AndBible)"""
+    v = ((STORE.kv('info') or {}).get('versions') or {}).get(tr)
+    if v:
+        return v
+    r = (STORE.kv('sword_bibles') or {}).get(tr)
+    return [r[0], '%s · %s' % (r[1], r[3]), r[2]] if r else None
+
+
 def bible_lang(tr):
     """the language a Bible is written in (its book names follow it)"""
-    v = ((STORE.kv('info') or {}).get('versions') or {}).get(tr)
+    v = version(tr)
     for code, t in DEFAULT_BIBLES.items():
         if t == tr:
             return code
