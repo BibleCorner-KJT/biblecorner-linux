@@ -117,7 +117,7 @@ class StudyPage(Gtk.Box):
         when = lambda r: int(r.get('created') or r.get('updated') or 0)
         bible = lambda r: (order.get(canon(r['book']), 999), int(r['chapter']), int(r.get('verse') or 1))
         return {'bible': bible, 'new': lambda r: -when(r), 'old': when, 'changed': lambda r: -int(r.get('updated') or r.get('created') or 0),
-                'color': lambda r: (cols.get(r.get('color'), 99),) + bible(r),
+                'color': lambda r: ((STUDY.colors_of(r) or ['~'])[0],) + bible(r),
                 'pad': lambda r: ((0, sorted(STUDY.pad_name(t).casefold() for t in r['tags'])[0]) if r.get('tags') else (1, '')) + bible(r),
                 'tr': lambda r: (bible_name(r.get('translation') or '').casefold(),) + bible(r)}[how]
 
@@ -186,7 +186,7 @@ class StudyPage(Gtk.Box):
             col(0, 22, ''); col(1, 0, _('Passage and note'), expand=True); col(2, 110, _('Bible')); col(3, 140, _('Study Pads')); col(4, 92, _('Made')); col(5, 92, _('Changed'))
             sp = Gtk.Box(); sp.set_size_request(76, -1); box.append(sp)
             return box
-        dot = '<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']] if r.get('color') in COLORS else ''
+        dot = ''.join('<span foreground="%s" size="large">●</span>' % c for c in STUDY.colors_of(r)[:3])
         col(0, 22, dot, markup=True)
         rows = STORE.passage(r['translation'], r['book'], int(r['chapter']), int(r.get('verse') or 1), int(r['chapter']), int(r.get('verse_end') or r.get('verse') or 1))
         text = ' '.join(strip_tags(x[2]).strip() for x in rows)
@@ -199,7 +199,7 @@ class StudyPage(Gtk.Box):
         col(3, 140, pads, markup=True, lines=3)
         col(4, 92, self.day(r.get('created')))
         col(5, 92, self.day(r.get('updated') or r.get('created')))
-        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit: colour, note, Study Pads'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
         e.connect('clicked', lambda *_: edit(self.win, r)); box.append(e)
         d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
         d.connect('clicked', lambda *_: self.remove(r)); box.append(d)
@@ -223,9 +223,9 @@ class StudyPage(Gtk.Box):
         sub = '<small>%s%s%s</small>\n' % (GLib.markup_escape_text(_('Made') + ' ' + made), GLib.markup_escape_text(' · ' + _('Changed').lower() + ' ' + ch) if r.get('updated') and ch != made else '', GLib.markup_escape_text(' · ' + bn) if bn else '') + sub
         row = Adw.ActionRow(title=GLib.markup_escape_text(self.ref(r)), subtitle=sub, activatable=True)
         row.set_subtitle_lines(4)
-        if r.get('color') in COLORS:
-            dot = Gtk.Label(); dot.set_markup('<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']]); row.add_prefix(dot)
-        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit: colour, note, Study Pads'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
+        if STUDY.colors_of(r):
+            dot = Gtk.Label(); dot.set_markup(''.join('<span foreground="%s" size="large">●</span>' % c for c in STUDY.colors_of(r)[:3])); row.add_prefix(dot)
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
         e.connect('clicked', lambda *_: edit(self.win, r)); row.add_suffix(e)
         d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
         d.connect('clicked', lambda *_: self.remove(r)); row.add_suffix(d)
@@ -455,19 +455,10 @@ def edit(win, r, focus='note'):
     r = next((x for x in STUDY.records() if x['id'] == r['id']), r)
     d = Adw.AlertDialog(heading='Edit', body=ref_of(r))
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-    # colour
-    box.append(Gtk.Label(label=_('Colour'), xalign=0, css_classes=['heading']))
-    dots = Gtk.Box(spacing=6); chosen = {'c': r.get('color') if r.get('color') in COLORS else None}; btns = {}
-    def pick(c):
-        chosen['c'] = c
-        for k, b in btns.items():
-            (b.add_css_class if k == c else b.remove_css_class)('kjt-dot-on')
-    for c in list(COLORS) + [None]:
-        b = Gtk.Button(tooltip_text=c or 'No colour'); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + (c or 'none'))
-        b.connect('clicked', lambda _b, c=c: pick(c)); dots.append(b); btns[c] = b
-    pick(chosen['c']); box.append(dots)
+    # 2.15: no colour of its own: the colour is its Study Pads' colour
+    chosen = {'c': None}
     # note
-    box.append(Gtk.Label(label=_('Note'), xalign=0, css_classes=['heading'], margin_top=4))
+    box.append(Gtk.Label(label=_('Note'), xalign=0, css_classes=['heading']))
     tvw = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, top_margin=8, bottom_margin=8, left_margin=8, right_margin=8)
     tvw.get_buffer().set_text(r.get('note') or '')
     sc = Gtk.ScrolledWindow(min_content_height=130, min_content_width=300); sc.set_child(tvw); sc.add_css_class('card'); box.append(sc)
@@ -491,8 +482,8 @@ def edit(win, r, focus='note'):
             if new.get_text().strip():
                 tags.append(STUDY.new_pad(new.get_text()))
             cur = next((x for x in STUDY.records() if x['id'] == r['id']), r)
-            if chosen['c'] != cur.get('color'):
-                STUDY.set_color(cur, chosen['c']); cur = next((x for x in STUDY.records() if x['id'] == r['id']), cur)
+            if cur.get('color'):
+                STUDY.set_color(cur, None); cur = next((x for x in STUDY.records() if x['id'] == r['id']), cur)
             if note != (cur.get('note') or '').strip():
                 STUDY.set_note(cur, note); cur = dict(cur, note=note)
             if sorted(tags) != sorted(cur.get('tags') or []):

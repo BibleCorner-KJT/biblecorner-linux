@@ -40,3 +40,20 @@ def steady(scrolled):
     if isinstance(v, Gtk.Viewport):
         v.set_scroll_to_focus(False)
     return scrolled
+
+
+_tints = set()
+
+
+def tint(w, hx):
+    """2.15: a soft background of a Study Pad's colour on a button"""
+    hx = (hx or '').lstrip('#').lower()
+    if len(hx) != 6 or not all(c in '0123456789abcdef' for c in hx):
+        return
+    cls = 'kjt-tint-' + hx
+    if cls not in _tints:
+        _tints.add(cls)
+        pr = Gtk.CssProvider()
+        pr.load_from_string('button.%s { background: alpha(#%s, 0.45); color: inherit; }' % (cls, hx))
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 2)
+    w.add_css_class(cls)

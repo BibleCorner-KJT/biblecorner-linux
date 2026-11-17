@@ -65,6 +65,18 @@ class Study:
             return c
         return self.PALETTE[sum(map(ord, tag)) % len(self.PALETTE)]
 
+    def colors_of(self, r):
+        """2.15: a bookmark's colours: those of its Study Pads (none when colours are switched off)"""
+        from .core import SET
+        if SET.get('pad_colours') is False:
+            return []
+        out = []
+        for t in (r or {}).get('tags') or []:
+            c = self.pad_color(t)
+            if c and c not in out:
+                out.append(c)
+        return out
+
     def free_color(self):
         used = {(p.get('color') or '').lower() for p in STORE.pads()}
         return next((c for c in self.PALETTE if c not in used), self.PALETTE[len(used) % len(self.PALETTE)])

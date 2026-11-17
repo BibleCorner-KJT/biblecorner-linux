@@ -1,5 +1,5 @@
 """The Holy Bible: reading, comparing, searching, listening, the Holy Fathers beside each chapter, and your study."""
-import bisect, math, re, unicodedata
+import bisect, math, re, time, unicodedata
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, OT, NT, DEFAULT_BIBLES, canon, book_name, lang, read_file, version
 from .i18n import _
@@ -53,7 +53,8 @@ class BiblePage(Gtk.Box):
         self.tr = SET.get('tr') or DEFAULT_BIBLES.get(lang(), 'eng-kjv')
         if self.tr not in STORE.bibles() and STORE.bibles():
             self.tr = STORE.bibles()[0]
-        self.tr2 = SET.get('tr2') or ''
+        # 2.15: several Bibles to compare (each under the verse, with its name)
+        self.tr2s = [t for t in (SET.get('tr2s') if isinstance(SET.get('tr2s'), list) else ([SET.get('tr2')] if SET.get('tr2') else [])) if t][:4]
         self.book = SET.get('book') or 'JHN'
         self.ch = SET.get('ch', 1)
         self.sel = []
@@ -78,7 +79,10 @@ class BiblePage(Gtk.Box):
         self.tools = Gtk.Box(spacing=2)
         self.search_btn = ib('kjt-search-symbolic', _('Search the Bible (Ctrl+F)'), toggle=True)
         self.hf_btn = ib('kjt-cross-symbolic', _('The Holy Fathers on this chapter'), toggle=True)
-        self.cmp_btn = Gtk.MenuButton(icon_name='kjt-compare-symbolic', tooltip_text=_('Compare with another Bible')); self.cmp_btn.add_css_class('flat'); self.cmp_btn.set_popover(self.make_tr_menu(True))
+        self.cmp_btn = Gtk.MenuButton(tooltip_text=_('Compare with another Bible')); self.cmp_btn.add_css_class('flat'); self.cmp_btn.set_popover(self.make_tr_menu(True))
+        cb = Gtk.Box(spacing=5); cb.append(Gtk.Image(icon_name='kjt-compare-symbolic'))
+        self.cmp_label = Gtk.Label(ellipsize=Pango.EllipsizeMode.END, max_width_chars=16); self.cmp_label.add_css_class('kjt-cmp-on'); cb.append(self.cmp_label)
+        self.cmp_btn.set_child(cb); self.cmp_shown()
         for w in (self.search_btn, self.hf_btn, self.cmp_btn, ib('kjt-listen-symbolic', _('Listen'), self.listen), ib('kjt-map-symbolic', _('Map of this chapter'), self.map),
                   self.size_button()):
             self.tools.append(w)
@@ -154,13 +158,9 @@ class BiblePage(Gtk.Box):
         self.less_btn = Gtk.Button(label=_('− One less'), tooltip_text=_('Take the last verse away from the choice')); self.less_btn.connect('clicked', lambda *_: self.shrink())
         self.more_btn = Gtk.Button(label=_('+ Next verse'), tooltip_text=_('Add the next verse to the choice')); self.more_btn.add_css_class('suggested-action'); self.more_btn.connect('clicked', lambda *_: self.grow())
         grow.append(self.less_btn); grow.append(self.more_btn); top.append(grow)
-        self.colors = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, min_children_per_line=4, max_children_per_line=20, homogeneous=True, column_spacing=5, row_spacing=5, valign=Gtk.Align.CENTER, halign=Gtk.Align.END)
-        self.dots = {}
-        for c, hexv in COLORS.items():
-            b = Gtk.Button(tooltip_text=_('Highlight: ') + c, valign=Gtk.Align.CENTER); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + c)
-            b.connect('clicked', lambda _b, c=c: self.bookmark(c)); self.colors.append(b); self.dots[c] = b
-        self.nocolor = Gtk.Button(tooltip_text=_('No colour (keep the bookmark)'), valign=Gtk.Align.CENTER); self.nocolor.add_css_class('kjt-dot'); self.nocolor.add_css_class('kjt-dot-none')
-        self.nocolor.connect('clicked', lambda *_: self.uncolor()); self.colors.append(self.nocolor)
+        self.colors = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, min_children_per_line=2, max_children_per_line=12, homogeneous=False, column_spacing=5, row_spacing=5, valign=Gtk.Align.CENTER, hexpand=True)
+        # 2.15: a bookmark's colour is its Study Pads' colour (several pads: several colours); no colours of its own
+        pads_sc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True, max_content_height=96); pads_sc.set_child(self.colors)
         acts = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=10, min_children_per_line=2, column_spacing=2, row_spacing=2, homogeneous=False)
         def labelled(icon, text, fn):
             b = Gtk.Button(tooltip_text=text); b.add_css_class('flat')
@@ -184,7 +184,7 @@ class BiblePage(Gtk.Box):
             elif tip == 'Listen from here':
                 self.here_btn = btn
         self.del_btn = labelled('kjt-trash-symbolic', _('Remove bookmark'), lambda: self.remove()); acts.insert(self.del_btn, 2)
-        topflow.append(self.colors); barbox.append(acts)
+        barbox.append(pads_sc); barbox.append(acts)
         tv.add_bottom_bar(self.bar)
 
         # small screens: the tools at the bottom
@@ -197,6 +197,7 @@ class BiblePage(Gtk.Box):
         for lab, fn in (('Compare with another Bible…', lambda: (mp.popdown(), GLib.idle_add(lambda: (self.cmp_btn.popup(), False)[1]))),
                         ('Map of this chapter', lambda: (mp.popdown(), self.map())), ('Larger text', lambda: self.zoom(1.1)), ('Smaller text', lambda: self.zoom(1 / 1.1))):
             b = Gtk.Button(label=lab); b.add_css_class('flat'); b.get_child().set_xalign(0); b.connect('clicked', lambda _b, fn=fn: fn()); mb.append(b)
+        mb.append(self.colours_switch())
         mp.set_child(mb); more.set_popover(mp)
         for w in (ib('kjt-prev-symbolic', 'Previous chapter', lambda: self.step(-1)), self.c_search, self.c_hf, ib('kjt-listen-symbolic', 'Listen', self.listen), more,
                   ib('kjt-next-symbolic', 'Next chapter', lambda: self.step(1))):
@@ -204,7 +205,7 @@ class BiblePage(Gtk.Box):
         self.cbar.set_center_widget(cb)
         tv.add_bottom_bar(self.cbar)
 
-        k = Gtk.EventControllerKey(); k.connect('key-pressed', self.on_key); self.add_controller(k)
+        k = Gtk.EventControllerKey(); k.set_propagation_phase(Gtk.PropagationPhase.CAPTURE); k.connect('key-pressed', self.on_key); self.add_controller(k)
         STUDY.listen(lambda: self.show(keep=True) if self.get_mapped() else None)
 
     def size_button(self):
@@ -212,8 +213,15 @@ class BiblePage(Gtk.Box):
         pop = Gtk.Popover(); pb = Gtk.Box(spacing=6, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
         for icon, f, tip in (('kjt-minus-symbolic', 1 / 1.1, 'Smaller'), ('kjt-textsize-symbolic', 0, 'Usual size'), ('kjt-plus-symbolic', 1.1, 'Larger')):
             b = Gtk.Button(icon_name=icon, tooltip_text=tip); b.connect('clicked', lambda _b, f=f: self.zoom(f)); pb.append(b)
-        pop.set_child(pb); menu.set_popover(pop)
+        col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); col.append(pb); col.append(self.colours_switch())
+        pop.set_child(col); menu.set_popover(pop)
         return menu
+
+    def colours_switch(self):
+        """2.15: verses coloured by their Study Pads, or no colours"""
+        c = Gtk.CheckButton(label=_('Colour verses by their Study Pads'), active=SET.get('pad_colours') is not False, margin_start=4, margin_end=4)
+        c.connect('toggled', lambda c: (SET.set('pad_colours', c.get_active()), self.show(keep=True)))
+        return c
 
     def set_compact(self, c):
         self.compact = c
@@ -237,13 +245,22 @@ class BiblePage(Gtk.Box):
             while box.get_first_child():
                 box.remove(box.get_first_child())
             if compare:
-                b = Gtk.Button(label=_('No comparison')); b.add_css_class('flat'); b.connect('clicked', lambda *_: (pop.popdown(), self.set_tr2(''))); box.append(b)
+                h = Gtk.Label(label=_('Compare with (up to 4):'), xalign=0, margin_start=6, margin_bottom=2); h.add_css_class('dim-label'); box.append(h)
+                for t in STORE.bibles():
+                    if t == self.tr:
+                        continue
+                    c = Gtk.CheckButton(label=bible_name(t), active=t in self.tr2s)
+                    c.get_last_child().set_ellipsize(Pango.EllipsizeMode.END) if isinstance(c.get_last_child(), Gtk.Label) else None
+                    c.connect('toggled', lambda c, t=t: self.toggle_tr2(t, c.get_active(), c)); box.append(c)
+                b = Gtk.Button(label=_('No comparison')); b.add_css_class('flat'); b.set_margin_top(4)
+                b.connect('clicked', lambda *_: (pop.popdown(), self.set_tr2s([]))); box.append(b)
+                return
             for t in STORE.bibles():
                 b = Gtk.Button(); b.add_css_class('flat')
                 lb = Gtk.Label(label=bible_name(t), xalign=0, max_width_chars=34, ellipsize=Pango.EllipsizeMode.END); b.set_child(lb)
-                if t == (self.tr2 if compare else self.tr):
+                if t == self.tr:
                     lb.add_css_class('heading')
-                b.connect('clicked', lambda _b, t=t: (pop.popdown(), self.set_tr2(t) if compare else self.set_tr(t)))
+                b.connect('clicked', lambda _b, t=t: (pop.popdown(), self.set_tr(t)))
                 box.append(b)
         pop.connect('show', fill)
         return pop
@@ -368,7 +385,32 @@ class BiblePage(Gtk.Box):
         self.tr = t; SET.set('tr', t); self.go(b, self.ch)
 
     def set_tr2(self, t):
-        self.tr2 = t; SET.set('tr2', t); self.show(keep=True)
+        self.set_tr2s([t] if t else [])
+
+    def set_tr2s(self, ts):
+        self.tr2s = [t for t in ts if t][:4]; SET.set('tr2s', self.tr2s); SET.set('tr2', self.tr2s[0] if self.tr2s else '')
+        self.cmp_shown(); self.show(keep=True)
+
+    def toggle_tr2(self, t, on, check=None):
+        ts = [x for x in self.tr2s if x != t] + ([t] if on else [])
+        if len(ts) > 4:
+            if check:
+                check.set_active(False)
+            return
+        self.set_tr2s(ts)
+
+    def short_name(self, t):
+        return bible_name(t).split(' · ')[0]
+
+    def cmp_shown(self):
+        """the Bibles being compared, shown on the button (the indicator)"""
+        on = [t for t in self.tr2s if t != getattr(self, 'tr', '')]
+        self.cmp_label.set_label(' · '.join(self.short_name(t) for t in on)); self.cmp_label.set_visible(bool(on))
+        self.cmp_btn.set_tooltip_text((_('Comparing with') + ': ' + ', '.join(bible_name(t) for t in on)) if on else _('Compare with another Bible'))
+        if on:
+            self.cmp_btn.add_css_class('kjt-cmp-active')
+        else:
+            self.cmp_btn.remove_css_class('kjt-cmp-active')
 
     def go(self, book, ch, verse=0):
         self.book, self.ch = book, int(ch)
@@ -447,11 +489,16 @@ class BiblePage(Gtk.Box):
                 buf.insert_with_tags_by_name(end(), '%s does not have this book. Choose another Bible at the top left.\n' % bible_name(self.tr).split(' · ')[0], 'vt')
             else:
                 buf.insert_with_tags_by_name(end(), 'This chapter is not on this computer. Open Downloads to keep this Bible.\n', 'vt')
-        other = {}
-        if self.tr2 and self.tr2 != self.tr:
-            b2 = STORE.find_book(self.tr2, self.book)
-            if b2:
-                other = dict(STORE.chapter(self.tr2, b2, self.ch))
+        others = []
+        for t2 in self.tr2s:
+            if t2 != self.tr:
+                b2 = STORE.find_book(t2, self.book)
+                rows2 = dict(STORE.chapter(t2, b2, self.ch)) if b2 else {}
+                others.append((self.short_name(t2), rows2))
+        other = any(o for _n, o in others)
+        if not t.lookup('cmpname'):
+            buf.create_tag('cmpname', weight=700, scale=0.72 * fs, foreground='#c9a227' if dark else '#7a1f78', style=Pango.Style.NORMAL)
+        self.cmp_shown()
         marks = STUDY.in_chapter(self.tr, self.book, self.ch)
         self.vpos, self.vnum, self.vend = [], [], []
         for v, text in rows:
@@ -466,22 +513,32 @@ class BiblePage(Gtk.Box):
                     buf.apply_tag_by_name('red', buf.get_iter_at_offset(s2 + a), buf.get_iter_at_offset(min(s2 + z, s2 + len(plain))))
             r = marks.get(v)
             if r:
-                col = r.get('color')
-                if not col and r.get('tags'):
-                    # a bookmark in a Study Pad, without a colour of its own, takes the pad's colour (as on the website)
-                    hx = STUDY.pad_color(r['tags'][0]).lstrip('#'); nm = 'pad-' + hx + ('d' if dark else '')
-                    if not t.lookup(nm):
-                        rgb_ = tuple(int(hx[i:i + 2], 16) for i in (0, 2, 4))
-                        buf.create_tag(nm, background='rgba(%d,%d,%d,%.2f)' % (rgb_ + ((0.55,) if dark else (0.33,))))
-                    buf.apply_tag_by_name(nm, buf.get_iter_at_offset(s2), end())
+                # 2.15: the colour of a bookmark is the colour of its Study Pads (several pads: the verse in several colours)
+                cols = [STUDY.pad_color(x) for x in (r.get('tags') or [])] if SET.get('pad_colours') is not False else []
+                cols = [c.lstrip('#') for c in cols if c and len(c.lstrip('#')) == 6][:6]
+                e0 = buf.get_char_count()
+                if cols:
+                    n = len(cols); span = max(1, e0 - s2)
+                    for i, hx in enumerate(cols):
+                        nm = 'pad-' + hx + ('d' if dark else '')
+                        if not t.lookup(nm):
+                            rgb_ = tuple(int(hx[k:k + 2], 16) for k in (0, 2, 4))
+                            buf.create_tag(nm, background='rgba(%d,%d,%d,%.2f)' % (rgb_ + ((0.55,) if dark else (0.33,))))
+                        a0 = s2 + span * i // n; b0 = e0 if i == n - 1 else s2 + span * (i + 1) // n
+                        buf.apply_tag_by_name(nm, buf.get_iter_at_offset(a0), buf.get_iter_at_offset(b0))
                 else:
-                    buf.apply_tag_by_name('hl-' + (col if col in COLORS else 'yellow'), buf.get_iter_at_offset(s2), end())
+                    if not t.lookup('bm'):
+                        buf.create_tag('bm', underline=Pango.Underline.SINGLE, underline_rgba=Gdk.RGBA(red=0.79, green=0.64, blue=0.15, alpha=0.9))
+                    buf.apply_tag_by_name('bm', buf.get_iter_at_offset(s2), end())
                 if r.get('note') and int(r.get('verse', 0)) == v:
                     buf.insert_with_tags_by_name(end(), ' ✎', 'note')
                     first = r['note'].strip().split('\n')[0]
                     buf.insert_with_tags_by_name(end(), '\n✎ ' + (first[:70] + '…' if len(first) > 70 or '\n' in r['note'].strip() else first) + '\n', 'notetext')
-            if v in other:
-                buf.insert_with_tags_by_name(end(), '\n' + re.sub(r'<[^>]+>', '', other[v]).strip(), 'cmp')
+            for nm2, o2 in others:
+                if v in o2:
+                    buf.insert(end(), '\n')
+                    buf.insert_with_tags_by_name(end(), nm2 + '  ', 'cmp', 'cmpname')
+                    buf.insert_with_tags_by_name(end(), re.sub(r'<[^>]+>', '', o2[v]).strip(), 'cmp')
             self.vpos.append(start); self.vnum.append(v); self.vend.append(buf.get_char_count())
             buf.insert(end(), '\n' if other else ' ')
         buf.place_cursor(buf.get_start_iter())
@@ -498,16 +555,26 @@ class BiblePage(Gtk.Box):
         else:
             GLib.idle_add(lambda: (adj.set_value(0), False)[1])
 
+    def content_y(self, it):
+        """2.15: the place of a piece of text in the scrolled page, counting what is above the text"""
+        r = self.view.get_iter_location(it)
+        wx, wy = self.view.buffer_to_window_coords(Gtk.TextWindowType.WIDGET, r.x, r.y)
+        top = self.scroll.get_child().get_child() if isinstance(self.scroll.get_child(), Gtk.Viewport) else self.scroll.get_child()
+        p = self.view.translate_coordinates(top, wx, wy)
+        if p and len(p) == 3:
+            p = p[1:] if p[0] else None
+        return (p[1] if p else wy), r.height
+
     def scroll_to_verse(self, v, tries=12):
         if v not in self.vnum:
             return
         def go():
             it = self.view.get_buffer().get_iter_at_offset(self.vpos[self.vnum.index(v)])
-            r = self.view.get_iter_location(it)
+            y, _h = self.content_y(it)
             adj = self.scroll.get_vadjustment()
-            if adj.get_upper() - adj.get_page_size() < r.y - 60 and go.n > 0:
+            if adj.get_upper() - adj.get_page_size() < y - 60 and go.n > 0:
                 go.n -= 1; return True          # not laid out yet: try again in a moment
-            adj.set_value(max(0, min(r.y - 70, adj.get_upper() - adj.get_page_size())))
+            adj.set_value(max(0, min(y - 70, adj.get_upper() - adj.get_page_size())))
             self.view.get_buffer().place_cursor(it)      # the hidden cursor stays where you read
             return False
         go.n = tries
@@ -526,10 +593,11 @@ class BiblePage(Gtk.Box):
         a, b = buf.get_iter_at_offset(self.vpos[i] + 1), buf.get_iter_at_offset(self.vend[i])
         buf.apply_tag_by_name('now', a, b)
         if follow:
-            r = self.view.get_iter_location(a); r2 = self.view.get_iter_location(b)
+            y1, _h = self.content_y(a); y2, h2 = self.content_y(b)
             adj = self.scroll.get_vadjustment(); top = adj.get_value(); page = adj.get_page_size()
-            if r.y < top + 40 or r2.y + r2.height > top + page - 40:
-                adj.set_value(max(0, min(r.y - page / 3, adj.get_upper() - page)))
+            if y1 < top + 40 or y2 + h2 > top + page - 60:
+                self.auto_scroll_until = time.time() + 1
+                adj.set_value(max(0, min(y1 - page / 4, adj.get_upper() - page)))
 
     def listen_here(self):
         """2.13: Listen from here (the first chosen verse)"""
@@ -540,10 +608,17 @@ class BiblePage(Gtk.Box):
         """the verse at the top of the screen (kept, to continue reading there)"""
         if not self.vpos:
             return 0
-        y = int(self.scroll.get_vadjustment().get_value()) + 80
-        ok, it = self.view.get_iter_at_location(10, y)
-        if not ok:
-            return 0
+        # 2.15: from the page's place to the text's own place (the chapter's heading box is above the text)
+        top = self.scroll.get_child().get_child() if isinstance(self.scroll.get_child(), Gtk.Viewport) else self.scroll.get_child()
+        p = self.view.translate_coordinates(top, 0, 0)
+        if p and len(p) == 3:
+            p = p[1:] if p[0] else None
+        off = p[1] if p else 0
+        wy = int(self.scroll.get_vadjustment().get_value()) + 40 - off
+        if wy < 0:
+            return self.vnum[0] if self.vnum else 0
+        bx, by = self.view.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, self.view.get_left_margin() + 6, wy)
+        ok, it = self.view.get_iter_at_location(bx, by)     # (the nearest place, even between words)
         i = bisect.bisect_right(self.vpos, it.get_offset()) - 1
         return self.vnum[i] if i >= 0 else 0
 
@@ -658,12 +733,9 @@ class BiblePage(Gtk.Box):
         self.sel_label.set_label('%s %d:%d%s' % (book_name(self.book, tr=self.tr), self.ch, a, '–%d' % b if b > a else ''))
         self.less_btn.set_visible(len(self.sel) > 1); self.more_btn.set_sensitive(b < (max(self.vnum) if self.vnum else b))
         r = self.current()
-        col = (r or {}).get('color')
-        for c, btn in self.dots.items():
-            (btn.add_css_class if c == col else btn.remove_css_class)('kjt-dot-on')
-        self.nocolor.get_parent().set_visible(bool(r and col))
+        self.fill_pads(r)
         if r:
-            bits = [_('Bookmarked')] + ([_('highlighted') + ' ' + _(col)] if col else []) + ([_('note') + ': ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
+            bits = [_('Bookmarked')] + ([_('note') + ': ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
             self.sel_state.set_label(' · '.join(bits))
         else:
             self.sel_state.set_label(_('Not bookmarked yet') + (' · ' + _('for more verses, click the last one') if len(self.sel) == 1 else ''))
@@ -695,6 +767,35 @@ class BiblePage(Gtk.Box):
             self.win.toast('Colour changed', undo=lambda: STUDY.set_color(r, prev))
         GLib.idle_add(lambda: (self.update_bar(), False)[1])
         return r
+
+    def fill_pads(self, r):
+        """the Study Pads beside the chosen verses: click one to put the verses in it (or take them out)"""
+        while self.colors.get_first_child():
+            self.colors.remove(self.colors.get_first_child())
+        on = set((r or {}).get('tags') or [])
+        for p in STUDY.pads():
+            t = p['tag']; hx = STUDY.pad_color(t) or '#c9a227'
+            b = Gtk.ToggleButton(active=t in on, valign=Gtk.Align.CENTER, tooltip_text=(_('Take out of the Study Pad') if t in on else _('Highlight in the Study Pad')) + ': ' + STUDY.pad_name(t))
+            b.add_css_class('kjt-padchip')
+            row = Gtk.Box(spacing=6); dot = Gtk.DrawingArea(content_width=12, content_height=12, valign=Gtk.Align.CENTER)
+            rgb = Gdk.RGBA(); rgb.parse(hx)
+            dot.set_draw_func(lambda _a, cr, w, h, rgb=rgb: (cr.set_source_rgba(rgb.red, rgb.green, rgb.blue, 1), cr.arc(w / 2, h / 2, min(w, h) / 2, 0, 6.2832), cr.fill()))
+            row.append(dot); lb = Gtk.Label(label=STUDY.pad_label(t), max_width_chars=18, ellipsize=Pango.EllipsizeMode.END); row.append(lb); b.set_child(row)
+            b.connect('toggled', lambda b, t=t: self.toggle_pad(t, b.get_active()))
+            self.colors.append(b)
+        nb = Gtk.Button(label='＋ ' + _('New Study Pad'), valign=Gtk.Align.CENTER); nb.add_css_class('flat'); nb.connect('clicked', lambda *_a: self.pads())
+        self.colors.append(nb)
+
+    def toggle_pad(self, t, on):
+        r = self.current()
+        if r is None:
+            if not on:
+                return
+            a, b = min(self.sel), max(self.sel)
+            r = STUDY.save(self.tr, self.book, self.ch, a, b if b > a else 0)
+        tags = [x for x in (r.get('tags') or []) if x != t] + ([t] if on else [])
+        STUDY.set_tags(r, tags)
+        GLib.idle_add(lambda: (self.update_bar(), False)[1])
 
     def uncolor(self):
         r = self.current()
@@ -763,10 +864,26 @@ class BiblePage(Gtk.Box):
         if isinstance(self.get_root().get_focus(), (Gtk.Text, Gtk.Entry, Gtk.SearchEntry, Gtk.TextView)) and self.get_root().get_focus() is not self.view:
             return False
         ctrl = state & Gdk.ModifierType.CONTROL_MASK
-        if keyval in (Gdk.KEY_Left, Gdk.KEY_Page_Up) and not state:
+        shift = state & Gdk.ModifierType.SHIFT_MASK
+        plain = not (state & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SHIFT_MASK))
+        if isinstance(self.get_root().get_focus(), (Gtk.Button, Gtk.CheckButton, Gtk.Switch, Gtk.DropDown)) and keyval in (Gdk.KEY_Up, Gdk.KEY_Down, Gdk.KEY_space):
+            return False                      # moving between buttons with the keyboard
+        if keyval in (Gdk.KEY_Left,) and plain:
             self.step(-1); return True
-        if keyval in (Gdk.KEY_Right, Gdk.KEY_Page_Down) and not state:
+        if keyval in (Gdk.KEY_Right,) and plain:
             self.step(1); return True
+        # 2.15: the arrows, Page Up/Down, Space, Home and End scroll the text
+        adj = self.scroll.get_vadjustment(); page = adj.get_page_size(); top = adj.get_value(); bottom = adj.get_upper() - page
+        move = {Gdk.KEY_Down: 56, Gdk.KEY_Up: -56, Gdk.KEY_KP_Down: 56, Gdk.KEY_KP_Up: -56,
+                Gdk.KEY_Page_Down: page * 0.9, Gdk.KEY_Page_Up: -page * 0.9, Gdk.KEY_space: (-page if shift else page) * 0.9}.get(keyval)
+        if move is not None and (plain or keyval == Gdk.KEY_space):
+            if move > 0 and top >= bottom - 1 and keyval in (Gdk.KEY_Page_Down, Gdk.KEY_space):
+                self.step(1); return True    # at the end of the chapter: the next one
+            if move < 0 and top <= 0 and keyval == Gdk.KEY_Page_Up:
+                self.step(-1); return True
+            adj.set_value(max(0, min(bottom, top + move))); self.win.audio.user_scrolled(); return True
+        if keyval in (Gdk.KEY_Home, Gdk.KEY_End) and (plain or ctrl):
+            adj.set_value(0 if keyval == Gdk.KEY_Home else bottom); return True
         if keyval == Gdk.KEY_f and ctrl:
             self.search_btn.set_active(True); self.sentry.grab_focus(); return True
         if keyval == Gdk.KEY_c and ctrl and self.sel and not self.view.get_buffer().get_has_selection():
@@ -795,11 +912,6 @@ class BiblePage(Gtk.Box):
         r = Gdk.Rectangle(); r.x, r.y, r.width, r.height = int(x), int(y), 1, 1; pop.set_pointing_to(r)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
         box.append(Gtk.Label(label=self.sel_label.get_label(), xalign=0, css_classes=['heading'], margin_start=6, margin_bottom=4))
-        dots = Gtk.Box(spacing=6, margin_start=6, margin_bottom=4)
-        for c in COLORS:
-            b = Gtk.Button(tooltip_text=_('Highlight') + ': ' + _(c)); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + c)
-            b.connect('clicked', lambda _b, c=c: (pop.popdown(), self.bookmark(c))); dots.append(b)
-        box.append(dots)
         for icon, label, fn in (('kjt-copy-symbolic', 'Copy', self.copy), ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-note-symbolic', 'Write a note', self.note),
                                 ('kjt-tag-symbolic', 'Put in a Study Pad', self.pads), (None, None, None),
                                 ('kjt-cross-symbolic', 'The Holy Fathers on it', lambda: self.side_show('hf')), ('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')),
@@ -844,7 +956,11 @@ class BiblePage(Gtk.Box):
                 ve = int(r.get('verse_end') or 0)
                 lab = '%d%s' % (v, '–%d' % ve if ve > v else '') + (' ✎' if r.get('note') else '') + ''.join('  ' + STUDY.pad_label(t) for t in (r.get('tags') or [])[:2])
                 b = Gtk.Button(label=lab, tooltip_text=(r.get('note') or '').strip()[:300] or 'Bookmark')
-                b.add_css_class('kjt-chip'); b.add_css_class('kjt-chip-' + (r.get('color') or 'none'))
+                b.add_css_class('kjt-chip'); b.add_css_class('kjt-chip-none')
+                pc = STUDY.pad_color((r.get('tags') or [''])[0]) if r.get('tags') and SET.get('pad_colours') is not False else ''
+                if pc:
+                    from .ui import tint
+                    tint(b, pc)
                 b.connect('clicked', lambda _b, v=v, ve=ve: self.choose_range(v, ve))
                 rc = Gtk.GestureClick(button=3); rc.connect('pressed', lambda *_a, v=v, ve=ve: (self.choose_range(v, ve), self.edit())); b.add_controller(rc)
                 b.set_tooltip_text(((r.get('note') or '').strip()[:300] + '\n' if r.get('note') else '') + 'Click to choose it · right-click to edit')

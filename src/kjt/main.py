@@ -11,12 +11,28 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.14'
+VERSION = '2.15'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
 textview.kjt-bible, textview.kjt-text, textview.kjt-book { background: transparent; }
 .kjt-card { background: alpha(#f3c548, 0.07); border-radius: 14px; }
+.kjt-you-hero { border-radius: 22px; background: linear-gradient(135deg, #3e093f 0%, #5b1a5c 55%, #1f6f78 140%); color: white; }
+.kjt-you-kick { font-weight: 800; font-size: 0.75em; letter-spacing: 2px; color: #f3c548; }
+.kjt-you-big { font-family: Serif; font-weight: 700; font-size: 1.9em; }
+.kjt-you-sub { opacity: 0.9; }
+.kjt-you-quote { font-family: Serif; font-style: italic; font-size: 1.15em; color: #ffe9a6; margin-top: 6px; }
+.kjt-you-hero .kjt-you-ref { color: #f3c548; font-weight: 700; padding-left: 0; }
+.kjt-you-ref { font-weight: 700; color: #7a1f78; }
+button.kjt-you-feel { border-radius: 16px; padding: 6px 8px; background: alpha(#f3c548, 0.09); border: 1px solid alpha(#7a1f78, 0.14); }
+button.kjt-you-feel:hover { background: alpha(#f3c548, 0.2); }
+button.kjt-you-comfort { background: alpha(#1f6f78, 0.14); }
+.kjt-you-emo { font-size: 1.7em; }
+.kjt-you-emo-big { font-size: 2.8em; }
+.kjt-you-ft { font-family: Serif; font-weight: 700; font-size: 1.12em; }
+.kjt-you-fs { font-size: 0.86em; opacity: 0.72; }
+.kjt-you-big2 { font-family: Serif; font-weight: 700; font-size: 1.6em; }
+.kjt-you-verse { font-family: Serif; font-size: 1.12em; line-height: 1.5; }
 .kjt-card-title { font-family: Serif; font-weight: 700; font-size: 1.2em; color: #3e093f; }
 .kjt-verse { font-family: Serif; font-size: 1.22em; font-style: italic; }
 .kjt-reading { font-family: Serif; font-size: 1.08em; }
@@ -44,9 +60,13 @@ button.kjt-chip-purple { background: #c9a7f0; color: #1d1a1f; }
 .kjt-sel-state { color: #7a1f6b; font-weight: 600; }
 button.kjt-dot.kjt-dot-on { border: 3px solid #3e093f; }
 .kjt-selbar flowboxchild { padding: 0; min-width: 0; }
+.kjt-cmp-active { background: alpha(#b04ab0, 0.2); border-radius: 8px; box-shadow: inset 0 -2px #c9a227; }
+.kjt-cmp-on { font-weight: 700; font-size: 0.86em; }
 .kjt-mtable-head label { font-weight: 700; opacity: .7; font-size: .9em; }
 .kjt-mtable row { padding: 6px 8px; }
 button.kjt-dot-none { background: transparent; border: 2px dashed alpha(currentColor, 0.45); }
+button.kjt-padchip { border-radius: 999px; padding: 2px 10px; }
+button.kjt-padchip:checked { background: alpha(#7a1f78, 0.18); box-shadow: inset 0 0 0 2px alpha(#7a1f78, 0.55); }
 .kjt-nav row { border-radius: 8px; }
 .kjt-nav-icon { color: #7a1f6b; }
 button.kjt-dot { min-width: 22px; min-height: 22px; padding: 0; border-radius: 999px; border: 2px solid alpha(black, 0.12); }
@@ -55,6 +75,7 @@ button.kjt-dot:hover { border-color: alpha(black, 0.35); }
 
 DARK = 'button.kjt-bk-law { background: alpha(#dc2626, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-hist { background: alpha(#64748b, 0.22); color: #f2eaf4; }\nbutton.kjt-bk-wis { background: alpha(#f97316, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-major { background: alpha(#2563eb, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-minor { background: alpha(#ec4899, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-dc { background: alpha(#0d9488, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-gosp { background: alpha(#16a34a, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-acts { background: alpha(#9333ea, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-paul { background: alpha(#facc15, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-gen { background: alpha(#92400e, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-rev { background: alpha(#c9a227, 0.16); color: #f2eaf4; }\nbutton.kjt-bk-here { outline-color: #e9c8f0; }\n' + '''
 .kjt-card-title { color: #e9c8f0; }
+.kjt-you-ref { color: #e7c25a; }
 .kjt-feast { color: #ff9a9a; }
 .kjt-fast { color: #b5d68a; }
 .kjt-ref { color: #8cc4e8; }
@@ -63,8 +84,10 @@ DARK = 'button.kjt-bk-law { background: alpha(#dc2626, 0.16); color: #f2eaf4; }\
 '''
 
 PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy Bible', 'kjt-bible-symbolic'),
+         ('study', 'Study Journey', 'kjt-study-symbolic'), ('you', 'You Today', 'kjt-you-symbolic'),
          ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
-         ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'), ('study', 'Study Journey', 'kjt-study-symbolic'),
+         ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'),
+         ('pray', 'Prayer', 'kjt-pray-symbolic'), ('fun', 'Good Fun', 'kjt-fun-symbolic'), ('church', 'Churches near me', 'kjt-church-symbolic'),
          ('downloads', 'Downloads', 'kjt-download-symbolic')]
 
 
@@ -110,7 +133,7 @@ class Window(Adw.ApplicationWindow):
             b = Gtk.Box(spacing=12, margin_top=7, margin_bottom=7, margin_start=4)
             im = Gtk.Image(icon_name=icon); im.add_css_class('kjt-nav-icon'); b.append(im)
             row.lab = Gtk.Label(label=_(title), xalign=0); b.append(row.lab); row.set_child(b); row.title = title; row.n = n
-            row.set_tooltip_text('%s (Ctrl+%d)' % (_(title), n + 1))
+            row.set_tooltip_text('%s (Ctrl+%d)' % (_(title), n + 1) if n < 9 else _(title))
             self.nav.append(row)
         self.nav.connect('row-activated', lambda _l, row: self.show(row.key, from_nav=True))
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(self.nav); st.set_content(sc)
@@ -137,7 +160,7 @@ class Window(Adw.ApplicationWindow):
         GLib.timeout_add(300, self.fit_layout)
 
         k = Gtk.ShortcutController(scope=Gtk.ShortcutScope.GLOBAL)
-        for n, (key, _t, _i) in enumerate(PAGES):
+        for n, (key, _t, _i) in enumerate(PAGES[:9]):
             k.add_shortcut(Gtk.Shortcut.new(Gtk.ShortcutTrigger.parse_string('<Control>%d' % (n + 1)), Gtk.CallbackAction.new(lambda *_a, key=key: (self.show(key), True)[1])))
         self.add_controller(k)
 
@@ -164,6 +187,11 @@ class Window(Adw.ApplicationWindow):
                 from .mystudy import StudyPage as P
             elif key == 'library':
                 from .library import LibraryPage as P
+            elif key == 'you':
+                from .you import YouPage as P
+            elif key in ('pray', 'fun', 'church'):
+                from .web import WebPage
+                P = lambda w, k=key: WebPage(w, k)
             else:
                 from .settings import DownloadsPage as P
             p = P(self); self.pages[key] = p; self.stack.add_named(p, key)
@@ -224,7 +252,7 @@ class Window(Adw.ApplicationWindow):
         page = self.page(key)
         self.stack.set_visible_child_name(key)
         SET.set('page', key)
-        if getattr(page, 'fresh', False) or key in ('study', 'downloads', 'today'):
+        if getattr(page, 'fresh', False) or key in ('study', 'downloads', 'today', 'you', 'pray', 'fun', 'church'):
             page.fresh = False
             if hasattr(page, 'refresh'):
                 page.refresh()
@@ -323,7 +351,7 @@ class Window(Adw.ApplicationWindow):
         menu.append_section(_('Appearance'), look)
         # 2.13: the pages of the site that the Android app has in its menu (opened on the website, in your browser)
         site = Gio.Menu()
-        for key, title in (('pray', 'Prayer'), ('you', 'You Today'), ('fun', 'Good Fun'), ('church', 'Churches near me'), ('kjt', 'KJT Website')):
+        for key, title in (('kjt', 'KJT Website'),):
             site.append(_(title) + ' ↗', 'app.page::' + key)
         menu.append_section(_('On the website'), site)
         more = Gio.Menu(); more.append(_('Report a problem'), 'app.report'); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Bible Corner - KJT'), 'app.about'); menu.append_section(None, more)
@@ -447,6 +475,8 @@ class App(Adw.Application):
         a = Gio.SimpleAction.new('report', None); a.connect('activate', lambda *_: self.report()); self.add_action(a)
 
     def open_page(self, key):
+        if key in ('you', 'pray', 'fun', 'church') and self.props.active_window:
+            self.props.active_window.show(key); return       # 2.15: these are in the app now
         from .core import STORE
         pages = (STORE.kv('info') or {}).get('pages') or {}
         fallback = {'pray': 'https://knowingjesus.today/prayer/', 'you': 'https://knowingjesus.today/how-are-you-today/',
@@ -539,7 +569,7 @@ class App(Adw.Application):
 
     def keys(self, *_):
         d = Adw.AlertDialog(heading='Keyboard shortcuts',
-                            body='Ctrl+1 … Ctrl+7   the pages\n← →   previous and next chapter\nCtrl+F   search the Bible\nShift+click   choose several verses\nCtrl+click   add a verse to the choice\nEsc   clear the choice\nCtrl+Q   quit')
+                            body='Ctrl+1 … Ctrl+9   the pages\n↑ ↓  Page Up/Down  Space   scroll the chapter\n← →   previous and next chapter\nCtrl+F   search the Bible\nShift+click   choose several verses\nCtrl+click   add a verse to the choice\nEsc   clear the choice\nCtrl+Q   quit')
         d.add_response('ok', 'OK'); d.present(self.props.active_window)
 
 

@@ -12,6 +12,8 @@ finish-args:
   - --socket=pulseaudio
   # 2.9: Settings > App icon: the chosen icon is a small menu entry of the user's own (~/.local/share/applications)
   - --filesystem=xdg-data/applications:create
+  # 2.15: Churches near me may ask where you are (only when you allow it)
+  - --system-talk-name=org.freedesktop.GeoClue2
 modules:
   - name: kjt
     buildsystem: simple
