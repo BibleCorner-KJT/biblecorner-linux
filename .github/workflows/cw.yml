@@ -1,0 +1,21 @@
+name: CrossWire Bibles for the website
+on:
+  push:
+    branches: [main]
+    paths: ['cw/**', '.github/workflows/cw.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdir -p out && python3 cw/list.py
+      - name: Convert the chosen Bibles
+        run: if [ -f cw/convert.py ]; then python3 cw/convert.py; fi
+      - name: Keep them on the branch "bibles"
+        run: |
+          cd out
+          git init -q -b bibles && git add -A
+          git -c user.name="KJT" -c user.email="kjt@users.noreply.github.com" commit -qm "Bibles from CrossWire for the website"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" bibles
