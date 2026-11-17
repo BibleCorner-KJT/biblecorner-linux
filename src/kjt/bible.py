@@ -14,7 +14,7 @@ CATS = [('law', 'Law (Pentateuch)', 'GEN EXO LEV NUM DEU'), ('hist', 'History', 
         ('paul', 'Epistles of St Paul', 'ROM 1CO 2CO GAL EPH PHP COL 1TH 2TH 1TI 2TI TIT PHM HEB'),
         ('gen', 'General Epistles', 'JAS 1PE 2PE 1JN 2JN 3JN JUD'), ('rev', 'Prophecy (Revelation)', 'REV')]
 CAT = {b: c for c, _, bs in CATS for b in bs.split()}
-CAT_COLORS = {'law': ('#dc2626', '#fdeeee', '#991b1b'), 'hist': ('#9ca3af', '#ffffff', '#374151'), 'wis': ('#f97316', '#fff2e8', '#9a3412'),
+CAT_COLORS = {'law': ('#dc2626', '#fdeeee', '#991b1b'), 'hist': ('#64748b', '#f1f5f9', '#334155'), 'wis': ('#f97316', '#fff2e8', '#9a3412'),
               'major': ('#2563eb', '#edf3ff', '#1e40af'), 'minor': ('#ec4899', '#fdeef6', '#9d174d'), 'dc': ('#0d9488', '#e8f7f5', '#115e59'),
               'gosp': ('#16a34a', '#eaf7ee', '#166534'), 'acts': ('#9333ea', '#f5edfd', '#6b21a8'), 'paul': ('#facc15', '#fffbe2', '#854d0e'),
               'gen': ('#92400e', '#f6eee6', '#78350f'), 'rev': ('#c9a227', '#fff6d8', '#7a5a00')}

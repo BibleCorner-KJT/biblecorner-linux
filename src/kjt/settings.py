@@ -118,6 +118,8 @@ class DownloadsPage(Gtk.Box):
                 ex.add_row(row)
             g.add(ex)
         self.add(g)
+        # 2.9: the app's icon (as in the Android app)
+        self.add(icon_group())
         # the rest
         g = Adw.PreferencesGroup(title=_('Also kept here'))
         def item(title, sub, folder, plan):
@@ -152,3 +154,86 @@ class DownloadsPage(Gtk.Box):
         if SET.get('tr') == tr:
             SET.set('tr', STORE.bibles()[0])
         self.refresh(); self.win.toast('Removed')
+
+
+ICONS = [('purple', 'Purple'), ('navy', 'Navy blue'), ('black', 'Black'), ('green', 'Green'), ('wine', 'Wine red')]
+APP_ID = 'today.knowingjesus.KJT'
+
+
+def _apps_dir():
+    return os.path.join(os.environ.get('XDG_DATA_HOME_HOST') or os.path.expanduser('~/.local/share'), 'applications')
+
+
+def current_icon():
+    p = os.path.join(_apps_dir(), APP_ID + '.desktop')
+    try:
+        for line in open(p, encoding='utf-8'):
+            if line.startswith('Icon=') and 'kjt-icon-' in line:
+                return line.strip().rsplit('kjt-icon-', 1)[1].split('.')[0]
+    except OSError:
+        pass
+    return 'purple'
+
+
+def set_icon(name):
+    """the usual (purple) icon is the app's own; another one is a small menu entry of the user's own, in
+    ~/.local/share/applications, that shows the chosen picture (taken away again for the usual one)"""
+    d = _apps_dir(); desk = os.path.join(d, APP_ID + '.desktop')
+    for f in os.listdir(d) if os.path.isdir(d) else []:
+        if f.startswith('kjt-icon-') and f.endswith('.png'):
+            try: os.remove(os.path.join(d, f))
+            except OSError: pass
+    if name == 'purple':
+        try: os.remove(desk)
+        except OSError: pass
+        return True
+    src = os.path.join(os.path.dirname(__file__), 'appicons', name + '.png')
+    if not os.path.exists(src):
+        return False
+    os.makedirs(d, exist_ok=True)
+    pic = os.path.join(d, 'kjt-icon-%s.png' % name)
+    shutil.copyfile(src, pic)
+    base = '/app/share/applications/%s.desktop' % APP_ID
+    try:
+        text = open(base, encoding='utf-8').read()
+    except OSError:
+        text = '[Desktop Entry]\nType=Application\nName=Knowing Jesus Today\nExec=kjt\nIcon=x\nCategories=Education;Literature;\nStartupNotify=true\n'
+    out = []
+    for line in text.splitlines():
+        if line.startswith('Exec='):
+            line = 'Exec=flatpak run %s' % APP_ID
+        elif line.startswith('Icon='):
+            line = 'Icon=' + pic
+        out.append(line)
+    if not any(l.startswith('Icon=') for l in out):
+        out.append('Icon=' + pic)
+    out.append('X-Flatpak=' + APP_ID)
+    with open(desk, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(out) + '\n')
+    return True
+
+
+def icon_group():
+    g = Adw.PreferencesGroup(title=_('App icon'), description=_('The icon of the app in your list of apps and on the dock.'))
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=5, min_children_per_line=3, column_spacing=8, row_spacing=8, homogeneous=True)
+    note = Gtk.Label(xalign=0, wrap=True, css_classes=['caption', 'dim-label'], margin_top=6)
+    cur = current_icon(); btns = []
+    for key, label in ICONS:
+        b = Gtk.ToggleButton(active=key == cur, group=btns[0] if btns else None); b.add_css_class('flat')
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, margin_top=4, margin_bottom=4)
+        pic = Gtk.Picture.new_for_filename(os.path.join(os.path.dirname(__file__), 'appicons', key + '.png'))
+        pic.set_size_request(64, 64); pic.set_can_shrink(True); box.append(pic)
+        box.append(Gtk.Label(label=_(label) + (' · ' + _('usual') if key == 'purple' else ''), css_classes=['caption']))
+        b.set_child(box); btns.append(b); flow.append(b)
+        def chose(bt, key=key):
+            if not bt.get_active():
+                return
+            try:
+                ok = set_icon(key)
+            except OSError:
+                ok = False
+            note.set_label(_('The new icon shows in a moment (open the list of apps again).') if ok else _('The icon could not be changed here.'))
+        b.connect('toggled', chose)
+    wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); wrap.append(flow); wrap.append(note)
+    g.add(wrap)
+    return g

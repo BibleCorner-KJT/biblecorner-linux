@@ -155,6 +155,16 @@ _T = {
     'For the reader': ('للقارئ', 'Για τον αναγνώστη', 'Para el lector', 'Pour le lecteur', 'पाठक के लिए', 'Для чтения', 'Para sa mambabasa', '阅读辅助'),
     'Cross-references, the Greek and Hebrew words, the words of Christ in red': ('الشواهد والكلمات اليونانية والعبرية وكلام المسيح بالأحمر', 'Παραπομπές, ελληνικές και εβραϊκές λέξεις, τα λόγια του Χριστού με κόκκινο', 'Referencias, palabras griegas y hebreas, las palabras de Cristo en rojo', 'Références, mots grecs et hébreux, les paroles du Christ en rouge', 'संदर्भ, यूनानी और इब्रानी शब्द, मसीह के वचन लाल में', 'Параллели, греческие и еврейские слова, слова Христа красным', 'Mga kaugnay na talata, salitang Griyego at Hebreo, mga salita ni Cristo sa pula', '串珠、希腊文与希伯来文、红字基督之言'),
     'not yet': ('ليس بعد', 'όχι ακόμη', 'todavía no', 'pas encore', 'अभी नहीं', 'ещё нет', 'wala pa', '尚未'),
+    'App icon': ('أيقونة التطبيق', 'Εικονίδιο εφαρμογής', 'Icono de la app', 'Icône de l’appli', 'ऐप आइकन', 'Значок приложения', 'Icon ng app', '应用图标'),
+    'The icon of the app in your list of apps and on the dock.': ('أيقونة التطبيق في قائمة التطبيقات وعلى الشريط.', 'Το εικονίδιο της εφαρμογής στη λίστα εφαρμογών και στο ταμπλό.', 'El icono de la app en tu lista de apps y en el dock.', 'L’icône de l’appli dans la liste des applis et dans le dock.', 'ऐप सूची और डॉक में ऐप का आइकन।', 'Значок приложения в списке приложений и на панели.', 'Ang icon ng app sa listahan ng mga app at sa dock.', '应用列表和程序坞中的应用图标。'),
+    'Purple': ('بنفسجي', 'Μωβ', 'Morado', 'Violet', 'बैंगनी', 'Фиолетовый', 'Lila', '紫色'),
+    'Navy blue': ('كحلي', 'Σκούρο μπλε', 'Azul marino', 'Bleu marine', 'गहरा नीला', 'Тёмно-синий', 'Navy blue', '藏青色'),
+    'Black': ('أسود', 'Μαύρο', 'Negro', 'Noir', 'काला', 'Чёрный', 'Itim', '黑色'),
+    'Green': ('أخضر', 'Πράσινο', 'Verde', 'Vert', 'हरा', 'Зелёный', 'Berde', '绿色'),
+    'Wine red': ('خمري', 'Μπορντό', 'Granate', 'Bordeaux', 'वाइन लाल', 'Бордовый', 'Wine red', '酒红色'),
+    'usual': ('المعتاد', 'συνηθισμένο', 'habitual', 'habituel', 'सामान्य', 'обычный', 'karaniwan', '默认'),
+    'The new icon shows in a moment (open the list of apps again).': ('تظهر الأيقونة الجديدة بعد لحظة (افتح قائمة التطبيقات مجددًا).', 'Το νέο εικονίδιο εμφανίζεται σε λίγο (άνοιξε ξανά τη λίστα εφαρμογών).', 'El nuevo icono aparece en un momento (vuelve a abrir la lista de apps).', 'La nouvelle icône apparaît dans un instant (rouvre la liste des applis).', 'नया आइकन कुछ पल में दिखेगा (ऐप सूची फिर खोलें)।', 'Новый значок появится через мгновение (откройте список приложений снова).', 'Lalabas ang bagong icon sa ilang sandali (buksan muli ang listahan ng app).', '新图标稍后显示（请重新打开应用列表）。'),
+    'The icon could not be changed here.': ('تعذّر تغيير الأيقونة هنا.', 'Το εικονίδιο δεν άλλαξε εδώ.', 'No se pudo cambiar el icono aquí.', 'L’icône n’a pas pu être changée ici.', 'यहाँ आइकन नहीं बदला जा सका।', 'Не удалось сменить значок.', 'Hindi napalitan ang icon dito.', '无法在此更改图标。'),
 }
 _ORDER = ('ar', 'el', 'es', 'fr', 'hi', 'ru', 'tl', 'zh')
 
