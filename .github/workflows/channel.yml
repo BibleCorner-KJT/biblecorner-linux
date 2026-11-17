@@ -38,6 +38,8 @@ jobs:
           KEY=$(base64 -w0 channel/kjt-channel.gpg)
           URL=https://biblecorner-kjt.github.io/biblecorner-linux
           mkdir -p site && cp -r repo site/repo && cp channel/index.html channel/icon.png channel/kjt-channel.gpg site/
+          # the old public-domain atlas plates (branch "atlas"), served beside the channel for the website and the apps
+          git clone -q --depth 1 -b atlas "https://github.com/${{ github.repository }}.git" atlas-src-tmp && cp -r atlas-src-tmp/atlas site/atlas && rm -rf atlas-src-tmp
           cat > site/knowing-jesus-today.flatpakrepo <<REPO
           [Flatpak Repo]
           Title=Knowing Jesus Today
