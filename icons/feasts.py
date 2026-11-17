@@ -21,7 +21,7 @@ Q = {
     'dormition': [['File:Dormition (%s).jpg' % AC, 'File:Dormition (15th c., %s).jpg' % AC, 'File:Theofanus uspenie.jpg'], 'Dormition icon Russia 15th', ['dormition', 'uspenie']],
     'nativity_theotokos': [['File:0648Ha. Hermitage Museum. Icon Nativity of the Virgin.jpg'], 'Nativity of the Virgin icon Russia', ['nativity of the virgin', 'nativity of the theotokos', 'nativity of mary', 'rozhdestvo bogoroditsy']],
     'elevation': [['File:Unknown painter - Exaltation of the Cross - WGA23497.jpg'], 'Exaltation of the Cross icon', ['exaltation', 'elevation', 'vozdvizhenie']],
-    'entry': [[], 'Entry of the Theotokos into the Temple icon', ['entry of the theotokos', 'presentation of the virgin', 'presentation of mary', 'vvedenie', 'entrance of the theotokos', 'introduction']],
+    'entry': [[], ['Entry of the Theotokos into the Temple icon', 'Presentation of the Virgin in the Temple icon Russia', 'Vvedenie icon', 'Presentation of Mary icon', 'Entrance of the Theotokos icon', 'Введение во храм икона'], ['entry of the theotokos', 'presentation of the virgin', 'presentation of mary', 'vvedenie', 'entrance of the theotokos', 'introduction', 'введение', 'entry of the virgin', 'entry of the mother of god', 'presentation of the blessed virgin']],
 }
 os.makedirs('out', exist_ok=True)
 def api(**p):
@@ -48,15 +48,18 @@ for key, (files, q, words) in Q.items():
         print(key, '|', f, '->', bool(got), flush=True)
         if got:
             break
-    if not got:
-        r = api(action='query', generator='search', gsrsearch='filetype:bitmap ' + q, gsrnamespace='6', gsrlimit='30', prop='imageinfo', iiprop='url|extmetadata|size', iiurlwidth='600')
+    for qq in ([q] if isinstance(q, str) else q):
+      if got:
+        break
+      r = api(action='query', generator='search', gsrsearch='filetype:bitmap ' + qq, gsrnamespace='6', gsrlimit='40', prop='imageinfo', iiprop='url|extmetadata|size', iiurlwidth='600')
+      if True:
         for p in sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda x: x.get('index', 99)):
             t = p['title'].lower()
             if any(w in t for w in words) and not any(b in t for b in ('hall', 'interior', 'museum of russian icons', 'riza', 'detail', 'fragment')):
                 got = good(p)
                 if got:
                     break
-        print(key, '| search', q, '->', got[0] if got else None, flush=True)
+        print(key, '| search', qq, '->', got[0] if got else None, flush=True)
     if not got:
         continue
     title, ii, em, lic = got
