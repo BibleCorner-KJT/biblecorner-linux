@@ -2,7 +2,7 @@
 import re
 import json, os
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
-from .core import SET, read_file
+from .core import SET, read_file, lang
 from .i18n import _
 from .richtext import html_into, make_view
 
@@ -58,10 +58,10 @@ class FathersPage(Gtk.Box):
         q = self.q.get_text().strip().casefold()
         last = SET.get('lib_last')
         if last and last.get('a') in self.idx and not q:
-            b = Gtk.Button(label='Continue reading: %s' % last.get('title', ''), halign=Gtk.Align.START); b.add_css_class('suggested-action'); b.add_css_class('pill')
+            b = Gtk.Button(label=_('Continue reading: %s') % last.get('title', ''), halign=Gtk.Align.START); b.add_css_class('suggested-action'); b.add_css_class('pill')
             b.connect('clicked', lambda *_: self.open_part(last['a'], last['w'], last['p'])); box.append(b)
         if not self.idx:
-            box.append(Gtk.Label(label='The writings of the Holy Fathers are not on this computer yet. Choose Downloads in the sidebar.', wrap=True, xalign=0))
+            box.append(Gtk.Label(label=_('The writings of the Holy Fathers are not on this computer yet. Choose Downloads in the sidebar.'), wrap=True, xalign=0))
             return
         # read by topic: coloured tiles, as on the website
         if not q:
@@ -92,7 +92,13 @@ class FathersPage(Gtk.Box):
         sw.append(b_era); sw.append(b_az); box.append(sw)
         if how == 'az':
             self.fill_az(box, q); return
-        for i, (title, about, ids) in enumerate(T['eras']):
+        # 2.10: books in Russian (the Philokalia, the Lives of the Saints): their own section, first when the app is in Russian
+        eras = [tuple(e) for e in T['eras']]
+        ru = [a for a, x in self.idx.items() if x.get('lang') == 'ru']
+        if ru:
+            e = (_('In Russian · На русском'), _('The Philokalia in the translation of St Theophan the Recluse, and the Lives of the Saints by St Dimitry of Rostov, day by day.'), ru)
+            eras = [e] + eras if lang() == 'ru' else eras + [e]
+        for i, (title, about, ids) in enumerate(eras):
             have = [a for a in ids if a in self.idx and (not q or q in (self.idx[a]['name'] + ' ' + ' '.join(w['t'] for w in self.idx[a]['works']) + ' ' + T.get('about', {}).get(a, '')).casefold())]
             if not have:
                 continue
@@ -129,7 +135,7 @@ class FathersPage(Gtk.Box):
         ids = [a for a in self.idx if not q or q in (self.idx[a]['name'] + ' ' + ' '.join(w['t'] for w in self.idx[a]['works']) + ' ' + self.T.get('about', {}).get(a, '')).casefold()]
         ids.sort(key=lambda a: self.sort_name(self.idx[a]['name']).casefold())
         if not ids:
-            box.append(Gtk.Label(label='Nothing found.', xalign=0, css_classes=['dim-label'])); return
+            box.append(Gtk.Label(label=_('Nothing found.'), xalign=0, css_classes=['dim-label'])); return
         letter, grp = None, None
         for a in ids:
             x = self.idx[a]; L = (self.sort_name(x['name'])[:1] or '?').upper()
@@ -142,7 +148,7 @@ class FathersPage(Gtk.Box):
             n = len(x['works'])
             row = Adw.ExpanderRow(title=GLib.markup_escape_text(x['name']), subtitle=GLib.markup_escape_text('%s%s%d writing%s' % (life, ' · ' if life else '', n, '' if n == 1 else 's')))
             dot = Gtk.Label(); dot.set_markup('<span foreground="%s" size="x-large">●</span>' % col); row.add_prefix(dot)
-            op = Gtk.Button(icon_name='go-next-symbolic', tooltip_text='Open', valign=Gtk.Align.CENTER); op.add_css_class('flat')
+            op = Gtk.Button(icon_name='go-next-symbolic', tooltip_text=_('Open'), valign=Gtk.Align.CENTER); op.add_css_class('flat')
             op.connect('clicked', lambda _b, a=a: self.open_author(a)); row.add_suffix(op)
             for w in x['works']:
                 r = Adw.ActionRow(title=GLib.markup_escape_text(w['t']), subtitle=GLib.markup_escape_text('%d parts' % w['n']) if w.get('n', 1) > 1 else '', activatable=True)
@@ -178,7 +184,7 @@ class FathersPage(Gtk.Box):
                     continue
                 grp = Adw.PreferencesGroup(title=GLib.markup_escape_text(self.idx[a]['name']), description=GLib.markup_escape_text(self.idx[a].get('when') or META['life'].get(a, '')))
                 for x in parts:
-                    row = Adw.ActionRow(title=GLib.markup_escape_text(x[3]), subtitle='One part of the writing', activatable=True)
+                    row = Adw.ActionRow(title=GLib.markup_escape_text(x[3]), subtitle=_('One part of the writing'), activatable=True)
                     row.connect('activated', lambda _r, a=a, x=x: self.open_part(a, x[1], x[2])); row.add_suffix(Gtk.Image(icon_name='go-next-symbolic')); grp.add(row)
                 for w in ws:
                     others = [self.TOPIC[o][1] + ' ' + self.TOPIC[o][2] for o in self.tags_of(a, w['id']) if o != tid and o in self.TOPIC]
@@ -211,8 +217,10 @@ class FathersPage(Gtk.Box):
             box.append(Gtk.Label(label=sub, xalign=0, css_classes=['dim-label']))
         if META['about'].get(a):
             l = Gtk.Label(label=META['about'][a], xalign=0, wrap=True); l.add_css_class('kjt-about'); box.append(l)
+        if x.get('source'):   # 2.10: where the text comes from (the Russian books)
+            box.append(Gtk.Label(label=x['source'], xalign=0, wrap=True, css_classes=['dim-label', 'caption']))
         if data is None:
-            box.append(Gtk.Label(label='Not on this computer yet. Choose Downloads in the sidebar.', xalign=0, wrap=True))
+            box.append(Gtk.Label(label=_('Not on this computer yet. Choose Downloads in the sidebar.'), xalign=0, wrap=True))
         else:
             for w in x['works']:
                 work = data.get(w['id']) or {}
@@ -220,10 +228,10 @@ class FathersPage(Gtk.Box):
                 tops = [self.TOPIC[o][1] + ' ' + self.TOPIC[o][2] for o in self.tags_of(a, w['id']) if o in getattr(self, 'TOPIC', {})]
                 grp = Adw.PreferencesGroup(title=GLib.markup_escape_text(w['t']), description=GLib.markup_escape_text(' · '.join(tops)) if tops else None)
                 if len(parts) == 1:
-                    row = Adw.ActionRow(title='Read', activatable=True); row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
+                    row = Adw.ActionRow(title=_('Read'), activatable=True); row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
                     row.connect('activated', lambda _r, w=w: self.open_part(a, w['id'], 0)); grp.add(row)
                 else:
-                    ex = Adw.ExpanderRow(title='%d parts' % len(parts))
+                    ex = Adw.ExpanderRow(title=_('%d parts') % len(parts))
                     for n, p in enumerate(parts):
                         row = Adw.ActionRow(title=GLib.markup_escape_text(p.get('t') or 'Part %d' % (n + 1)), activatable=True)
                         row.connect('activated', lambda _r, w=w, n=n: self.open_part(a, w['id'], n)); ex.add_row(row)
@@ -252,7 +260,7 @@ class FathersPage(Gtk.Box):
             html_into(view, '<h1>%s</h1><p><i>%s</i></p>%s' % (esc(title), esc(name), p.get('h', '')), self.win.open_link, self.size)
         draw()
         for lab, f in (('A+', 1.1), ('A−', 1 / 1.1)):
-            b = Gtk.Button(label=lab, tooltip_text='Text size'); b.add_css_class('flat')
+            b = Gtk.Button(label=lab, tooltip_text=_('Text size')); b.add_css_class('flat')
             def zoom(_b, f=f):
                 self.size = max(0.7, min(2.2, self.size * f)); SET.set('lib_size', self.size); draw()
             b.connect('clicked', zoom); hb.pack_end(b)

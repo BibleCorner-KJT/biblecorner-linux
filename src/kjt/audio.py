@@ -2,6 +2,7 @@
 import os
 from gi.repository import Gtk, GLib
 from .core import NET, STORE, file_path, write_file, run_bg, book_name
+from .i18n import _
 
 try:
     import gi
@@ -26,7 +27,7 @@ class Audio(Gtk.Revealer):
                 bus.connect('message::error', self.on_error)
         bar = Gtk.Box(spacing=8, margin_start=10, margin_end=10, margin_top=6, margin_bottom=6)
         bar.add_css_class('kjt-audio')
-        self.play_btn = Gtk.Button(icon_name='kjt-pause-symbolic', tooltip_text='Play or pause'); self.play_btn.add_css_class('circular')
+        self.play_btn = Gtk.Button(icon_name='kjt-pause-symbolic', tooltip_text=_('Play or pause')); self.play_btn.add_css_class('circular')
         self.play_btn.connect('clicked', lambda *_: self.toggle())
         self.title = Gtk.Label(xalign=0, width_chars=16, ellipsize=3)
         self.title.add_css_class('heading')
@@ -34,9 +35,9 @@ class Audio(Gtk.Revealer):
         self.scale.set_range(0, 1)
         self.scale.connect('change-value', self.on_seek)
         self.time = Gtk.Label(); self.time.add_css_class('numeric'); self.time.add_css_class('dim-label')
-        self.save_btn = Gtk.Button(icon_name='kjt-download-symbolic', tooltip_text='Keep this chapter on this computer')
+        self.save_btn = Gtk.Button(icon_name='kjt-download-symbolic', tooltip_text=_('Keep this chapter on this computer'))
         self.save_btn.connect('clicked', lambda *_: self.save())
-        close = Gtk.Button(icon_name='kjt-close-symbolic', tooltip_text='Stop'); close.add_css_class('flat')
+        close = Gtk.Button(icon_name='kjt-close-symbolic', tooltip_text=_('Stop')); close.add_css_class('flat')
         close.connect('clicked', lambda *_: self.stop())
         for w in (self.play_btn, self.title, self.scale, self.time, self.save_btn, close):
             bar.append(w)

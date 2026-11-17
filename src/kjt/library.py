@@ -128,7 +128,7 @@ class LibraryPage(Gtk.Box):
         if not mine:
             st = Adw.StatusPage(icon_name='kjt-library-symbolic', title=_('Your library is empty'),
                                 description='Choose “Get more” to see the free Bibles, commentaries, dictionaries and books of CrossWire and AndBible. Nothing is added until you choose it.')
-            b = Gtk.Button(label='Get more', halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.add_css_class('suggested-action')
+            b = Gtk.Button(label=_('Get more'), halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.add_css_class('suggested-action')
             b.connect('clicked', lambda *_: self.t_get.set_active(True)); st.set_child(b)
             self.box.append(st); return
         for k, title in KINDS:
@@ -149,7 +149,7 @@ class LibraryPage(Gtk.Box):
         if self.cat is None:
             sp = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=40, halign=Gtk.Align.CENTER)
             s = Gtk.Spinner(spinning=True); s.set_size_request(32, 32); sp.append(s)
-            sp.append(Gtk.Label(label='Fetching the lists of CrossWire and AndBible…', css_classes=['dim-label'])); self.box.append(sp); return
+            sp.append(Gtk.Label(label=_('Fetching the lists of CrossWire and AndBible…'), css_classes=['dim-label'])); self.box.append(sp); return
         if not self.cat:
             st = Adw.StatusPage(icon_name='kjt-library-symbolic', title=_('The lists could not be fetched'), description='The library lists come with the internet. Try again when you are online.')
             b = Gtk.Button(label=_('Try again'), halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.connect('clicked', lambda *_: (self.load(True), self.fill())); st.set_child(b)
@@ -172,7 +172,7 @@ class LibraryPage(Gtk.Box):
             if not self.match(c):
                 continue
             seen.add(key); rows.append(c)
-        info = Gtk.Label(label='Free to read, from CrossWire Bible Society and AndBible. %d shown. Choose what you want: each is downloaded once, then read without the internet.' % len(rows),
+        info = Gtk.Label(label=_('Free to read, from CrossWire Bible Society and AndBible. %d shown. Choose what you want: each is downloaded once, then read without the internet.') % len(rows),
                          wrap=True, xalign=0, css_classes=['dim-label']); self.box.append(info)
         ortho = [c for c in rows if S.ORTHODOX_FIRST.search((c.get('Description') or '') + ' ' + c['_name'] + ' ' + S.about(c)[:300])]
         if ortho:
@@ -212,7 +212,7 @@ class LibraryPage(Gtk.Box):
         self.win.toast('Downloading “%s”. You can keep reading.' % (c.get('Description') or c['_name']))
 
     def ask_remove(self, c):
-        d = Adw.AlertDialog(heading='Remove “%s”?' % (c.get('Description') or c['_name']), body='It can be downloaded again at any time. Your bookmarks and notes are not touched.')
+        d = Adw.AlertDialog(heading=_('Remove “%s”?') % (c.get('Description') or c['_name']), body=_('It can be downloaded again at any time. Your bookmarks and notes are not touched.'))
         d.add_response('cancel', 'Keep it'); d.add_response('go', 'Remove'); d.set_response_appearance('go', Adw.ResponseAppearance.DESTRUCTIVE)
         d.connect('response', lambda _d, r: (S.remove(c), self.fill(), self.win.toast('Removed')) if r == 'go' else None); d.present(self.win)
 
@@ -313,7 +313,7 @@ class LibraryPage(Gtk.Box):
             # reading on: the next part of the book
             nxt = self.next_node(g, n)
             if nxt is not None:
-                b = Gtk.Button(label='Next: %s →' % g.node(nxt)['name'].replace('_', ' ')[:60], halign=Gtk.Align.END, margin_top=4, margin_bottom=6, margin_end=10); b.add_css_class('flat')
+                b = Gtk.Button(label=_('Next: %s →') % g.node(nxt)['name'].replace('_', ' ')[:60], halign=Gtk.Align.END, margin_top=4, margin_bottom=6, margin_end=10); b.add_css_class('flat')
                 b.connect('clicked', lambda *_: self.push_node(c, g, nxt, g.node(nxt)['name'])); body.append(b)
         if kids:
             lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list')

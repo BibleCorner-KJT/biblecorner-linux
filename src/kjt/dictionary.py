@@ -146,7 +146,7 @@ class DictPage(Gtk.Box):
         lt = Adw.ToolbarView(); lh = Adw.HeaderBar(); lt.add_top_bar(lh); win.sidebar_button(lh)
         lh.set_title_widget(Adw.WindowTitle(title=_('Bible Dictionary')))
         top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=8, margin_end=8, margin_top=6, margin_bottom=6)
-        self.q = Gtk.SearchEntry(placeholder_text='Find a word, a name or a place'); self.q.connect('search-changed', lambda *_: self.later())
+        self.q = Gtk.SearchEntry(placeholder_text=_('Find a word, a name or a place')); self.q.connect('search-changed', lambda *_: self.later())
         top.append(self.q)
         self.kinds = Gtk.DropDown.new_from_strings([k[1] for k in KINDS]); self.kinds.connect('notify::selected', lambda *_: self.fill())
         top.append(self.kinds)
@@ -159,7 +159,7 @@ class DictPage(Gtk.Box):
         self.split.set_sidebar(Adw.NavigationPage(title='Bible Dictionary', child=resizable(self.split, lt, 'dict_side', lo=220, hi=700)))
         # the article
         at = Adw.ToolbarView(); self.ah = Adw.HeaderBar(); at.add_top_bar(self.ah)
-        self.map_btn = Gtk.Button(icon_name='kjt-map-symbolic', tooltip_text='Show on the Bible Maps'); self.map_btn.add_css_class('flat'); self.map_btn.connect('clicked', lambda *_: self.win.show_on_map(self.cur.get('map')))
+        self.map_btn = Gtk.Button(icon_name='kjt-map-symbolic', tooltip_text=_('Show on the Bible Maps')); self.map_btn.add_css_class('flat'); self.map_btn.connect('clicked', lambda *_: self.win.show_on_map(self.cur.get('map')))
         self.ah.pack_end(self.map_btn)
         self.view = make_view(self.on_link)
         c = Adw.Clamp(maximum_size=780); c.set_child(self.view)

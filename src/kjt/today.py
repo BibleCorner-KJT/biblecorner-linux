@@ -1,7 +1,7 @@
 """Today with God: the verse of the day, the day in the Church (feast, fast, saints) and its readings, read from the Bibles kept here."""
 import datetime, re
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
-from .core import STORE, SET, NET, DEFAULT_BIBLES, lang, book_name, run_bg, strip_tags
+from .core import STORE, SET, NET, DEFAULT_BIBLES, lang, book_name, run_bg, strip_tags, file_path
 from .i18n import _
 from .bible import bible_name
 
@@ -19,7 +19,8 @@ class TodayPage(Gtk.Box):
         self.label = Gtk.Label(ellipsize=3); self.label.add_css_class('heading')
         t = Gtk.Box(spacing=6); t.append(self.prev); t.append(self.label); t.append(self.next)
         hb.set_title_widget(t)
-        home = Gtk.Button(icon_name='kjt-today-symbolic', tooltip_text=_('Back to today')); home.add_css_class('flat'); home.connect('clicked', lambda *_: self.goto(datetime.date.today())); hb.pack_start(home)
+        # 2.10: a plain 'Today' button (the sun looked like a light/dark switch); it shows only on another day
+        self.home = home = Gtk.Button(label=_('Today'), tooltip_text=_('Back to today'), visible=False); home.add_css_class('flat'); home.connect('clicked', lambda *_: self.goto(datetime.date.today())); hb.pack_start(home)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         c = Adw.Clamp(maximum_size=760); c.set_child(self.box)
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc); tv.set_content(sc)
@@ -59,7 +60,7 @@ class TodayPage(Gtk.Box):
         self.goto(self.day + datetime.timedelta(days=d))
 
     def goto(self, day):
-        self.day = day; self.show(); self.refresh()
+        self.day = day; self.home.set_visible(day != datetime.date.today()); self.show(); self.refresh()
 
     def bible_for(self, book):
         for tr in (SET.get('tr'), DEFAULT_BIBLES.get(lang()), 'eng-kjv'):
@@ -107,6 +108,29 @@ class TodayPage(Gtk.Box):
         self.box.append(f)
         return inner
 
+    def feast_icon(self, box, ic):
+        import os
+        path = file_path('feasts/%s.jpg' % re.sub(r'[^a-z_]', '', ic['key']))
+        pic = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.CONTAIN, height_request=300, margin_top=6)
+        pic.set_alternative_text(ic.get('t') or '')
+        cap = Gtk.Label(label=ic.get('by') or '', xalign=0.5, wrap=True, css_classes=['caption', 'dim-label'])
+        cap.set_tooltip_text(ic.get('page') or '')
+        def put(*_):
+            try:
+                pic.set_filename(path); box.append(pic); box.append(cap)
+            except Exception:
+                pass
+        if os.path.exists(path) and os.path.getsize(path) > 1000:
+            put(); return
+        def fetch():
+            data = NET.get(ic['src'], timeout=30, strict=True)
+            if not data or len(data) < 1000:
+                raise ValueError('no picture')
+            with open(path, 'wb') as f:
+                f.write(data)
+            return True
+        run_bg(fetch, lambda r: put() if r is True else None)
+
     def text(self, s, *classes, sel=True):
         l = Gtk.Label(label=s, xalign=0, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR, selectable=sel)
         for c in classes:
@@ -133,6 +157,10 @@ class TodayPage(Gtk.Box):
             head.append(self.text('🍃 ' + d['fast'], 'kjt-fast'))
         if d.get('saints'):
             head.append(self.text(d['saints'], 'dim-label'))
+        # 2.10: the icon of a great feast (an old icon, public domain, from Wikimedia Commons), kept on this computer
+        ic = d.get('icon') or {}
+        if ic.get('src') and ic.get('key'):
+            self.feast_icon(head, ic)
         # the verse of the day
         v = d.get('votd')
         if v:
@@ -154,8 +182,10 @@ class TodayPage(Gtk.Box):
                 for ref in r.get('refs') or []:
                     self.reading(box, r, ref)
         if d.get('news'):
-            box = self.card('Coming soon', '🕯', share=lambda: ('\n'.join(('🍃 ' if k == 'fast' else '✦ ') + n + (' — until ' + e if e else '') for k, n, e in d['news']), 'Coming soon in the Church'))
-            for kind, name, end in d['news']:
+            # 2.10: a feast comes as [kind, name], a fast as [kind, name, last day]
+            news = [(list(x) + ['', '', ''])[:3] for x in d['news']]
+            box = self.card('Coming soon', '🕯', share=lambda: ('\n'.join(('🍃 ' if k == 'fast' else '✦ ') + n + (' — until ' + e if e else '') for k, n, e in news), 'Coming soon in the Church'))
+            for kind, name, end in news:
                 box.append(self.text(('🍃 ' if kind == 'fast' else '✦ ') + name + (' — until ' + end if end else ''), sel=False))
         self.prev.set_sensitive(True); self.next.set_sensitive(True)
 

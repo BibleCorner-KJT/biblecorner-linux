@@ -238,13 +238,13 @@ class StudyPage(Gtk.Box):
         return card
 
     def rename(self, tag):
-        d = Adw.AlertDialog(heading='Rename the Study Pad')
+        d = Adw.AlertDialog(heading=_('Rename the Study Pad'))
         en = Gtk.Entry(text=STUDY.pad_name(tag), activates_default=True); d.set_extra_child(en)
         d.add_response('cancel', 'Cancel'); d.add_response('ok', 'Rename'); d.set_response_appearance('ok', Adw.ResponseAppearance.SUGGESTED); d.set_default_response('ok')
         d.connect('response', lambda _d, res: STUDY.rename_pad(tag, en.get_text()) if res == 'ok' else None); d.present(self.win)
 
     def remove(self, r):
-        dlg = Adw.AlertDialog(heading='Remove this?', body=self.ref(r) + ((' — ' + r['note'][:120]) if r.get('note') else ''))
+        dlg = Adw.AlertDialog(heading=_('Remove this?'), body=self.ref(r) + ((' — ' + r['note'][:120]) if r.get('note') else ''))
         dlg.add_response('cancel', 'Cancel'); dlg.add_response('del', 'Remove'); dlg.set_response_appearance('del', Adw.ResponseAppearance.DESTRUCTIVE)
         dlg.connect('response', lambda d, res: STUDY.delete(r) if res == 'del' else None); dlg.present(self.win)
 
@@ -259,13 +259,13 @@ class StudyPage(Gtk.Box):
         if u:
             when = STORE.kv('synced')
             row = Adw.ActionRow(title=GLib.markup_escape_text(u.get('name') or 'Signed in'),
-                                subtitle='Kept in step with knowingjesus.today%s' % (time.strftime(' · last %d %b %H:%M', time.localtime(when)) if when else ''))
+                                subtitle=_('Kept in step with knowingjesus.today%s') % (time.strftime(' · last %d %b %H:%M', time.localtime(when)) if when else ''))
             row.add_prefix(Gtk.Image(icon_name='avatar-default-symbolic', pixel_size=32))
             out = Gtk.Button(label=_('Sign out'), valign=Gtk.Align.CENTER); out.connect('clicked', lambda *_: self.sign_out()); row.add_suffix(out)
             g.add(row)
             waiting = len(STORE.outbox())
             if waiting:
-                g.add(Adw.ActionRow(title='%d changes wait for the internet' % waiting, subtitle=_('They are sent by themselves as soon as the website can be reached.')))
+                g.add(Adw.ActionRow(title=_('%d changes wait for the internet') % waiting, subtitle=_('They are sent by themselves as soon as the website can be reached.')))
         else:
             row = Adw.ActionRow(title=_('Not signed in'), subtitle=_('Your bookmarks and notes stay on this computer. Sign in to keep them in step with My KJT on the website and your phone.'))
             row.set_subtitle_lines(4)
@@ -275,7 +275,7 @@ class StudyPage(Gtk.Box):
 
     def sign_in_dialog(self, how=None):
         how = how or SET.get('signin_how', 'key')
-        d = Adw.AlertDialog(heading='Sign in to My KJT', body='Open your study with your study key, or with the name (or e-mail) and password of your account on knowingjesus.today.')
+        d = Adw.AlertDialog(heading=_('Sign in to My KJT'), body=_('Open your study with your study key, or with the name (or e-mail) and password of your account on knowingjesus.today.'))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         tabs = Gtk.Box(halign=Gtk.Align.CENTER); tabs.add_css_class('linked')
         t_key = Gtk.ToggleButton(label=_('🔑 Study key'), active=how == 'key'); t_pw = Gtk.ToggleButton(label=_('Name and password'), group=t_key, active=how != 'key')
@@ -283,7 +283,7 @@ class StudyPage(Gtk.Box):
         stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, vhomogeneous=False)
         # the study key
         kb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        key = Adw.PasswordEntryRow(title='Your study key  (KJT-XXXX-XXXX-XXXX-XXXX)')
+        key = Adw.PasswordEntryRow(title=_('Your study key  (KJT-XXXX-XXXX-XXXX-XXXX)'))
         kl = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); kl.add_css_class('boxed-list'); kl.append(key); kb.append(kl)
         kb.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label=_('Lost your study key? Get a new one on the website')))
         stack.add_named(kb, 'key')
@@ -337,7 +337,7 @@ class StudyPage(Gtk.Box):
         d.present(self.win)
 
     def sign_out(self):
-        d = Adw.AlertDialog(heading='Sign out?', body='Your study stays safe in My KJT on the website. This computer forgets it until you sign in again.')
+        d = Adw.AlertDialog(heading=_('Sign out?'), body=_('Your study stays safe in My KJT on the website. This computer forgets it until you sign in again.'))
         d.add_response('cancel', 'Cancel'); d.add_response('out', 'Sign out'); d.set_response_appearance('out', Adw.ResponseAppearance.DESTRUCTIVE)
         def resp(_d, res):
             if res == 'out':
@@ -376,10 +376,10 @@ def paint(widget, hexcol):
 def pad_dialog(win, tag=None, done=None):
     """make a Study Pad, or change its name, colour and emoji; or remove it"""
     p = STUDY.pad(tag) if tag else None
-    d = Adw.AlertDialog(heading='Study Pad' if tag else 'A new Study Pad')
+    d = Adw.AlertDialog(heading=_('Study Pad') if tag else 'A new Study Pad')
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
     name = Gtk.Entry(text=STUDY.pad_name(tag) if tag else '', placeholder_text=_('Its name'), activates_default=True); box.append(name)
-    icon = Gtk.Entry(text=(p or {}).get('icon', ''), placeholder_text='An emoji for it, if you like (optional)', max_length=4); box.append(icon)
+    icon = Gtk.Entry(text=(p or {}).get('icon', ''), placeholder_text=_('An emoji for it, if you like (optional)'), max_length=4); box.append(icon)
     box.append(Gtk.Label(label=_('Colour'), xalign=0, css_classes=['heading'], margin_top=4))
     pick = {'c': STUDY.pad_color(tag) if tag else STUDY.free_color()}
     fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=6, min_children_per_line=6, column_spacing=6, row_spacing=6)
@@ -420,8 +420,8 @@ def pad_dialog(win, tag=None, done=None):
                 done()
         elif res == 'delete':
             n = sum(1 for r in STUDY.records() if tag in (r.get('tags') or []))
-            c = Adw.AlertDialog(heading='Remove “%s”?' % STUDY.pad_name(tag),
-                                body='The Study Pad goes away. Its %d bookmarks stay, without it.' % n if n else 'The Study Pad goes away.')
+            c = Adw.AlertDialog(heading=_('Remove “%s”?') % STUDY.pad_name(tag),
+                                body=_('The Study Pad goes away. Its %d bookmarks stay, without it.') % n if n else 'The Study Pad goes away.')
             c.add_response('cancel', 'Keep it'); c.add_response('go', 'Remove'); c.set_response_appearance('go', Adw.ResponseAppearance.DESTRUCTIVE)
             c.connect('response', lambda _c, r2: (STUDY.delete_pad(tag), done and done()) if r2 == 'go' else None); c.present(win)
     d.connect('response', resp); d.present(win)
@@ -450,19 +450,19 @@ def edit(win, r, focus='note'):
         b.connect('clicked', lambda _b, c=c: pick(c)); dots.append(b); btns[c] = b
     pick(chosen['c']); box.append(dots)
     # note
-    box.append(Gtk.Label(label='Note', xalign=0, css_classes=['heading'], margin_top=4))
+    box.append(Gtk.Label(label=_('Note'), xalign=0, css_classes=['heading'], margin_top=4))
     tvw = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, top_margin=8, bottom_margin=8, left_margin=8, right_margin=8)
     tvw.get_buffer().set_text(r.get('note') or '')
     sc = Gtk.ScrolledWindow(min_content_height=130, min_content_width=300); sc.set_child(tvw); sc.add_css_class('card'); box.append(sc)
     # Study Pads
-    box.append(Gtk.Label(label='Study Pads', xalign=0, css_classes=['heading'], margin_top=4))
+    box.append(Gtk.Label(label=_('Study Pads'), xalign=0, css_classes=['heading'], margin_top=4))
     fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=2, min_children_per_line=1, column_spacing=6)
     checks = {}
     for p in STUDY.pads():
         cb = Gtk.CheckButton(label=STUDY.pad_label(p['tag'])); cb.set_active(p['tag'] in (r.get('tags') or [])); fb.append(cb); checks[p['tag']] = cb
     if checks:
         box.append(fb)
-    new = Gtk.Entry(placeholder_text='A new Study Pad: type its name'); box.append(new)
+    new = Gtk.Entry(placeholder_text=_('A new Study Pad: type its name')); box.append(new)
     d.set_extra_child(box)
     d.add_response('cancel', 'Cancel'); d.add_response('delete', 'Remove bookmark'); d.set_response_appearance('delete', Adw.ResponseAppearance.DESTRUCTIVE)
     d.add_response('save', 'Save'); d.set_response_appearance('save', Adw.ResponseAppearance.SUGGESTED)

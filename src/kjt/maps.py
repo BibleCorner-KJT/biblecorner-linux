@@ -3,6 +3,7 @@ import json, math, re
 import cairo
 from gi.repository import Gtk, Adw, Gdk, GdkPixbuf, GLib, Pango, PangoCairo
 from .core import STORE, SET, lang, read_file, file_path, book_name, strip_tags
+from .i18n import _
 
 COL = {'s': '#7a1f6b', 'r': '#8a7a5a', 'm': '#6d4c2f', 'w': '#1f6f9b', 'i': '#2e7d6b', 'v': '#6b7a2e', 'c': '#b5442c', 'o': '#555555'}
 WATERS = [['w_med', 27.6, 33.3, 1.6], ['w_dead', 35.47, 31.1, 0], ['w_gal', 35.6, 32.95, 0], ['w_red', 38.6, 20.5, 1.2], ['w_black', 34.5, 43.4, 1.3],
@@ -560,11 +561,11 @@ class MapsPage(Gtk.Box):
         self.pending = None
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
-        self.q = Gtk.SearchEntry(placeholder_text='Find a place…', width_chars=18, max_width_chars=26); self.q.connect('activate', self.find)
+        self.q = Gtk.SearchEntry(placeholder_text=_('Find a place…'), width_chars=18, max_width_chars=26); self.q.connect('activate', self.find)
         hb.set_title_widget(self.q)
-        self.list_btn = Gtk.ToggleButton(icon_name='kjt-list-symbolic', tooltip_text='Places and story maps'); self.list_btn.add_css_class('flat')
+        self.list_btn = Gtk.ToggleButton(icon_name='kjt-list-symbolic', tooltip_text=_('Places and story maps')); self.list_btn.add_css_class('flat')
         hb.pack_end(self.list_btn)
-        kinds = Gtk.MenuButton(icon_name='kjt-pin-symbolic', tooltip_text='Which places to show'); kinds.add_css_class('flat')
+        kinds = Gtk.MenuButton(icon_name='kjt-pin-symbolic', tooltip_text=_('Which places to show')); kinds.add_css_class('flat')
         pop = Gtk.Popover(); kb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
         self.kind_checks = kb; pop.set_child(kb); kinds.set_popover(pop); hb.pack_end(kinds)
         self.mv = MapView(self)
@@ -580,7 +581,7 @@ class MapsPage(Gtk.Box):
         # a story's steps, on the map
         self.snav = Gtk.Box(spacing=4, halign=Gtk.Align.CENTER, valign=Gtk.Align.START, margin_top=10, visible=False); self.snav.add_css_class('osd'); self.snav.add_css_class('toolbar')
         self.snav_label = Gtk.Label(width_chars=8, ellipsize=Pango.EllipsizeMode.END, max_width_chars=22)
-        for w in (Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text='Previous'), self.snav_label, Gtk.Button(icon_name='kjt-next-symbolic', tooltip_text='Next')):
+        for w in (Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text=_('Previous')), self.snav_label, Gtk.Button(icon_name='kjt-next-symbolic', tooltip_text=_('Next'))):
             if isinstance(w, Gtk.Button):
                 w.add_css_class('flat')
             self.snav.append(w)
@@ -591,8 +592,8 @@ class MapsPage(Gtk.Box):
         ss = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True); ss.set_child(self.side); self.side_scroll = ss
         # two tabs, as on the website: all the places, or the story maps
         tabs = Gtk.Box(spacing=0, halign=Gtk.Align.CENTER, margin_top=10, margin_start=10, margin_end=10); tabs.add_css_class('linked')
-        self.tab_p = Gtk.ToggleButton(label='📍 All places'); self.tab_s = Gtk.ToggleButton(label='🧭 Story maps', group=self.tab_p)
-        self.tab_a = Gtk.ToggleButton(label='🗺 Old atlases', group=self.tab_p)
+        self.tab_p = Gtk.ToggleButton(label=_('📍 All places')); self.tab_s = Gtk.ToggleButton(label=_('🧭 Story maps'), group=self.tab_p)
+        self.tab_a = Gtk.ToggleButton(label=_('🗺 Old atlases'), group=self.tab_p)
         self.tab_a.connect('toggled', lambda b: b.get_active() and self.mode != 'atlas' and self.set_mode('atlas'))
         self.tab_p.connect('toggled', lambda b: b.get_active() and self.mode != 'places' and self.set_mode('places'))
         self.tab_s.connect('toggled', lambda b: b.get_active() and self.mode != 'stories' and self.set_mode('stories'))
@@ -626,7 +627,7 @@ class MapsPage(Gtk.Box):
             if M.ok:
                 M.set_lang(lang())
             elif not M.load():
-                self.clear_side(); self.side.append(Gtk.Label(label='The Bible Maps are not on this computer yet. Choose Downloads in the sidebar.', wrap=True, xalign=0)); return
+                self.clear_side(); self.side.append(Gtk.Label(label=_('The Bible Maps are not on this computer yet. Choose Downloads in the sidebar.'), wrap=True, xalign=0)); return
             for t in M.stories:
                 for tr in t.get('tribes') or []:
                     tr['_d'] = parse_path(tr['d'])
@@ -932,7 +933,7 @@ class AtlasView(Gtk.Box):
         gs = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER); gs.set_child(self.grid); self.stack.add_named(gs, 'grid')
         view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         top = Gtk.Box(spacing=8, margin_top=6, margin_bottom=6, margin_start=8, margin_end=8)
-        back = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text='All the atlases'); back.add_css_class('flat'); back.connect('clicked', lambda *_: self.stack.set_visible_child_name('grid')); top.append(back)
+        back = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text=_('All the atlases')); back.add_css_class('flat'); back.connect('clicked', lambda *_: self.stack.set_visible_child_name('grid')); top.append(back)
         cap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
         self.title = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['heading']); self.sub = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['caption', 'dim-label'])
         cap.append(self.title); cap.append(self.sub); top.append(cap)

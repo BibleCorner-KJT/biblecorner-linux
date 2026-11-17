@@ -89,7 +89,7 @@ class Downloader:
         if plan.get('maps'):
             jobs.append(Job('maps', sorted(set(plan.get('dict') or [lang()])), 'Bible Maps'))
         if plan.get('library'):
-            jobs.append(Job('library', None, 'The Holy Fathers: their writings'))
+            jobs.append(Job('library', sorted(set(plan.get('dict') or [lang()])), 'The Holy Fathers: their writings'))
         if plan.get('commentary'):
             jobs.append(Job('commentary', None, 'The Holy Fathers on the Bible'))
         if plan.get('study', plan.get('commentary')):
@@ -209,8 +209,11 @@ class Downloader:
         files = MAP_FILES + ['names-%s.json' % l for l in set(langs) if l != 'en'] + ['relief/overview.jpg'] + ['relief/t%d-%d.jpg' % (r, c) for r in range(3) for c in range(6)]
         self.files(job, ['maps/' + f for f in files], 'Bible Maps')
 
-    def get_library(self, job, _):
+    def get_library(self, job, langs):
         idx = json.loads(NET.file('library/index.json').decode('utf-8'))
+        # 2.10: books in another language (the Russian Philokalia and Lives of the Saints) only for that language
+        langs = set(langs or [lang()])
+        idx = [f for f in idx if not f.get('lang') or f['lang'] in langs]
         write_file('library/index.json', json.dumps(idx).encode())
         try:   # the topics, eras and colours of the Holy Fathers page (the same as on the website)
             write_file('library/topics.json', NET.file('library/topics.json'))
@@ -224,7 +227,7 @@ class Downloader:
     def get_study(self, job, _):
         """for the reader: the cross-references of every verse, the Greek and Hebrew words, and the words of Christ in red"""
         en = (STORE.kv('info') or {}).get('books', {}).get('en', {})
-        files = ['xref/%s.json' % b for b in OT + NT] + ['words/%s.json.gz' % b for b in OT + NT] + ['words/lexicon.json.gz']
+        files = ['xref/%s.json' % b for b in OT + NT] + ['words/%s.json.gz' % b for b in OT + NT] + ['words/lexicon.json.gz', 'words/morph.json.gz']
         files += ['../assets/red-letters/%s.json' % en[b] for b in NT if b in en]
         self.files(job, files, 'For the reader', dest=lambda f: f.replace('../assets/', ''), quiet=True)  # not every book has every kind
 

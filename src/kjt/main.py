@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.9'
+VERSION = '2.10'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -100,6 +100,10 @@ class Window(Adw.ApplicationWindow):
         sh.set_title_widget(brand)
         self.menu_btn = Gtk.MenuButton(icon_name='kjt-more-symbolic', menu_model=self.make_menu(), tooltip_text=_('Menu'))
         sh.pack_end(self.menu_btn)
+        # 2.10: light or dark, one click (the menu also has "Follow the computer")
+        self.dark_btn = Gtk.Button(); self.dark_btn.add_css_class('flat'); self.dark_btn.connect('clicked', lambda *_: app.set_style('light' if Adw.StyleManager.get_default().get_dark() else 'dark'))
+        sh.pack_start(self.dark_btn); self.dark_icon()
+        Adw.StyleManager.get_default().connect('notify::dark', lambda *_: self.dark_icon())
         self.nav = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE); self.nav.add_css_class('navigation-sidebar'); self.nav.add_css_class('kjt-nav')
         for n, (key, title, icon) in enumerate(PAGES):
             row = Gtk.ListBoxRow(); row.key = key
@@ -298,11 +302,25 @@ class Window(Adw.ApplicationWindow):
         url = href if re.match(r'https?://', href) else SITE + ('' if href.startswith('/') else '/') + href
         Gtk.UriLauncher.new(url).launch(self, None, None, None)
 
+    def dark_icon(self):
+        d = Adw.StyleManager.get_default().get_dark()
+        self.dark_btn.set_icon_name('weather-clear-symbolic' if d else 'weather-clear-night-symbolic')
+        self.dark_btn.set_tooltip_text(_('Light') if d else _('Dark'))
+        # the Bible's colours are drawn for light or dark: draw it again
+        b = getattr(self, 'pages', {}).get('bible')
+        if b is not None and getattr(b, 'book', None):
+            try:
+                b.show(keep=True)
+            except Exception:
+                pass
+
     @staticmethod
     def make_menu():
         # 2.8: SimpleX first to talk to us; the Android app beside this one; the daily post for the website's administrators
         menu = Gio.Menu()
         talk = Gio.Menu(); talk.append(_('Talk to us on SimpleX'), 'app.simplex'); talk.append(_('The Android app (Bible Corner)'), 'app.android'); menu.append_section(None, talk)
+        look = Gio.Menu(); look.append(_('Follow the computer'), 'app.style::auto'); look.append(_('Light'), 'app.style::light'); look.append(_('Dark'), 'app.style::dark')
+        menu.append_section(_('Appearance'), look)
         more = Gio.Menu(); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Knowing Jesus Today'), 'app.about'); menu.append_section(None, more)
         return menu
 
@@ -334,7 +352,7 @@ class Window(Adw.ApplicationWindow):
         b = self.bible
         if p['book'] == b.book and p['ch'] == b.ch and p.get('v', 1) <= 2:
             return False
-        t = Adw.Toast(title=GLib.markup_escape_text('Continue reading where you left off: %s %d:%d' % (b.code_name(p['book'], p['tr']), p['ch'], p.get('v', 1))), timeout=10, button_label='Continue')
+        t = Adw.Toast(title=GLib.markup_escape_text('Continue reading where you left off: %s %d:%d' % (b.code_name(p['book'], p['tr']), p['ch'], p.get('v', 1))), timeout=10, button_label=_('Continue'))
         def go(*_):
             if p['tr'] != b.tr:
                 b.tr = p['tr']; SET.set('tr', p['tr'])
@@ -348,15 +366,15 @@ class Window(Adw.ApplicationWindow):
         if have_data():
             self.background()
             return False
-        d = Adw.AlertDialog(heading='Welcome to Knowing Jesus Today',
-                            body='The app keeps the Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps on this computer, so you can read them without the internet. Choose your languages:')
+        d = Adw.AlertDialog(heading=_('Welcome to Knowing Jesus Today'),
+                            body=_('The app keeps the Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps on this computer, so you can read them without the internet. Choose your languages:'))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3, min_children_per_line=2, column_spacing=6)
         checks = {}
         for l in LANGS:
             cb = Gtk.CheckButton(label=LANG_NAMES[l], active=(l == 'en')); checks[l] = cb; flow.append(cb)
         box.append(flow)
-        allr = Gtk.CheckButton(label='Also the Holy Fathers\' writings and commentary (about 60 MB)', active=True, margin_top=8)
+        allr = Gtk.CheckButton(label=_('Also the Holy Fathers\' writings and commentary (about 60 MB)'), active=True, margin_top=8)
         allr.get_last_child().set_wrap(True) if isinstance(allr.get_last_child(), Gtk.Label) else None
         box.append(allr)
         d.set_extra_child(box)
@@ -435,6 +453,16 @@ class App(Adw.Application):
             else:
                 Gtk.StyleContext.remove_provider_for_display(disp, dark)
         sm.connect('notify::dark', scheme); scheme()
+        # 2.10: Appearance: follow the computer, light or dark (kept)
+        st = SET.get('style') or 'auto'
+        a = Gio.SimpleAction.new_stateful('style', GLib.VariantType.new('s'), GLib.Variant('s', st))
+        a.connect('change-state', lambda act, v: self.set_style(v.get_string()))
+        self.add_action(a); self.style_action = a; self.set_style(st)
+
+    def set_style(self, st):
+        st = st if st in ('auto', 'light', 'dark') else 'auto'
+        SET.set('style', st); self.style_action.set_state(GLib.Variant('s', st))
+        Adw.StyleManager.get_default().set_color_scheme({'auto': Adw.ColorScheme.DEFAULT, 'light': Adw.ColorScheme.FORCE_LIGHT, 'dark': Adw.ColorScheme.FORCE_DARK}[st])
 
     def do_activate(self):
         w = self.props.active_window or Window(self)

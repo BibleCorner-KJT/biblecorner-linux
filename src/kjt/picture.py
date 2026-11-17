@@ -2,6 +2,7 @@
 import math, os, re
 import cairo
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango, PangoCairo, Gio
+from .i18n import _
 
 THEMES = {
     'royal': ('Royal', ('#4b0b4b', '#22061f'), '#c9a227', '#fff8e6', '#f3c548', '#d9c6dc'),
@@ -98,7 +99,7 @@ def share(win, text, ref):
     photo = {'surf': None}
     if o['theme'] == 'photo':
         o['theme'] = 'royal'
-    d = Adw.Dialog(title='Share as a picture', content_width=800, content_height=660)
+    d = Adw.Dialog(title=_('Share as a picture'), content_width=800, content_height=660)
     tv = Adw.ToolbarView(); tv.add_top_bar(Adw.HeaderBar())
     body = Gtk.Box(spacing=14, margin_start=14, margin_end=14, margin_top=8, margin_bottom=14)
     pic = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.CONTAIN, hexpand=True, vexpand=True)
@@ -125,7 +126,7 @@ def share(win, text, ref):
         side.append(fb)
     def pick_photo(button):
         """a photo from this computer: it stays on this computer, only the picture you share leaves it"""
-        fd = Gtk.FileDialog(title='Choose a photo')
+        fd = Gtk.FileDialog(title=_('Choose a photo'))
         flt = Gtk.FileFilter(); flt.set_name('Pictures'); flt.add_mime_type('image/*')
         fs = Gio.ListStore.new(Gtk.FileFilter); fs.append(flt); fd.set_filters(fs)
         pics = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES)

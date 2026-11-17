@@ -104,13 +104,13 @@ class DownloadsPage(Gtk.Box):
         for tr, v in vers.items():
             by_lang.setdefault(v[0], []).append((tr, v))
         for lg in sorted(by_lang, key=lambda x: (x != 'English', x)):
-            ex = Adw.ExpanderRow(title=lg, subtitle='%d kept here' % sum(1 for tr, _ in by_lang[lg] if tr in have))
+            ex = Adw.ExpanderRow(title=lg, subtitle=_('%d kept here') % sum(1 for tr, _ in by_lang[lg] if tr in have))
             for tr, v in by_lang[lg]:
                 row = Adw.ActionRow(title=GLib.markup_escape_text(v[1]))
                 if tr in have:
                     b = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove from this computer'), valign=Gtk.Align.CENTER); b.add_css_class('flat')
                     b.connect('clicked', lambda _b, tr=tr: self.remove_bible(tr)); row.add_suffix(b)
-                    u = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text='Fetch again (for corrections)', valign=Gtk.Align.CENTER); u.add_css_class('flat')
+                    u = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text=_('Fetch again (for corrections)'), valign=Gtk.Align.CENTER); u.add_css_class('flat')
                     u.connect('clicked', lambda _b, tr=tr: DL.start({'bibles': [tr]})); row.add_suffix(u)
                 else:
                     b = Gtk.Button(icon_name='folder-download-symbolic', tooltip_text=_('Keep on this computer'), valign=Gtk.Align.CENTER)
