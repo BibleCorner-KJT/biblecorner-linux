@@ -64,6 +64,8 @@ class BiblePage(Gtk.Box):
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); self.hb = hb
         win.sidebar_button(hb)
         self.trbtn = Gtk.MenuButton(tooltip_text='Choose the Bible'); self.trbtn.set_popover(self.make_tr_menu(False)); hb.pack_start(self.trbtn)
+        # a long Bible name is cut short (the whole name is in the tooltip and the list)
+        self.trlabel = Gtk.Label(ellipsize=Pango.EllipsizeMode.END, max_width_chars=18, width_chars=4); self.trbtn.set_child(self.trlabel)
         self.prev = ib('kjt-prev-symbolic', 'Previous chapter (←)', lambda: self.step(-1))
         self.next = ib('kjt-next-symbolic', 'Next chapter (→)', lambda: self.step(1))
         self.where = Gtk.MenuButton(always_show_arrow=True, tooltip_text='Choose a book and chapter'); self.where.add_css_class('flat')
@@ -129,7 +131,11 @@ class BiblePage(Gtk.Box):
         self.bar = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.SLIDE_UP)
         barbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, margin_start=10, margin_end=10, margin_top=6, margin_bottom=6)
         barbox.add_css_class('kjt-selbar'); self.bar.set_child(barbox)
-        top = Gtk.Box(spacing=8); barbox.append(top)
+        # the reference and the colours share a line when there is room; on a narrower window the colours
+        # go under it, so none of them is ever outside the window
+        topflow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, min_children_per_line=1, max_children_per_line=2, homogeneous=False, column_spacing=8, row_spacing=4)
+        barbox.append(topflow)
+        top = Gtk.Box(spacing=8, hexpand=True); topflow.append(top)
         lbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER)
         self.sel_label = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END); self.sel_label.add_css_class('kjt-sel-label'); lbox.append(self.sel_label)
         self.sel_state = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, max_width_chars=40); self.sel_state.add_css_class('kjt-sel-state'); self.sel_state.add_css_class('caption'); lbox.append(self.sel_state)
@@ -139,7 +145,7 @@ class BiblePage(Gtk.Box):
         self.less_btn = Gtk.Button(label='− One less', tooltip_text='Take the last verse away from the choice'); self.less_btn.connect('clicked', lambda *_: self.shrink())
         self.more_btn = Gtk.Button(label='+ Next verse', tooltip_text='Add the next verse to the choice'); self.more_btn.add_css_class('suggested-action'); self.more_btn.connect('clicked', lambda *_: self.grow())
         grow.append(self.less_btn); grow.append(self.more_btn); top.append(grow)
-        self.colors = Gtk.Box(spacing=5, valign=Gtk.Align.CENTER)
+        self.colors = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, min_children_per_line=4, max_children_per_line=20, homogeneous=True, column_spacing=5, row_spacing=5, valign=Gtk.Align.CENTER, halign=Gtk.Align.END)
         self.dots = {}
         for c, hexv in COLORS.items():
             b = Gtk.Button(tooltip_text='Highlight: ' + c, valign=Gtk.Align.CENTER); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + c)
@@ -166,7 +172,7 @@ class BiblePage(Gtk.Box):
             elif tip == 'Edit':
                 self.edit_btn = btn
         self.del_btn = labelled('kjt-trash-symbolic', 'Remove bookmark', lambda: self.remove()); acts.insert(self.del_btn, 2)
-        top.append(self.colors); barbox.append(acts)
+        topflow.append(self.colors); barbox.append(acts)
         tv.add_bottom_bar(self.bar)
 
         # small screens: the tools at the bottom
@@ -418,7 +424,7 @@ class BiblePage(Gtk.Box):
         rows = STORE.chapter(self.tr, self.book, self.ch)
         name = book_name(self.book, tr=self.tr)
         self.where.set_label('%s %d' % (name, self.ch))
-        self.trbtn.set_label(bible_name(self.tr).split(' · ')[0])
+        full = bible_name(self.tr); self.trlabel.set_label(full.split(' · ')[0]); self.trbtn.set_tooltip_text('Choose the Bible · ' + full)
         end = buf.get_end_iter
         buf.insert_with_tags_by_name(end(), '%s %d\n' % (name, self.ch), 'title')
         if not rows:
@@ -615,7 +621,7 @@ class BiblePage(Gtk.Box):
         col = (r or {}).get('color')
         for c, btn in self.dots.items():
             (btn.add_css_class if c == col else btn.remove_css_class)('kjt-dot-on')
-        self.nocolor.set_visible(bool(r and col))
+        self.nocolor.get_parent().set_visible(bool(r and col))
         if r:
             bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
             self.sel_state.set_label(' · '.join(bits))

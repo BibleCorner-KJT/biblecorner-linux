@@ -10,7 +10,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.7.5'
+VERSION = '2.7.6'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -42,6 +42,9 @@ button.kjt-chip-purple { background: #c9a7f0; color: #1d1a1f; }
 .kjt-selbar { border-top: 1px solid alpha(currentColor, 0.1); }
 .kjt-sel-state { color: #7a1f6b; font-weight: 600; }
 button.kjt-dot.kjt-dot-on { border: 3px solid #3e093f; }
+.kjt-selbar flowboxchild { padding: 0; min-width: 0; }
+.kjt-mtable-head label { font-weight: 700; opacity: .7; font-size: .9em; }
+.kjt-mtable row { padding: 6px 8px; }
 button.kjt-dot-none { background: transparent; border: 2px dashed alpha(currentColor, 0.45); }
 .kjt-nav row { border-radius: 8px; }
 .kjt-nav-icon { color: #7a1f6b; }

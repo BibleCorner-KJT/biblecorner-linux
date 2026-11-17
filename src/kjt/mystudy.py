@@ -23,7 +23,7 @@ class StudyPage(Gtk.Box):
         self.left_sc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True); self.left_sc.set_child(self.left)
         self.left_sc.set_size_request(260, -1)
         self.right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, margin_top=16, margin_bottom=30, margin_start=8, margin_end=16)
-        c = Adw.Clamp(maximum_size=900); c.set_child(self.right)
+        c = Adw.Clamp(maximum_size=1400); c.set_child(self.right)
         self.right_sc = Gtk.ScrolledWindow(vexpand=True, hexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.right_sc.set_child(c)
         from .ui import steady
         steady(self.left_sc); steady(self.right_sc)
@@ -34,13 +34,27 @@ class StudyPage(Gtk.Box):
         self.wide = None
         self.box = self.right
         STUDY.listen(self.refresh)
+        # the table of bookmarks comes and goes with the room there is (window resized, pads column dragged)
+        def tick(*_):
+            if self.get_mapped() and self.wide and self.right_sc.get_width() > 0 and self.table_room() != getattr(self, 'tabled', None) and not getattr(self, 'refilling', False):
+                self.refilling = True
+                GLib.idle_add(lambda: (self.fill(), setattr(self, 'refilling', False), False)[2])
+            return True
+        self.add_tick_callback(tick)
 
     WIDE = 700
 
     def do_size_allocate(self, width, height, baseline):
         Gtk.Box.do_size_allocate(self, width, height, baseline)
-        if width > 0 and (width >= self.WIDE) != self.wide:
+        if width > 0 and ((width >= self.WIDE) != self.wide or self.table_room() != getattr(self, 'tabled', None)):
             GLib.idle_add(lambda: (self.fill(), False)[1])
+
+    TABLE = 900
+
+    def table_room(self):
+        """the bookmarks are a table with columns (date made, changed, Bible, Study Pads) when there is room for it"""
+        w = self.right_sc.get_width() or (self.get_width() - (self.sep.get_position() if self.wide else 0))
+        return bool(self.wide and w >= self.TABLE)
 
     def refresh(self):
         if self.get_mapped() or True:
@@ -54,7 +68,7 @@ class StudyPage(Gtk.Box):
             while b.get_first_child():
                 b.remove(b.get_first_child())
 
-    SORTS = [('bible', 'Bible order'), ('new', 'Newest first'), ('old', 'Oldest first'), ('changed', 'Last changed'), ('color', 'By colour')]
+    SORTS = [('bible', 'Bible order'), ('new', 'Newest first'), ('old', 'Oldest first'), ('changed', 'Last changed'), ('color', 'By colour'), ('pad', 'By Study Pad'), ('tr', 'By Bible')]
 
     def section(self, key, title, count, extra=None, child=None, parent=None):
         """a heading you can click to fold the list away (remembered), with its list under it"""
@@ -81,12 +95,15 @@ class StudyPage(Gtk.Box):
         return lb
 
     def sort_key(self, how):
+        from .bible import bible_name
         order = {b: i for i, b in enumerate(OT + NT)}
         cols = {c: i for i, c in enumerate(COLORS)}
         when = lambda r: int(r.get('created') or r.get('updated') or 0)
         bible = lambda r: (order.get(canon(r['book']), 999), int(r['chapter']), int(r.get('verse') or 1))
         return {'bible': bible, 'new': lambda r: -when(r), 'old': when, 'changed': lambda r: -int(r.get('updated') or r.get('created') or 0),
-                'color': lambda r: (cols.get(r.get('color'), 99),) + bible(r)}[how]
+                'color': lambda r: (cols.get(r.get('color'), 99),) + bible(r),
+                'pad': lambda r: ((0, sorted(STUDY.pad_name(t).casefold() for t in r['tags'])[0]) if r.get('tags') else (1, '')) + bible(r),
+                'tr': lambda r: (bible_name(r.get('translation') or '').casefold(),) + bible(r)}[how]
 
     def fill(self):
         self.clear()
@@ -124,11 +141,59 @@ class StudyPage(Gtk.Box):
             lb.append(Adw.ActionRow(title='Nothing yet', subtitle='In the Holy Bible, click a verse, then bookmark it, give it a colour or write a note.'))
         elif not shown:
             lb.append(Adw.ActionRow(title='Nothing matches'))
+        table = self.tabled = self.table_room()
+        if table and shown:
+            lb.add_css_class('kjt-mtable'); lb.connect('row-activated', lambda _l, row: getattr(row, 'go', None) and row.go())
+            self.groups = [Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL) for _ in range(6)]
+            head = Gtk.ListBoxRow(activatable=False, selectable=False); head.add_css_class('kjt-mtable-head'); head.set_child(self.cells(None)); lb.append(head)
         for r in shown[:500]:
-            lb.append(self.row(r))
+            lb.append(self.trow(r) if table else self.row(r))
 
     def ref(self, r):
         return ref_of(r)
+
+    @staticmethod
+    def day(t):
+        t = int(t or 0)
+        return time.strftime('%d %b %Y', time.localtime(t)) if t else '—'
+
+    def cells(self, r):
+        """one line of the table: colour · passage (with its words or note) · Bible · Study Pads · made · changed"""
+        box = Gtk.Box(spacing=12)
+        def col(i, w, text, markup=False, expand=False, lines=1):
+            lb = Gtk.Label(xalign=0, wrap=lines > 1, lines=lines, ellipsize=Pango.EllipsizeMode.END, hexpand=expand, valign=Gtk.Align.CENTER)
+            (lb.set_markup if markup else lb.set_label)(text)
+            if w: lb.set_size_request(w, -1); lb.set_max_width_chars(max(6, w // 8))
+            else: lb.set_width_chars(18); lb.set_max_width_chars(70)
+            self.groups[i].add_widget(lb); box.append(lb); return lb
+        if r is None:
+            col(0, 22, ''); col(1, 0, 'Passage and note', expand=True); col(2, 110, 'Bible'); col(3, 140, 'Study Pads'); col(4, 92, 'Made'); col(5, 92, 'Changed')
+            sp = Gtk.Box(); sp.set_size_request(76, -1); box.append(sp)
+            return box
+        dot = '<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']] if r.get('color') in COLORS else ''
+        col(0, 22, dot, markup=True)
+        rows = STORE.passage(r['translation'], r['book'], int(r['chapter']), int(r.get('verse') or 1), int(r['chapter']), int(r.get('verse_end') or r.get('verse') or 1))
+        text = ' '.join(strip_tags(x[2]).strip() for x in rows)
+        note = (r.get('note') or '').strip()
+        body = '<b>%s</b>\n%s' % (GLib.markup_escape_text(self.ref(r)), ('📝 ' if note else '') + GLib.markup_escape_text((note or text)[:300]))
+        col(1, 0, body, markup=True, expand=True, lines=3)
+        from .bible import bible_name
+        bn = col(2, 110, bible_name(r.get('translation') or '').split(' · ')[0]); bn.set_tooltip_text(bible_name(r.get('translation') or ''))
+        pads = '\n'.join('<span foreground="%s">●</span> %s' % (STUDY.pad_color(t), GLib.markup_escape_text(STUDY.pad_name(t))) for t in (r.get('tags') or [])) or '—'
+        col(3, 140, pads, markup=True, lines=3)
+        col(4, 92, self.day(r.get('created')))
+        col(5, 92, self.day(r.get('updated') or r.get('created')))
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Edit: colour, note, Study Pads', valign=Gtk.Align.CENTER); e.add_css_class('flat')
+        e.connect('clicked', lambda *_: edit(self.win, r)); box.append(e)
+        d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Remove', valign=Gtk.Align.CENTER); d.add_css_class('flat')
+        d.connect('clicked', lambda *_: self.remove(r)); box.append(d)
+        return box
+
+    def trow(self, r):
+        row = Gtk.ListBoxRow(activatable=True); row.set_child(self.cells(r))
+        row.set_tooltip_text('Open %s' % self.ref(r))
+        row.go = lambda: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation'))
+        return row
 
     def row(self, r):
         rows = STORE.passage(r['translation'], r['book'], int(r['chapter']), int(r.get('verse') or 1), int(r['chapter']), int(r.get('verse_end') or r.get('verse') or 1))
@@ -136,8 +201,12 @@ class StudyPage(Gtk.Box):
         sub = GLib.markup_escape_text(((r.get('note') or '').strip() or text)[:300])
         if r.get('tags'):
             sub = '  '.join('<span foreground="%s">●</span> %s' % (STUDY.pad_color(t), GLib.markup_escape_text(STUDY.pad_name(t))) for t in r['tags']) + '\n' + sub
+        made = self.day(r.get('created')); ch = self.day(r.get('updated'))
+        from .bible import bible_name
+        bn = bible_name(r.get('translation') or '').split(' · ')[0]
+        sub = '<small>%s%s%s</small>\n' % (GLib.markup_escape_text('Made ' + made), GLib.markup_escape_text(' · changed ' + ch) if r.get('updated') and ch != made else '', GLib.markup_escape_text(' · ' + bn) if bn else '') + sub
         row = Adw.ActionRow(title=GLib.markup_escape_text(self.ref(r)), subtitle=sub, activatable=True)
-        row.set_subtitle_lines(3)
+        row.set_subtitle_lines(4)
         if r.get('color') in COLORS:
             dot = Gtk.Label(); dot.set_markup('<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']]); row.add_prefix(dot)
         e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Edit: colour, note, Study Pads', valign=Gtk.Align.CENTER); e.add_css_class('flat')
@@ -198,7 +267,7 @@ class StudyPage(Gtk.Box):
                 g.add(Adw.ActionRow(title='%d changes wait for the internet' % waiting, subtitle='They are sent by themselves as soon as the website can be reached.'))
         else:
             row = Adw.ActionRow(title='Not signed in', subtitle='Your bookmarks and notes stay on this computer. Sign in to keep them in step with My KJT on the website and your phone.')
-            row.set_subtitle_lines(3)
+            row.set_subtitle_lines(4)
             b = Gtk.Button(label='Sign in', valign=Gtk.Align.CENTER); b.add_css_class('suggested-action'); b.connect('clicked', lambda *_: self.sign_in_dialog()); row.add_suffix(b)
             g.add(row)
         (parent or self.right).append(g)
