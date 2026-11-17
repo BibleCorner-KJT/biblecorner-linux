@@ -237,6 +237,9 @@ _T = {
     'In Russian · На русском': ('بالروسية · На русском', 'Στα ρωσικά · На русском', 'En ruso · На русском', 'En russe · На русском', 'रूसी में · На русском', 'На русском языке', 'Sa Ruso · На русском', '俄语 · На русском'),
     'The Philokalia in the translation of St Theophan the Recluse, and the Lives of the Saints by St Dimitry of Rostov, day by day.': ('«الفيلوكاليا» بترجمة القديس ثيوفان الحبيس، وسير القديسين للقديس ديمتري روستوف، يومًا بيوم (بالروسية).', 'Η Φιλοκαλία στη μετάφραση του αγίου Θεοφάνους του Εγκλείστου και οι Βίοι των Αγίων του αγίου Δημητρίου του Ροστόφ, ημέρα με την ημέρα (στα ρωσικά).', 'La Filocalia en la traducción de san Teófano el Recluso y las Vidas de los Santos de san Demetrio de Rostov, día a día (en ruso).', 'La Philocalie dans la traduction de saint Théophane le Reclus, et les Vies des saints de saint Dimitri de Rostov, jour après jour (en russe).', 'संत थियोफ़ान एकांतवासी के अनुवाद में फ़िलोकालिया, और रोस्तोव के संत दिमित्री द्वारा संतों के जीवन, दिन-प्रतिदिन (रूसी में)।', 'Добротолюбие в переводе свт. Феофана Затворника и Жития святых по изложению свт. Димитрия Ростовского, на каждый день.', 'Ang Philokalia sa salin ni San Teofan na Ermitanyo, at ang Buhay ng mga Santo ni San Dimitri ng Rostov, araw-araw (sa Ruso).', '圣隐修者狄奥凡翻译的《爱善集》，以及罗斯托夫的圣德米特里所述的每日圣人传记（俄文）。'),
     'Study Journey': ('رحلة الدراسة', 'Ταξίδι μελέτης', 'Camino de estudio', 'Parcours d’étude', 'अध्ययन यात्रा', 'Путь изучения', 'Paglalakbay sa Pag-aaral', '学习之旅'),
+    'With music': ('مع موسيقى', 'Με μουσική', 'Con música', 'Avec musique', 'संगीत के साथ', 'С музыкой', 'May musika', '配乐'),
+    'Reading only': ('قراءة فقط', 'Μόνο ανάγνωση', 'Solo lectura', 'Lecture seule', 'केवल पाठ', 'Только чтение', 'Pagbasa lamang', '仅朗读'),
+    'Recording': ('التسجيل', 'Ηχογράφηση', 'Grabación', 'Enregistrement', 'रिकॉर्डिंग', 'Запись', 'Rekording', '录音'),
 }
 _ORDER = ('ar', 'el', 'es', 'fr', 'hi', 'ru', 'tl', 'zh')
 

@@ -1,7 +1,9 @@
-"""Listening: the recorded chapters, played here (from this computer when saved, else from the website)."""
-import os
+"""Listening: the recorded chapters, played here (from this computer when saved, else from the website).
+2.12: a Bible may have more than one recording (the King James: "With music" and "Reading only"), as on the
+website and in the Android app: the bar offers the choice, the one with music first, and remembers it."""
+import os, re
 from gi.repository import Gtk, GLib
-from .core import NET, STORE, file_path, write_file, run_bg, book_name
+from .core import NET, STORE, SET, file_path, write_file, run_bg, book_name
 from .i18n import _
 
 try:
@@ -35,11 +37,18 @@ class Audio(Gtk.Revealer):
         self.scale.set_range(0, 1)
         self.scale.connect('change-value', self.on_seek)
         self.time = Gtk.Label(); self.time.add_css_class('numeric'); self.time.add_css_class('dim-label')
+        # the recordings of this Bible (With music / Reading only)
+        self.tracks = {}            # tr -> [{'id','label','chapters'}]
+        self.track = ''             # the recording playing now
+        self.track_dd = Gtk.DropDown.new_from_strings([]); self.track_dd.set_visible(False)
+        self.track_dd.set_tooltip_text(_('Recording'))
+        self.track_ids = []; self.track_busy = False
+        self.track_dd.connect('notify::selected', self.on_track)
         self.save_btn = Gtk.Button(icon_name='kjt-download-symbolic', tooltip_text=_('Keep this chapter on this computer'))
         self.save_btn.connect('clicked', lambda *_: self.save())
         close = Gtk.Button(icon_name='kjt-close-symbolic', tooltip_text=_('Stop')); close.add_css_class('flat')
         close.connect('clicked', lambda *_: self.stop())
-        for w in (self.play_btn, self.title, self.scale, self.time, self.save_btn, close):
+        for w in (self.play_btn, self.title, self.track_dd, self.scale, self.time, self.save_btn, close):
             bar.append(w)
         self.set_child(bar)
         GLib.timeout_add(500, self.tick)
@@ -47,31 +56,81 @@ class Audio(Gtk.Revealer):
     def set_compact(self, c):
         self.time.set_visible(not c)
 
-    def local(self, tr, book, ch):
-        return file_path('audio/%s/%s/%d.mp3' % (tr, book, ch))
+    def local(self, tr, book, ch, track=None):
+        t = self.track if track is None else track
+        folder = tr + ('_' + re.sub(r'[^a-z0-9-]', '', t) if t else '')
+        return file_path('audio/%s/%s/%d.mp3' % (folder, book, ch))
+
+    def tracks_of(self, tr, book, ch):
+        """the recordings that have this chapter, the one with music first (as the website lists them)"""
+        out = []
+        for t in self.tracks.get(tr) or []:
+            chs = (t.get('chapters') or {}).get(book) or []
+            if int(ch) in [int(x) for x in chs]:
+                out.append(t)
+        return out
+
+    def pick(self, tr, book, ch):
+        ts = self.tracks_of(tr, book, ch)
+        want = SET.get('audio_track')
+        t = next((x for x in ts if x.get('id') == want), None) or (ts[0] if ts else None)
+        self.track = ((t or {}).get('id', '') or '') if ts else (SET.get('audio_track') or '')   # offline: the last choice
+        self.track_busy = True
+        self.track_ids = [x.get('id', '') for x in ts]
+        self.track_dd.set_model(Gtk.StringList.new([_(x.get('label') or '') for x in ts]))
+        if self.track in self.track_ids:
+            self.track_dd.set_selected(self.track_ids.index(self.track))
+        self.track_dd.set_visible(len(ts) > 1)
+        self.track_busy = False
+
+    def on_track(self, dd, _p):
+        if self.track_busy or not self.cur:
+            return
+        i = dd.get_selected()
+        if 0 <= i < len(self.track_ids) and self.track_ids[i] != self.track:
+            SET.set('audio_track', self.track_ids[i])
+            tr, book, ch = self.cur
+            self.play_chapter(tr, book, ch)
 
     def play_chapter(self, tr, book, ch):
         if not self.player:
             self.win.toast('Sound is not available on this computer'); return
         self.cur = (tr, book, int(ch))
         self.title.set_label('%s %d' % (book_name(book, tr=tr), int(ch)))
-        p = self.local(tr, book, int(ch))
-        if os.path.exists(p):
-            self.save_btn.set_visible(False)
-            self.start('file://' + p); return
-        self.save_btn.set_visible(True)
         def find():
-            r = NET.ajax('kjtb_audio', tr=tr, book=book, ch=int(ch))
-            return (r.get('data') or {}).get('url') if r.get('success') else None
-        def got(url):
-            if isinstance(url, str) and url:
-                self.url = url
-                self.start(url)
-            elif isinstance(url, Exception):
-                self.win.toast('Listening needs the internet, or the chapter kept on this computer')
-            else:
-                self.win.toast('There is no recording of this chapter in this Bible yet')
-        run_bg(find, got)
+            if tr not in self.tracks:
+                r = NET.ajax('kjtb_audio', tr=tr)
+                self.tracks[tr] = ((r.get('data') or {}).get('tracks') or []) if r.get('success') else []
+            return True
+        def chosen(_r=None):
+            if isinstance(_r, Exception):
+                self.tracks.pop(tr, None)
+            self.pick(tr, book, ch)
+            p = self.local(tr, book, int(ch))
+            if not os.path.exists(p) and not self.track:
+                p = self.local(tr, book, int(ch), track='')
+            if os.path.exists(p):
+                self.save_btn.set_visible(False)
+                self.start('file://' + p); return
+            self.save_btn.set_visible(True)
+            track = self.track
+            def url():
+                r = NET.ajax('kjtb_audio', tr=tr, book=book, ch=int(ch), track=track)
+                return (r.get('data') or {}).get('url') if r.get('success') else None
+            def got(u):
+                if isinstance(u, str) and u:
+                    self.url = u
+                    self.start(u)
+                elif isinstance(u, Exception):
+                    self.win.toast('Listening needs the internet, or the chapter kept on this computer')
+                else:
+                    self.win.toast('There is no recording of this chapter in this Bible yet')
+            run_bg(url, got)
+        if tr in self.tracks:
+            chosen()
+        else:
+            # offline and nothing known: play what is kept here (either recording)
+            run_bg(find, chosen)
 
     def start(self, uri):
         self.player.set_state(Gst.State.NULL)
@@ -130,10 +189,12 @@ class Audio(Gtk.Revealer):
     def save(self):
         if not self.cur or not getattr(self, 'url', None):
             return
-        tr, book, ch = self.cur; url = self.url
+        tr, book, ch = self.cur; url = self.url; dest = self.local(tr, book, ch)
         def work():
             data = NET.get(url, timeout=120, strict=True)
-            write_file('audio/%s/%s/%d.mp3' % (tr, book, ch), data)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, 'wb') as f:
+                f.write(data)
             return True
         def fin(r):
             if r is True:
@@ -145,14 +206,19 @@ class Audio(Gtk.Revealer):
 
     def save_book(self, tr, book, progress=None):
         """keep every chapter of a book (for listening without the internet)"""
+        track = SET.get('audio_track') or ''
         def work():
             n = 0
             for ch in STORE.chapters(tr, book):
-                if os.path.exists(self.local(tr, book, ch)):
+                dest = self.local(tr, book, ch, track=track)
+                if os.path.exists(dest):
                     continue
-                r = NET.ajax('kjtb_audio', tr=tr, book=book, ch=ch)
+                r = NET.ajax('kjtb_audio', tr=tr, book=book, ch=ch, track=track)
                 u = (r.get('data') or {}).get('url') if r.get('success') else None
                 if u:
-                    write_file('audio/%s/%s/%d.mp3' % (tr, book, ch), NET.get(u, timeout=120, strict=True)); n += 1
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    with open(dest, 'wb') as f:
+                        f.write(NET.get(u, timeout=120, strict=True))
+                    n += 1
             return n
         run_bg(work, progress)
