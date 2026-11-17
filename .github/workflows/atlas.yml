@@ -1,0 +1,20 @@
+name: Fetch the old atlas plates
+on:
+  push:
+    branches: [atlas-src]
+    paths: ['atlas-src/**', '.github/workflows/atlas.yml']
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pillow
+      - run: python3 atlas-src/fetch.py
+      - name: Keep the plates on the branch "atlas"
+        run: |
+          cd out
+          git init -q -b atlas && git add -A
+          git -c user.name="KJT atlas" -c user.email="atlas@users.noreply.github.com" commit -qm "Old atlas plates from Wikimedia Commons (public domain)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" atlas
