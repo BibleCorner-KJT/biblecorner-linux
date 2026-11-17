@@ -14,7 +14,7 @@ class StudyPage(Gtk.Box):
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
         hb.set_title_widget(Adw.WindowTitle(title=_('My Study')))
-        self.sync_btn = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text='Bring in step with My KJT now'); self.sync_btn.connect('clicked', lambda *_: self.sync())
+        self.sync_btn = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text=_('Bring in step with My KJT now')); self.sync_btn.connect('clicked', lambda *_: self.sync())
         hb.pack_end(self.sync_btn)
         self.q = Gtk.SearchEntry(placeholder_text=_('Search your notes')); self.q.connect('search-changed', lambda *_: self.fill())
         hb.pack_start(self.q)
@@ -123,7 +123,7 @@ class StudyPage(Gtk.Box):
         ab.append(Gtk.Image(icon_name='kjt-plus-symbolic')); ab.append(Gtk.Label(label=_('New Study Pad'))); add.set_child(ab)
         add.connect('clicked', lambda *_: pad_dialog(self.win)); grid.append(add)
         if self.filter:
-            allb = Gtk.Button(label='Show everything'); allb.add_css_class('pill'); allb.connect('clicked', lambda *_: self.set_filter('')); grid.append(allb)
+            allb = Gtk.Button(label=_('Show everything')); allb.add_css_class('pill'); allb.connect('clicked', lambda *_: self.set_filter('')); grid.append(allb)
         # bookmarks and notes, sorted as you choose
         shown = [r for r in recs if (not self.filter or self.filter in (r.get('tags') or [])) and
                  (not q or q in (r.get('note') or '').casefold() or q in book_name(r['book'], tr=r.get('translation')).casefold()
@@ -132,16 +132,16 @@ class StudyPage(Gtk.Box):
         if how not in dict(self.SORTS):
             how = 'new'
         shown.sort(key=self.sort_key(how))
-        dd = Gtk.DropDown(model=Gtk.StringList.new([_(t) for _k, t in self.SORTS]), valign=Gtk.Align.CENTER, tooltip_text='Sort')
+        dd = Gtk.DropDown(model=Gtk.StringList.new([_(t) for _k, t in self.SORTS]), valign=Gtk.Align.CENTER, tooltip_text=_('Sort'))
         dd.set_selected([k for k, _ in self.SORTS].index(how))
         dd.connect('notify::selected', lambda w, _p: (SET.set('study_sort', self.SORTS[w.get_selected()][0]), GLib.idle_add(lambda: (self.fill(), False)[1])))
         sbox = Gtk.Box(spacing=4); sbox.append(Gtk.Image(icon_name='kjt-sort-symbolic')); sbox.append(dd)
         title = ('Study Pad: ' + STUDY.pad_name(self.filter)) if self.filter else _('Bookmarks and notes')
         lb = self.section('marks', title, len(shown), sbox)
         if not recs:
-            lb.append(Adw.ActionRow(title='Nothing yet', subtitle='In the Holy Bible, click a verse, then bookmark it, give it a colour or write a note.'))
+            lb.append(Adw.ActionRow(title=_('Nothing yet'), subtitle=_('In the Holy Bible, click a verse, then bookmark it, give it a colour or write a note.')))
         elif not shown:
-            lb.append(Adw.ActionRow(title='Nothing matches'))
+            lb.append(Adw.ActionRow(title=_('Nothing matches')))
         table = self.tabled = self.table_room()
         if table and shown:
             lb.add_css_class('kjt-mtable'); lb.connect('row-activated', lambda _l, row: getattr(row, 'go', None) and row.go())
@@ -184,9 +184,9 @@ class StudyPage(Gtk.Box):
         col(3, 140, pads, markup=True, lines=3)
         col(4, 92, self.day(r.get('created')))
         col(5, 92, self.day(r.get('updated') or r.get('created')))
-        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Edit: colour, note, Study Pads', valign=Gtk.Align.CENTER); e.add_css_class('flat')
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit: colour, note, Study Pads'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
         e.connect('clicked', lambda *_: edit(self.win, r)); box.append(e)
-        d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Remove', valign=Gtk.Align.CENTER); d.add_css_class('flat')
+        d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
         d.connect('clicked', lambda *_: self.remove(r)); box.append(d)
         return box
 
@@ -205,14 +205,14 @@ class StudyPage(Gtk.Box):
         made = self.day(r.get('created')); ch = self.day(r.get('updated'))
         from .bible import bible_name
         bn = bible_name(r.get('translation') or '').split(' · ')[0]
-        sub = '<small>%s%s%s</small>\n' % (GLib.markup_escape_text('Made ' + made), GLib.markup_escape_text(' · changed ' + ch) if r.get('updated') and ch != made else '', GLib.markup_escape_text(' · ' + bn) if bn else '') + sub
+        sub = '<small>%s%s%s</small>\n' % (GLib.markup_escape_text(_('Made') + ' ' + made), GLib.markup_escape_text(' · ' + _('Changed').lower() + ' ' + ch) if r.get('updated') and ch != made else '', GLib.markup_escape_text(' · ' + bn) if bn else '') + sub
         row = Adw.ActionRow(title=GLib.markup_escape_text(self.ref(r)), subtitle=sub, activatable=True)
         row.set_subtitle_lines(4)
         if r.get('color') in COLORS:
             dot = Gtk.Label(); dot.set_markup('<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']]); row.add_prefix(dot)
-        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Edit: colour, note, Study Pads', valign=Gtk.Align.CENTER); e.add_css_class('flat')
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit: colour, note, Study Pads'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
         e.connect('clicked', lambda *_: edit(self.win, r)); row.add_suffix(e)
-        d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Remove', valign=Gtk.Align.CENTER); d.add_css_class('flat')
+        d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
         d.connect('clicked', lambda *_: self.remove(r)); row.add_suffix(d)
         row.connect('activated', lambda *_: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation')))
         return row
@@ -229,7 +229,7 @@ class StudyPage(Gtk.Box):
         nm = Gtk.Label(label=STUDY.pad_name(tag), xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['heading']); nm.set_tooltip_text(STUDY.pad_name(tag)); txt.append(nm)
         txt.append(Gtk.Label(label='%d passage%s' % (n, '' if n == 1 else 's'), xalign=0, css_classes=['dim-label', 'caption']))
         card.append(txt)
-        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text='Name, colour, emoji', valign=Gtk.Align.CENTER); e.add_css_class('flat'); e.add_css_class('circular')
+        e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Name, colour, emoji'), valign=Gtk.Align.CENTER); e.add_css_class('flat'); e.add_css_class('circular')
         e.connect('clicked', lambda *_: pad_dialog(self.win, tag)); card.append(e)
         g = Gtk.GestureClick(); g.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); txt.add_controller(g)
         gb = Gtk.GestureClick(); gb.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); badge.add_controller(gb)
@@ -255,21 +255,21 @@ class StudyPage(Gtk.Box):
     def account(self, parent=None):
         i = STORE.kv('info') or {}
         u = i.get('user')
-        g = Adw.PreferencesGroup(title='My KJT account')
+        g = Adw.PreferencesGroup(title=_('My KJT account'))
         if u:
             when = STORE.kv('synced')
             row = Adw.ActionRow(title=GLib.markup_escape_text(u.get('name') or 'Signed in'),
                                 subtitle='Kept in step with knowingjesus.today%s' % (time.strftime(' · last %d %b %H:%M', time.localtime(when)) if when else ''))
             row.add_prefix(Gtk.Image(icon_name='avatar-default-symbolic', pixel_size=32))
-            out = Gtk.Button(label='Sign out', valign=Gtk.Align.CENTER); out.connect('clicked', lambda *_: self.sign_out()); row.add_suffix(out)
+            out = Gtk.Button(label=_('Sign out'), valign=Gtk.Align.CENTER); out.connect('clicked', lambda *_: self.sign_out()); row.add_suffix(out)
             g.add(row)
             waiting = len(STORE.outbox())
             if waiting:
-                g.add(Adw.ActionRow(title='%d changes wait for the internet' % waiting, subtitle='They are sent by themselves as soon as the website can be reached.'))
+                g.add(Adw.ActionRow(title='%d changes wait for the internet' % waiting, subtitle=_('They are sent by themselves as soon as the website can be reached.')))
         else:
-            row = Adw.ActionRow(title='Not signed in', subtitle='Your bookmarks and notes stay on this computer. Sign in to keep them in step with My KJT on the website and your phone.')
+            row = Adw.ActionRow(title=_('Not signed in'), subtitle=_('Your bookmarks and notes stay on this computer. Sign in to keep them in step with My KJT on the website and your phone.'))
             row.set_subtitle_lines(4)
-            b = Gtk.Button(label='Sign in', valign=Gtk.Align.CENTER); b.add_css_class('suggested-action'); b.connect('clicked', lambda *_: self.sign_in_dialog()); row.add_suffix(b)
+            b = Gtk.Button(label=_('Sign in'), valign=Gtk.Align.CENTER); b.add_css_class('suggested-action'); b.connect('clicked', lambda *_: self.sign_in_dialog()); row.add_suffix(b)
             g.add(row)
         (parent or self.right).append(g)
 
@@ -278,23 +278,23 @@ class StudyPage(Gtk.Box):
         d = Adw.AlertDialog(heading='Sign in to My KJT', body='Open your study with your study key, or with the name (or e-mail) and password of your account on knowingjesus.today.')
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         tabs = Gtk.Box(halign=Gtk.Align.CENTER); tabs.add_css_class('linked')
-        t_key = Gtk.ToggleButton(label='🔑 Study key', active=how == 'key'); t_pw = Gtk.ToggleButton(label='Name and password', group=t_key, active=how != 'key')
+        t_key = Gtk.ToggleButton(label=_('🔑 Study key'), active=how == 'key'); t_pw = Gtk.ToggleButton(label=_('Name and password'), group=t_key, active=how != 'key')
         tabs.append(t_key); tabs.append(t_pw); box.append(tabs)
         stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, vhomogeneous=False)
         # the study key
         kb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         key = Adw.PasswordEntryRow(title='Your study key  (KJT-XXXX-XXXX-XXXX-XXXX)')
         kl = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); kl.add_css_class('boxed-list'); kl.append(key); kb.append(kl)
-        kb.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label='Lost your study key? Get a new one on the website'))
+        kb.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label=_('Lost your study key? Get a new one on the website')))
         stack.add_named(kb, 'key')
         # name and password
         pb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        lg = Adw.EntryRow(title='Name or e-mail'); pw = Adw.PasswordEntryRow(title='Password')
+        lg = Adw.EntryRow(title=_('Name or e-mail')); pw = Adw.PasswordEntryRow(title=_('Password'))
         lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list'); lb.append(lg); lb.append(pw); pb.append(lb)
-        pb.append(Gtk.LinkButton(uri=NET_SITE() + '/wp-login.php?action=lostpassword', label='Forgot your password?'))
+        pb.append(Gtk.LinkButton(uri=NET_SITE() + '/wp-login.php?action=lostpassword', label=_('Forgot your password?')))
         stack.add_named(pb, 'pw')
         box.append(stack)
-        box.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label='No study yet? Make one on the website (a study key needs no e-mail)'))
+        box.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label=_('No study yet? Make one on the website (a study key needs no e-mail)')))
         d.set_extra_child(box)
         d.add_response('cancel', 'Cancel'); d.add_response('go', 'Sign in'); d.set_response_appearance('go', Adw.ResponseAppearance.SUGGESTED)
         d.set_default_response('go'); d.set_close_response('cancel')
@@ -378,9 +378,9 @@ def pad_dialog(win, tag=None, done=None):
     p = STUDY.pad(tag) if tag else None
     d = Adw.AlertDialog(heading='Study Pad' if tag else 'A new Study Pad')
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-    name = Gtk.Entry(text=STUDY.pad_name(tag) if tag else '', placeholder_text='Its name', activates_default=True); box.append(name)
+    name = Gtk.Entry(text=STUDY.pad_name(tag) if tag else '', placeholder_text=_('Its name'), activates_default=True); box.append(name)
     icon = Gtk.Entry(text=(p or {}).get('icon', ''), placeholder_text='An emoji for it, if you like (optional)', max_length=4); box.append(icon)
-    box.append(Gtk.Label(label='Colour', xalign=0, css_classes=['heading'], margin_top=4))
+    box.append(Gtk.Label(label=_('Colour'), xalign=0, css_classes=['heading'], margin_top=4))
     pick = {'c': STUDY.pad_color(tag) if tag else STUDY.free_color()}
     fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=6, min_children_per_line=6, column_spacing=6, row_spacing=6)
     sw = {}
@@ -393,12 +393,12 @@ def pad_dialog(win, tag=None, done=None):
         b.connect('clicked', lambda _b, c=c: choose(c)); fb.append(b); sw[c] = b
     box.append(fb)
     try:
-        any_c = Gtk.ColorDialogButton(dialog=Gtk.ColorDialog(with_alpha=False), halign=Gtk.Align.START, tooltip_text='Any colour')
+        any_c = Gtk.ColorDialogButton(dialog=Gtk.ColorDialog(with_alpha=False), halign=Gtk.Align.START, tooltip_text=_('Any colour'))
         rgba = Gdk.RGBA(); rgba.parse(pick['c']); any_c.set_rgba(rgba)
         def other(btn, _p):
             c = btn.get_rgba(); choose('#%02x%02x%02x' % (int(c.red * 255), int(c.green * 255), int(c.blue * 255)))
         any_c.connect('notify::rgba', other)
-        row = Gtk.Box(spacing=8); row.append(Gtk.Label(label='Or any colour:')); row.append(any_c); box.append(row)
+        row = Gtk.Box(spacing=8); row.append(Gtk.Label(label=_('Or any colour:'))); row.append(any_c); box.append(row)
     except Exception:
         pass
     choose(pick['c'])
@@ -439,7 +439,7 @@ def edit(win, r, focus='note'):
     d = Adw.AlertDialog(heading='Edit', body=ref_of(r))
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
     # colour
-    box.append(Gtk.Label(label='Colour', xalign=0, css_classes=['heading']))
+    box.append(Gtk.Label(label=_('Colour'), xalign=0, css_classes=['heading']))
     dots = Gtk.Box(spacing=6); chosen = {'c': r.get('color') if r.get('color') in COLORS else None}; btns = {}
     def pick(c):
         chosen['c'] = c

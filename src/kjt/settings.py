@@ -33,8 +33,8 @@ class DownloadsPage(Gtk.Box):
         self.queue_box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.queue_box.add_css_class('boxed-list')
         qwrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=12, margin_end=12, margin_top=8, margin_bottom=8)
         qhead = Gtk.Box(spacing=6); self.qtitle = Gtk.Label(label='Downloads', xalign=0, hexpand=True, css_classes=['heading']); qhead.append(self.qtitle)
-        self.stop_btn = Gtk.Button(label='Stop all'); self.stop_btn.add_css_class('flat'); self.stop_btn.connect('clicked', lambda *_: DL.cancel_all()); qhead.append(self.stop_btn)
-        self.clear_btn = Gtk.Button(label='Clear the list'); self.clear_btn.add_css_class('flat'); self.clear_btn.connect('clicked', lambda *_: DL.clear_finished()); qhead.append(self.clear_btn)
+        self.stop_btn = Gtk.Button(label=_('Stop all')); self.stop_btn.add_css_class('flat'); self.stop_btn.connect('clicked', lambda *_: DL.cancel_all()); qhead.append(self.stop_btn)
+        self.clear_btn = Gtk.Button(label=_('Clear the list')); self.clear_btn.add_css_class('flat'); self.clear_btn.connect('clicked', lambda *_: DL.clear_finished()); qhead.append(self.clear_btn)
         qwrap.append(qhead)
         qs = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True, max_content_height=260); qs.set_child(self.queue_box); qwrap.append(qs)
         self.rev = Gtk.Revealer(); self.rev.set_child(qwrap); tv.add_bottom_bar(self.rev)
@@ -80,8 +80,8 @@ class DownloadsPage(Gtk.Box):
         self.groups = []
         i = STORE.kv('info') or {}
         # language
-        g = Adw.PreferencesGroup(title='Language', description='The language of the Bible Dictionary, the Bible Maps and Today with God. Your Bibles can be in any language.')
-        dd = Adw.ComboRow(title='Language', model=Gtk.StringList.new([LANG_NAMES[l] for l in LANGS]))
+        g = Adw.PreferencesGroup(title=_('Language'), description=_('The language of the Bible Dictionary, the Bible Maps and Today with God. Your Bibles can be in any language.'))
+        dd = Adw.ComboRow(title=_('Language'), model=Gtk.StringList.new([LANG_NAMES[l] for l in LANGS]))
         dd.set_selected(LANGS.index(lang()) if lang() in LANGS else 0)
         def changed(row, _p):
             l = LANGS[row.get_selected()]
@@ -96,10 +96,10 @@ class DownloadsPage(Gtk.Box):
         g.add(dd); self.add(g)
         # the Bibles
         have = set(STORE.bibles())
-        g = Adw.PreferencesGroup(title='Bibles', description='Each Bible kept here can be read and searched without the internet.')
+        g = Adw.PreferencesGroup(title=_('Bibles'), description=_('Each Bible kept here can be read and searched without the internet.'))
         vers = i.get('versions') or {}
         if not vers:
-            g.add(Adw.ActionRow(title='The list of Bibles comes with the internet.'))
+            g.add(Adw.ActionRow(title=_('The list of Bibles comes with the internet.')))
         by_lang = {}
         for tr, v in vers.items():
             by_lang.setdefault(v[0], []).append((tr, v))
@@ -108,23 +108,23 @@ class DownloadsPage(Gtk.Box):
             for tr, v in by_lang[lg]:
                 row = Adw.ActionRow(title=GLib.markup_escape_text(v[1]))
                 if tr in have:
-                    b = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Remove from this computer', valign=Gtk.Align.CENTER); b.add_css_class('flat')
+                    b = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove from this computer'), valign=Gtk.Align.CENTER); b.add_css_class('flat')
                     b.connect('clicked', lambda _b, tr=tr: self.remove_bible(tr)); row.add_suffix(b)
                     u = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text='Fetch again (for corrections)', valign=Gtk.Align.CENTER); u.add_css_class('flat')
                     u.connect('clicked', lambda _b, tr=tr: DL.start({'bibles': [tr]})); row.add_suffix(u)
                 else:
-                    b = Gtk.Button(icon_name='folder-download-symbolic', tooltip_text='Keep on this computer', valign=Gtk.Align.CENTER)
+                    b = Gtk.Button(icon_name='folder-download-symbolic', tooltip_text=_('Keep on this computer'), valign=Gtk.Align.CENTER)
                     b.connect('clicked', lambda _b, tr=tr: DL.start({'bibles': [tr]})); row.add_suffix(b)
                 ex.add_row(row)
             g.add(ex)
         self.add(g)
         # the rest
-        g = Adw.PreferencesGroup(title='Also kept here')
+        g = Adw.PreferencesGroup(title=_('Also kept here'))
         def item(title, sub, folder, plan):
             p = os.path.join(FILES, folder)
             here = os.path.isdir(p) and any(os.scandir(p))
-            row = Adw.ActionRow(title=title, subtitle=sub + (' · ' + mb(size_of(p)) if here else ' · not yet'))
-            b = Gtk.Button(icon_name='view-refresh-symbolic' if here else 'folder-download-symbolic', tooltip_text='Fetch again' if here else 'Keep on this computer', valign=Gtk.Align.CENTER)
+            row = Adw.ActionRow(title=_(title), subtitle=_(sub) + (' · ' + mb(size_of(p)) if here else ' · ' + _('not yet')))
+            b = Gtk.Button(icon_name='view-refresh-symbolic' if here else 'folder-download-symbolic', tooltip_text=_('Fetch again') if here else 'Keep on this computer', valign=Gtk.Align.CENTER)
             b.connect('clicked', lambda *_: DL.start(plan)); row.add_suffix(b); g.add(row)
         item('Bible Dictionary', 'Every entry, and every place of the maps', 'dictionary', {'dict': [lang()]})
         item('Bible Maps', 'The land in its real colours, the places and the story maps', 'maps', {'maps': True, 'dict': [lang()]})
@@ -133,12 +133,12 @@ class DownloadsPage(Gtk.Box):
         item('For the reader', 'Cross-references, the Greek and Hebrew words, the words of Christ in red', 'xref', {'study': True})
         a = os.path.join(FILES, 'audio')
         if os.path.isdir(a):
-            row = Adw.ActionRow(title='Recordings kept here', subtitle=mb(size_of(a)))
-            b = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Remove the recordings', valign=Gtk.Align.CENTER); b.add_css_class('flat')
+            row = Adw.ActionRow(title=_('Recordings kept here'), subtitle=mb(size_of(a)))
+            b = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove the recordings'), valign=Gtk.Align.CENTER); b.add_css_class('flat')
             b.connect('clicked', lambda *_: (shutil.rmtree(a, ignore_errors=True), self.refresh())); row.add_suffix(b); g.add(row)
         self.add(g)
         g = Adw.PreferencesGroup()
-        b = Gtk.Button(label='Bring everything up to date', halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.add_css_class('suggested-action')
+        b = Gtk.Button(label=_('Bring everything up to date'), halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.add_css_class('suggested-action')
         b.connect('clicked', lambda *_: DL.start(dict(default_plan([lang()]), bibles=sorted(have) or default_plan([lang()])['bibles'])))
         g.add(b); self.add(g)
 

@@ -50,7 +50,7 @@ class LibraryPage(Gtk.Box):
         self.nav = Adw.NavigationView(); self.nav.set_vexpand(True); self.append(self.nav)
         tv = Adw.ToolbarView()
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
-        self.q = Gtk.SearchEntry(placeholder_text='Find in the library', width_chars=20, max_width_chars=30)
+        self.q = Gtk.SearchEntry(placeholder_text=_('Find in the library'), width_chars=20, max_width_chars=30)
         self.q.connect('search-changed', lambda *_: self.later())
         hb.set_title_widget(self.q)
         tabs = Gtk.Box(halign=Gtk.Align.CENTER, margin_top=8, margin_bottom=4); tabs.add_css_class('linked')
@@ -126,7 +126,7 @@ class LibraryPage(Gtk.Box):
     def fill_here(self):
         mine = [c for c in S.installed() if self.match(c)]
         if not mine:
-            st = Adw.StatusPage(icon_name='kjt-library-symbolic', title='Your library is empty',
+            st = Adw.StatusPage(icon_name='kjt-library-symbolic', title=_('Your library is empty'),
                                 description='Choose “Get more” to see the free Bibles, commentaries, dictionaries and books of CrossWire and AndBible. Nothing is added until you choose it.')
             b = Gtk.Button(label='Get more', halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.add_css_class('suggested-action')
             b.connect('clicked', lambda *_: self.t_get.set_active(True)); st.set_child(b)
@@ -140,7 +140,7 @@ class LibraryPage(Gtk.Box):
                 row = Adw.ActionRow(title=GLib.markup_escape_text(c.get('Description') or c['_name']),
                                     subtitle=GLib.markup_escape_text('%s · %s' % (c['_name'], lang_label(lang_of(c)))), activatable=True)
                 row.connect('activated', lambda _r, c=c: self.open(c))
-                d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Remove from this computer', valign=Gtk.Align.CENTER); d.add_css_class('flat')
+                d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove from this computer'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
                 d.connect('clicked', lambda _b, c=c: self.ask_remove(c)); row.add_suffix(d)
                 row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
                 g.add(row)
@@ -151,8 +151,8 @@ class LibraryPage(Gtk.Box):
             s = Gtk.Spinner(spinning=True); s.set_size_request(32, 32); sp.append(s)
             sp.append(Gtk.Label(label='Fetching the lists of CrossWire and AndBible…', css_classes=['dim-label'])); self.box.append(sp); return
         if not self.cat:
-            st = Adw.StatusPage(icon_name='kjt-library-symbolic', title='The lists could not be fetched', description='The library lists come with the internet. Try again when you are online.')
-            b = Gtk.Button(label='Try again', halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.connect('clicked', lambda *_: (self.load(True), self.fill())); st.set_child(b)
+            st = Adw.StatusPage(icon_name='kjt-library-symbolic', title=_('The lists could not be fetched'), description='The library lists come with the internet. Try again when you are online.')
+            b = Gtk.Button(label=_('Try again'), halign=Gtk.Align.CENTER); b.add_css_class('pill'); b.connect('clicked', lambda *_: (self.load(True), self.fill())); st.set_child(b)
             self.box.append(st); return
         have = {c['_name'].lower() for c in S.installed()}
         li = self.lang_dd.get_selected(); lsel = self.langs[li] if li < len(self.langs) else 'mine'
@@ -192,15 +192,15 @@ class LibraryPage(Gtk.Box):
     def get_row(self, c, have):
         sub = ' · '.join(x for x in (c['_name'], lang_label(lang_of(c)), c.get('_source'), size_of(c)) if x)
         row = Adw.ActionRow(title=GLib.markup_escape_text(c.get('Description') or c['_name']), subtitle=GLib.markup_escape_text(sub))
-        ib = Gtk.MenuButton(icon_name='dialog-information-symbolic', tooltip_text='About this', valign=Gtk.Align.CENTER); ib.add_css_class('flat')
+        ib = Gtk.MenuButton(icon_name='dialog-information-symbolic', tooltip_text=_('About this'), valign=Gtk.Align.CENTER); ib.add_css_class('flat')
         pop = Gtk.Popover(); lab = Gtk.Label(wrap=True, max_width_chars=60, xalign=0, selectable=True, margin_top=8, margin_bottom=8, margin_start=8, margin_end=8)
         lab.set_text((S.about(c) or c.get('Description') or '')[:2500] + '\n\nLicence: ' + (c.get('DistributionLicense') or 'not stated') + ('\nVersion: ' + c['Version'] if c.get('Version') else ''))
         ps = Gtk.ScrolledWindow(propagate_natural_height=True, max_content_height=380, propagate_natural_width=True, hscrollbar_policy=Gtk.PolicyType.NEVER); ps.set_child(lab)
         pop.set_child(ps); ib.set_popover(pop); row.add_suffix(ib)
         if have:
-            row.add_suffix(Gtk.Label(label='✓ kept here', css_classes=['dim-label']))
+            row.add_suffix(Gtk.Label(label=_('✓ kept here'), css_classes=['dim-label']))
         else:
-            b = Gtk.Button(icon_name='folder-download-symbolic', tooltip_text='Keep on this computer', valign=Gtk.Align.CENTER)
+            b = Gtk.Button(icon_name='folder-download-symbolic', tooltip_text=_('Keep on this computer'), valign=Gtk.Align.CENTER)
             b.connect('clicked', lambda _b, c=c: self.get(c, _b)); row.add_suffix(b)
         return row
 
@@ -251,13 +251,13 @@ class LibraryPage(Gtk.Box):
         if not books:
             return
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
-        hb.set_title_widget(Adw.WindowTitle(title=c.get('Description') or c['_name'], subtitle='Commentary'))
+        hb.set_title_widget(Adw.WindowTitle(title=c.get('Description') or c['_name'], subtitle=_('Commentary')))
         hb.pack_end(self.search_button(c, lambda q, emit, alive: self.search_verses(c, m, q, emit, alive)))
         bar = Gtk.Box(spacing=6, halign=Gtk.Align.CENTER, margin_top=6, margin_bottom=6)
         names = [book_name(S.OSIS2CODE.get(o, o)) if S.OSIS2CODE.get(o) else n for o, n, _ in books]
         bdd = Gtk.DropDown.new_from_strings(names); spin = Gtk.SpinButton.new_with_range(1, 150, 1)
-        prev = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text='Previous chapter'); nxt = Gtk.Button(icon_name='kjt-next-symbolic', tooltip_text='Next chapter')
-        read = Gtk.Button(label='Read the chapter →'); read.add_css_class('flat')
+        prev = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text=_('Previous chapter')); nxt = Gtk.Button(icon_name='kjt-next-symbolic', tooltip_text=_('Next chapter'))
+        read = Gtk.Button(label=_('Read the chapter →')); read.add_css_class('flat')
         for w in (prev, bdd, spin, nxt, read):
             bar.append(w)
         view, sc = self.text_view()
@@ -351,7 +351,7 @@ class LibraryPage(Gtk.Box):
         if not m:
             self.win.toast('This could not be opened'); return
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
-        q = Gtk.SearchEntry(placeholder_text='Find a word', width_chars=20); hb.set_title_widget(q)
+        q = Gtk.SearchEntry(placeholder_text=_('Find a word'), width_chars=20); hb.set_title_widget(q)
         names = m.names()
         hb.pack_end(self.search_button(c, lambda qq, emit, alive: self.search_dict(c, m, names, qq, emit, alive)))
         model = Gtk.StringList.new([n for n in names])
@@ -382,7 +382,7 @@ class LibraryPage(Gtk.Box):
     def search_button(self, c, run):
         mb = Gtk.MenuButton(icon_name='kjt-search-symbolic', tooltip_text=_('Search the whole of it'))
         pop = Gtk.Popover(); bx = Gtk.Box(spacing=6, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
-        e = Gtk.SearchEntry(placeholder_text=_('Search the whole of it'), width_chars=26); go = Gtk.Button(label='Search'); go.add_css_class('suggested-action')
+        e = Gtk.SearchEntry(placeholder_text=_('Search the whole of it'), width_chars=26); go = Gtk.Button(label=_('Search')); go.add_css_class('suggested-action')
         bx.append(e); bx.append(go); pop.set_child(bx); mb.set_popover(pop)
         def start(*_):
             t = e.get_text().strip()
@@ -405,11 +405,11 @@ class LibraryPage(Gtk.Box):
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
         hb.set_title_widget(Adw.WindowTitle(title='“%s”' % q, subtitle=c.get('Description') or c['_name']))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=12, margin_bottom=20, margin_start=12, margin_end=12)
-        status = Gtk.Label(label='Searching…', xalign=0, css_classes=['dim-label']); box.append(status)
+        status = Gtk.Label(label=_('Searching…'), xalign=0, css_classes=['dim-label']); box.append(status)
         lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list'); box.append(lb)
         cl = Adw.Clamp(maximum_size=860); cl.set_child(box)
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(cl); tv.set_content(sc)
-        page = Adw.NavigationPage(title='Search', child=tv)
+        page = Adw.NavigationPage(title=_('Search'), child=tv)
         st = {'n': 0, 'alive': True}
         page.connect('hidden', lambda *_: st.__setitem__('alive', False) if not page.get_mapped() and page.get_parent() is None else None)
         MAX = 300

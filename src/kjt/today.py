@@ -2,6 +2,7 @@
 import datetime, re
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, NET, DEFAULT_BIBLES, lang, book_name, run_bg, strip_tags
+from .i18n import _
 from .bible import bible_name
 
 
@@ -13,12 +14,12 @@ class TodayPage(Gtk.Box):
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb)
         win.sidebar_button(hb)
-        self.prev = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text='The day before'); self.prev.connect('clicked', lambda *_: self.move(-1))
-        self.next = Gtk.Button(icon_name='kjt-next-symbolic', tooltip_text='The day after'); self.next.connect('clicked', lambda *_: self.move(1))
+        self.prev = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text=_('The day before')); self.prev.connect('clicked', lambda *_: self.move(-1))
+        self.next = Gtk.Button(icon_name='kjt-next-symbolic', tooltip_text=_('The day after')); self.next.connect('clicked', lambda *_: self.move(1))
         self.label = Gtk.Label(ellipsize=3); self.label.add_css_class('heading')
         t = Gtk.Box(spacing=6); t.append(self.prev); t.append(self.label); t.append(self.next)
         hb.set_title_widget(t)
-        home = Gtk.Button(icon_name='kjt-today-symbolic', tooltip_text='Back to today'); home.add_css_class('flat'); home.connect('clicked', lambda *_: self.goto(datetime.date.today())); hb.pack_start(home)
+        home = Gtk.Button(icon_name='kjt-today-symbolic', tooltip_text=_('Back to today')); home.add_css_class('flat'); home.connect('clicked', lambda *_: self.goto(datetime.date.today())); hb.pack_start(home)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         c = Adw.Clamp(maximum_size=760); c.set_child(self.box)
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc); tv.set_content(sc)
@@ -75,7 +76,7 @@ class TodayPage(Gtk.Box):
 
     def share_btn(self, get):
         """share this part of the day: as a picture, or as text to paste"""
-        mb = Gtk.MenuButton(icon_name='kjt-share-symbolic', tooltip_text='Share', valign=Gtk.Align.START); mb.add_css_class('flat'); mb.add_css_class('circular')
+        mb = Gtk.MenuButton(icon_name='kjt-share-symbolic', tooltip_text=_('Share'), valign=Gtk.Align.START); mb.add_css_class('flat'); mb.add_css_class('circular')
         pop = Gtk.Popover(); bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
         def pic():
             from . import picture
@@ -175,7 +176,7 @@ class TodayPage(Gtk.Box):
             inner.append(l)
         else:
             inner.append(self.text('This book is not in the Bibles on this computer. Choose Downloads in the sidebar.', 'dim-label'))
-        b = Gtk.Button(label='Read in the Holy Bible  →', halign=Gtk.Align.START); b.add_css_class('flat'); b.add_css_class('kjt-ref')
+        b = Gtk.Button(label=_('Read in the Holy Bible  →'), halign=Gtk.Align.START); b.add_css_class('flat'); b.add_css_class('kjt-ref')
         b.connect('clicked', lambda *_: self.win.open_passage(book, c1, v1))
         acts = Gtk.Box(spacing=6); acts.append(b)
         if rows:
