@@ -40,6 +40,8 @@ jobs:
           mkdir -p site && cp -r repo site/repo && cp channel/index.html channel/icon.png channel/kjt-channel.gpg site/
           # the old public-domain atlas plates (branch "atlas"), served beside the channel for the website and the apps
           git clone -q --depth 1 -b atlas "https://github.com/${{ github.repository }}.git" atlas-src-tmp && cp -r atlas-src-tmp/atlas site/atlas && rm -rf atlas-src-tmp
+          # the CrossWire Bibles converted for the website (branch "bibles"): the Install button of each fetches its file here
+          git clone -q --depth 1 -b bibles "https://github.com/${{ github.repository }}.git" bibles-tmp && cp -r bibles-tmp/packs site/bibles && rm -rf bibles-tmp
           cat > site/knowing-jesus-today.flatpakrepo <<REPO
           [Flatpak Repo]
           Title=Knowing Jesus Today
