@@ -133,7 +133,12 @@ class BiblePage(Gtk.Box):
         lbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER)
         self.sel_label = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END); self.sel_label.add_css_class('kjt-sel-label'); lbox.append(self.sel_label)
         self.sel_state = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, max_width_chars=40); self.sel_state.add_css_class('kjt-sel-state'); self.sel_state.add_css_class('caption'); lbox.append(self.sel_state)
-        lbox.set_hexpand(True); top.append(lbox)
+        top.append(lbox)
+        # right beside the reference: one more verse, or one less (only seen while verses are chosen)
+        grow = Gtk.Box(valign=Gtk.Align.CENTER, hexpand=True, halign=Gtk.Align.START, margin_start=6); grow.add_css_class('linked')
+        self.less_btn = Gtk.Button(label='− One less', tooltip_text='Take the last verse away from the choice'); self.less_btn.connect('clicked', lambda *_: self.shrink())
+        self.more_btn = Gtk.Button(label='+ Next verse', tooltip_text='Add the next verse to the choice'); self.more_btn.add_css_class('suggested-action'); self.more_btn.connect('clicked', lambda *_: self.grow())
+        grow.append(self.less_btn); grow.append(self.more_btn); top.append(grow)
         self.colors = Gtk.Box(spacing=5, valign=Gtk.Align.CENTER)
         self.dots = {}
         for c, hexv in COLORS.items():
@@ -152,7 +157,7 @@ class BiblePage(Gtk.Box):
         for icon, tip, fn in (('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')), ('kjt-globe-symbolic', 'Greek and Hebrew words', lambda: self.side_show('words')),
                               ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-picture-symbolic', 'Share as picture', self.share_picture),
                               ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-edit-symbolic', 'Edit', self.edit), ('kjt-note-symbolic', 'Note', self.note),
-                              ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-plus-symbolic', 'Next verse too', self.grow), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
+                              ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
             btn = labelled(icon, tip.split(' (')[0], fn); acts.append(btn)
             if tip == 'Bookmark':
                 self.bm_btn = btn
@@ -514,7 +519,16 @@ class BiblePage(Gtk.Box):
         for i, v in enumerate(self.vnum):
             if v in self.sel:
                 buf.apply_tag_by_name('sel', buf.get_iter_at_offset(self.vpos[i] + 1), buf.get_iter_at_offset(self.vend[i]))
+        # GTK sometimes keeps the old look of the line beside its hidden cursor: have every line drawn afresh
+        GLib.idle_add(self.redraw_text)
         self.update_bar()
+
+    def redraw_text(self):
+        buf = self.view.get_buffer()
+        if self.sel and self.sel[0] in self.vnum and not buf.get_has_selection():
+            buf.place_cursor(buf.get_iter_at_offset(self.vpos[self.vnum.index(self.sel[0])]))   # the hidden cursor rests at the first chosen verse
+        self.view.queue_draw()
+        return False
 
     def verse_at(self, x, y):
         bx, by = self.view.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, int(x), int(y))
@@ -567,7 +581,9 @@ class BiblePage(Gtk.Box):
         self.tap(v, g.get_current_event_state() if g else 0)
 
     def tap(self, v, st=0):
-        """a click chooses that one verse, always. Shift+click: from the first chosen verse to this one. Ctrl+click: add or take away one verse."""
+        """as on the website: click the first verse, then the last one, and everything between is chosen.
+        Click the chosen verse again to let it go; a click after a range starts again with that verse.
+        Shift+click: from the first chosen verse to this one. Ctrl+click: add or take away one verse."""
         anchor = getattr(self, 'anchor', 0)
         if st & Gdk.ModifierType.SHIFT_MASK and self.sel and anchor:
             a, b = min(anchor, v), max(anchor, v)
@@ -576,6 +592,9 @@ class BiblePage(Gtk.Box):
             self.sel = sorted(set(self.sel) ^ {v}); self.anchor = v
         elif self.sel == [v]:
             self.sel = []                                      # click the chosen verse again: let it go
+        elif len(self.sel) == 1:
+            a, b = min(self.sel[0], v), max(self.sel[0], v)    # the first, then the last: all between
+            self.anchor = self.sel[0]; self.sel = list(range(a, b + 1))
         else:
             self.sel = [v]; self.anchor = v
         self.mark_selection()
@@ -591,6 +610,7 @@ class BiblePage(Gtk.Box):
             self.bar.set_reveal_child(False); return
         a, b = min(self.sel), max(self.sel)
         self.sel_label.set_label('%s %d:%d%s' % (book_name(self.book, tr=self.tr), self.ch, a, '–%d' % b if b > a else ''))
+        self.less_btn.set_visible(len(self.sel) > 1); self.more_btn.set_sensitive(b < (max(self.vnum) if self.vnum else b))
         r = self.current()
         col = (r or {}).get('color')
         for c, btn in self.dots.items():
@@ -600,7 +620,7 @@ class BiblePage(Gtk.Box):
             bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
             self.sel_state.set_label(' · '.join(bits))
         else:
-            self.sel_state.set_label('Not bookmarked yet' + (' · more verses: Shift+click the last one, or “Next verse too”' if len(self.sel) == 1 else ''))
+            self.sel_state.set_label('Not bookmarked yet' + (' · for more verses, click the last one' if len(self.sel) == 1 else ''))
         self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r)); self.edit_btn.get_parent().set_visible(bool(r))
         self.note_btn.label.set_label('Edit note' if r and r.get('note') else 'Note')
         self.bar.set_reveal_child(True)
@@ -802,6 +822,11 @@ class BiblePage(Gtk.Box):
     def choose_range(self, v, ve=0):
         self.anchor = v
         self.sel = list(range(v, max(v, ve) + 1)); self.mark_selection(); self.scroll_to_verse(v)
+
+    def shrink(self):
+        """take the last verse away from the choice"""
+        if len(self.sel) > 1:
+            self.sel = self.sel[:-1]; self.mark_selection()
 
     def grow(self):
         """add the next verse to the choice"""
