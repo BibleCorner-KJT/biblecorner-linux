@@ -4,6 +4,7 @@ name: Build the app
 on:
   push:
     tags: ['v*']
+    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
