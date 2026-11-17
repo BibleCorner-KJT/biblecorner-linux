@@ -2,6 +2,7 @@
 import time
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, NET, OT, NT, info, book_name, strip_tags, canon
+from .i18n import _
 from .study import STUDY, COLORS
 
 
@@ -12,10 +13,10 @@ class StudyPage(Gtk.Box):
         self.filter = ''
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
-        hb.set_title_widget(Adw.WindowTitle(title='My Study'))
+        hb.set_title_widget(Adw.WindowTitle(title=_('My Study')))
         self.sync_btn = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text='Bring in step with My KJT now'); self.sync_btn.connect('clicked', lambda *_: self.sync())
         hb.pack_end(self.sync_btn)
-        self.q = Gtk.SearchEntry(placeholder_text='Search your notes'); self.q.connect('search-changed', lambda *_: self.fill())
+        self.q = Gtk.SearchEntry(placeholder_text=_('Search your notes')); self.q.connect('search-changed', lambda *_: self.fill())
         hb.pack_start(self.q)
         # two columns side by side (the Study Pads on the left, the bookmarks on the right), each scrolling
         # on its own; on a narrow window they are one column again
@@ -114,12 +115,12 @@ class StudyPage(Gtk.Box):
         pads = STUDY.pads()
         # Study Pads: a grid of coloured cards
         grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=1, max_children_per_line=1 if self.wide else 3, column_spacing=8, row_spacing=8)
-        self.section('pads', 'Study Pads', len(pads), child=grid, parent=side)
+        self.section('pads', _('Study Pads'), len(pads), child=grid, parent=side)
         for p in pads:
             grid.append(self.pad_card(p['tag'], sum(1 for r in recs if p['tag'] in (r.get('tags') or []))))
         add = Gtk.Button(); add.add_css_class('card'); add.set_tooltip_text('Make a new Study Pad')
         ab = Gtk.Box(spacing=8, margin_top=8, margin_bottom=8, margin_start=8, margin_end=8, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
-        ab.append(Gtk.Image(icon_name='kjt-plus-symbolic')); ab.append(Gtk.Label(label='New Study Pad')); add.set_child(ab)
+        ab.append(Gtk.Image(icon_name='kjt-plus-symbolic')); ab.append(Gtk.Label(label=_('New Study Pad'))); add.set_child(ab)
         add.connect('clicked', lambda *_: pad_dialog(self.win)); grid.append(add)
         if self.filter:
             allb = Gtk.Button(label='Show everything'); allb.add_css_class('pill'); allb.connect('clicked', lambda *_: self.set_filter('')); grid.append(allb)
@@ -131,11 +132,11 @@ class StudyPage(Gtk.Box):
         if how not in dict(self.SORTS):
             how = 'new'
         shown.sort(key=self.sort_key(how))
-        dd = Gtk.DropDown(model=Gtk.StringList.new([t for _, t in self.SORTS]), valign=Gtk.Align.CENTER, tooltip_text='Sort')
+        dd = Gtk.DropDown(model=Gtk.StringList.new([_(t) for _k, t in self.SORTS]), valign=Gtk.Align.CENTER, tooltip_text='Sort')
         dd.set_selected([k for k, _ in self.SORTS].index(how))
         dd.connect('notify::selected', lambda w, _p: (SET.set('study_sort', self.SORTS[w.get_selected()][0]), GLib.idle_add(lambda: (self.fill(), False)[1])))
         sbox = Gtk.Box(spacing=4); sbox.append(Gtk.Image(icon_name='kjt-sort-symbolic')); sbox.append(dd)
-        title = ('Study Pad: ' + STUDY.pad_name(self.filter)) if self.filter else 'Bookmarks and notes'
+        title = ('Study Pad: ' + STUDY.pad_name(self.filter)) if self.filter else _('Bookmarks and notes')
         lb = self.section('marks', title, len(shown), sbox)
         if not recs:
             lb.append(Adw.ActionRow(title='Nothing yet', subtitle='In the Holy Bible, click a verse, then bookmark it, give it a colour or write a note.'))
@@ -167,7 +168,7 @@ class StudyPage(Gtk.Box):
             else: lb.set_width_chars(18); lb.set_max_width_chars(70)
             self.groups[i].add_widget(lb); box.append(lb); return lb
         if r is None:
-            col(0, 22, ''); col(1, 0, 'Passage and note', expand=True); col(2, 110, 'Bible'); col(3, 140, 'Study Pads'); col(4, 92, 'Made'); col(5, 92, 'Changed')
+            col(0, 22, ''); col(1, 0, _('Passage and note'), expand=True); col(2, 110, _('Bible')); col(3, 140, _('Study Pads')); col(4, 92, _('Made')); col(5, 92, _('Changed'))
             sp = Gtk.Box(); sp.set_size_request(76, -1); box.append(sp)
             return box
         dot = '<span foreground="%s" size="x-large">●</span>' % COLORS[r['color']] if r.get('color') in COLORS else ''

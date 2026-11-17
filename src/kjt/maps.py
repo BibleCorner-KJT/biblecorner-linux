@@ -55,6 +55,7 @@ class Map:
     """the map data, read once"""
     def __init__(self):
         self.ok = False
+        self.on_fixed = []
 
     def load(self):
         b = read_file('maps/base.json'); pl = read_file('maps/places.json')
@@ -65,7 +66,7 @@ class Map:
         self.P = []
         for r in pl['p']:
             vs = r[6].split(' ') if r[6] else []
-            self.P.append({'id': r[0], 'en': r[1], 't': r[2], 'x': r[3], 'y': r[4], 'c': r[5], 'v': vs, 'n': len(vs), 'd': r[7], 'j': r[8], 'alts': r[9]})
+            self.P.append({'id': r[0], 'en': r[1], 't': r[2], 'x': r[3], 'y': r[4], 'c': r[5], 'v': vs, 'n': len(vs), 'd': r[7], 'j': r[8], 'alts': r[9], 'at': r[11] if len(r) > 11 else ''})
         self.BY = {p['id']: p for p in self.P}
         self.stories = read_file('maps/stories.json') or []
         self.words_all = read_file('maps/words.json') or {}
@@ -77,7 +78,45 @@ class Map:
         self.wland = parse_path(w.get('land')); self.wborders = parse_path(w.get('borders'))
         self.countries = w.get('countries') or []; self.capitals = w.get('capitals') or []
         self.ok = True
+        if (pl.get('v') or 1) < 2 and not getattr(self, 'fixing', False):
+            self.fix_data()
         return True
+
+    def fetch_atlas_list(self, done):
+        import threading
+        from .core import NET, write_file
+        def run():
+            try:
+                write_file('maps/atlas.json', NET.file('maps/atlas.json'))
+                for k in ('words.json',):
+                    write_file('maps/' + k, NET.file('maps/' + k))
+            except Exception:
+                return
+            def again():
+                self.words_all = read_file('maps/words.json') or self.words_all; self.set_lang(self.lang); done(); return False
+            GLib.idle_add(again)
+        threading.Thread(target=run, daemon=True).start()
+
+    def fix_data(self):
+        """2.8: the map data were corrected (the figurative Babylons of Revelation were pinned on Rome, and more):
+        the corrected files replace the old ones by themselves, then the map is drawn again"""
+        import threading
+        from .core import NET, write_file
+        self.fixing = True
+        def run():
+            try:
+                for f in ('places.json', 'chapters.json', 'words.json'):
+                    write_file('maps/' + f, NET.file('maps/' + f))
+            except Exception:
+                self.fixing = False; return
+            def again():
+                self.ok = False
+                if self.load():
+                    for cb in list(self.on_fixed):
+                        cb()
+                return False
+            GLib.idle_add(again)
+        threading.Thread(target=run, daemon=True).start()
 
     def set_lang(self, l):
         self.lang = l
@@ -345,6 +384,9 @@ class MapView(Gtk.DrawingArea):
                     continue
                 if p['j'] and not city and self.only is None:
                     continue
+                # another name of the same spot is not a pin of its own: it is named on the place's pin
+                if p['at'] and p is not self.sel and (self.only is None or p['at'] in self.only):
+                    continue
                 if p['n'] < mn and p is not self.sel:
                     continue
                 if not self.in_view(p['x'], p['y'], 40):
@@ -439,6 +481,8 @@ class MapView(Gtk.DrawingArea):
                 cand.append((1e9, self.sel['x'], self.sel['y'], M.nm(self.sel), 'sel'))
             for p in M.P:
                 if p is self.sel or (self.only is not None and p['id'] not in self.only):
+                    continue
+                if p['at'] and (self.only is None or p['at'] in self.only):
                     continue
                 if p['t'] == 'r':
                     if self.only is not None:
@@ -548,13 +592,18 @@ class MapsPage(Gtk.Box):
         # two tabs, as on the website: all the places, or the story maps
         tabs = Gtk.Box(spacing=0, halign=Gtk.Align.CENTER, margin_top=10, margin_start=10, margin_end=10); tabs.add_css_class('linked')
         self.tab_p = Gtk.ToggleButton(label='📍 All places'); self.tab_s = Gtk.ToggleButton(label='🧭 Story maps', group=self.tab_p)
+        self.tab_a = Gtk.ToggleButton(label='🗺 Old atlases', group=self.tab_p)
+        self.tab_a.connect('toggled', lambda b: b.get_active() and self.mode != 'atlas' and self.set_mode('atlas'))
         self.tab_p.connect('toggled', lambda b: b.get_active() and self.mode != 'places' and self.set_mode('places'))
         self.tab_s.connect('toggled', lambda b: b.get_active() and self.mode != 'stories' and self.set_mode('stories'))
-        tabs.append(self.tab_p); tabs.append(self.tab_s)
+        tabs.append(self.tab_p); tabs.append(self.tab_s); tabs.append(self.tab_a)
         sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); sidebox.append(tabs); sidebox.append(ss)
         self.mode = ''
         self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, min_sidebar_width=300, max_sidebar_width=380, sidebar_width_fraction=0.3, show_sidebar=True)
-        self.osv.set_content(ov); from .ui import resizable; self.osv.set_sidebar(resizable(self.osv, sidebox, 'maps_side', end=True, lo=260, hi=800))
+        # 2.8: the old atlases take the map's place while that tab is open
+        self.stage = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE); self.stage.add_named(ov, 'map')
+        self.atlas = AtlasView(); self.stage.add_named(self.atlas, 'atlas')
+        self.osv.set_content(self.stage); from .ui import resizable; self.osv.set_sidebar(resizable(self.osv, sidebox, 'maps_side', end=True, lo=260, hi=800))
         self.osv.bind_property('show-sidebar', self.list_btn, 'active', 1 | 2)
         tv.set_content(self.osv)
 
@@ -571,6 +620,8 @@ class MapsPage(Gtk.Box):
     compact = False
 
     def refresh(self):
+        if self.redraw_fixed not in M.on_fixed:
+            M.on_fixed.append(self.redraw_fixed)
         if not M.ok or M.lang != lang():
             if M.ok:
                 M.set_lang(lang())
@@ -586,6 +637,12 @@ class MapsPage(Gtk.Box):
                 cb.connect('toggled', lambda b, k=k: (self.mv.shown.__setitem__(k, b.get_active()), self.mv.queue_draw()))
                 self.kind_checks.append(cb)
             self.credit.set_label(M.T('credit'))
+            self.home_side()
+        self.mv.queue_draw()
+
+    def redraw_fixed(self):
+        self.mv.sel = None; self.mv.only = None
+        if self.get_mapped():
             self.home_side()
         self.mv.queue_draw()
 
@@ -618,11 +675,14 @@ class MapsPage(Gtk.Box):
 
     def set_mode(self, m):
         self.mode = m
-        self.tab_p.set_label('📍 ' + M.T('tab_places')); self.tab_s.set_label('🧭 ' + M.T('tab_stories'))
-        (self.tab_p if m == 'places' else self.tab_s).set_active(True)
+        self.tab_p.set_label('📍 ' + M.T('tab_places')); self.tab_s.set_label('🧭 ' + M.T('tab_stories')); self.tab_a.set_label('🗺 ' + M.T('tab_atlas'))
+        {'places': self.tab_p, 'stories': self.tab_s, 'atlas': self.tab_a}.get(m, self.tab_p).set_active(True)
+        self.stage.set_visible_child_name('atlas' if m == 'atlas' else 'map')
         self.clear_side(); self.mv.story = None; self.mv.stops = []; self.mv.sel = None; self.snav.set_visible(False)
         self.side_scroll.get_vadjustment().set_value(0)
-        if m == 'stories':
+        if m == 'atlas':
+            self.atlas_home()
+        elif m == 'stories':
             self.mv.only = None; self.stories_home()
         else:
             self.places_home()
@@ -646,6 +706,30 @@ class MapsPage(Gtk.Box):
         self.side.append(kf)
         sb = Gtk.Button(label='🧭 ' + M.T('tab_stories'), margin_top=10); sb.add_css_class('pill'); sb.connect('clicked', lambda *_: self.set_mode('stories')); self.side.append(sb)
         note = self.label("Grey squares are today’s capitals, to find your way; they are not places of the Bible.", 'caption', 'dim-label'); note.set_margin_top(8)
+
+    def atlas_home(self):
+        """the old atlases: maps drawn by hand centuries ago (public domain, Wikimedia Commons); each picture is
+        fetched the first time it is opened and then kept on this computer"""
+        self.label(M.T('atlas_t'), 'title-2'); self.label(M.T('atlas_sub'), 'dim-label')
+        a = read_file('maps/atlas.json')
+        if not a:
+            self.label(M.T('atlas_off'), 'caption'); M.fetch_atlas_list(lambda: self.mode == 'atlas' and self.set_mode('atlas')); return
+        self.atlas.show_grid(a, self.open_atlas)
+        for sec, key in (('ot', 'atlas_ot'), ('nt', 'atlas_nt')):
+            maps = [m for m in a['maps'] if m['s'] == sec]
+            if not maps:
+                continue
+            self.label(M.T(key), 'heading').set_margin_top(8)
+            for m in maps:
+                b = Gtk.Button(); b.add_css_class('flat')
+                v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+                v.append(Gtk.Label(label=m['t'], xalign=0, wrap=True, css_classes=['heading']))
+                v.append(Gtk.Label(label=' · '.join(x for x in (m.get('y'), m.get('by')) if x), xalign=0, wrap=True, css_classes=['caption', 'dim-label']))
+                b.set_child(v); b.connect('clicked', lambda _b, m=m: self.open_atlas(a, m)); self.side.append(b)
+        self.label(M.T('atlas_src') + ' · public domain', 'caption', 'dim-label').set_margin_top(8)
+
+    def open_atlas(self, a, m):
+        self.atlas.open(a, m)
 
     def stories_home(self):
         self.label(M.T('stories'), 'title-2')
@@ -694,6 +778,18 @@ class MapsPage(Gtk.Box):
         self.label(M.T('c%d' % p['c']), 'caption')
         if p['alts'] > 1:
             self.label(M.T('alts', p['alts']), 'caption')
+        # the other names found at this same spot (one pin for them all)
+        main = M.BY.get(p['at']) if p['at'] else None
+        if main:
+            bx = Gtk.Box(spacing=6); bx.append(Gtk.Label(label=M.T('samespot'), css_classes=['caption']))
+            mb = Gtk.Button(label=M.nm(main)); mb.add_css_class('kjt-chip'); mb.connect('clicked', lambda *_: self.choose(main, True)); bx.append(mb); self.side.append(bx)
+        here = sorted((o for o in M.P if o['at'] == p['id']), key=lambda o: -o['n'])
+        if here:
+            self.label(M.T('alsohere'), 'caption').set_margin_top(4)
+            fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=4, column_spacing=4, row_spacing=4)
+            for o in here:
+                b = Gtk.Button(label='%s %s' % (KIND[o['t']], M.nm(o))); b.add_css_class('kjt-chip'); b.connect('clicked', lambda _b, o=o: self.choose(o, False)); fb.append(b)
+            self.side.append(fb)
         row = Gtk.Box(spacing=6)
         dct = Gtk.Button(label='📜 ' + M.T('dict')); dct.connect('clicked', lambda *_: self.win.open_dict(p['d'] or 'p-' + p['id'])); row.append(dct)
         self.side.append(row)
@@ -824,3 +920,114 @@ class MapsPage(Gtk.Box):
         back = Gtk.Button(label='← ' + M.T('allp'), margin_top=10); back.add_css_class('flat'); back.connect('clicked', lambda *_: self.clear_only()); self.side.append(back)
         pts = [M.BY[i] for i in ids]
         self.later(lambda: self.mv.fit_points(pts, 30) if pts else self.mv.home())
+
+
+class AtlasView(Gtk.Box):
+    """the old atlases: a grid of the maps, and one map to zoom (wheel, pinch, buttons) and move (drag)"""
+    def __init__(self):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.stack = Gtk.Stack(vexpand=True); self.append(self.stack)
+        self.grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=2, max_children_per_line=6, column_spacing=10, row_spacing=10,
+                                margin_top=12, margin_bottom=12, margin_start=12, margin_end=12, valign=Gtk.Align.START)
+        gs = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER); gs.set_child(self.grid); self.stack.add_named(gs, 'grid')
+        view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        top = Gtk.Box(spacing=8, margin_top=6, margin_bottom=6, margin_start=8, margin_end=8)
+        back = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text='All the atlases'); back.add_css_class('flat'); back.connect('clicked', lambda *_: self.stack.set_visible_child_name('grid')); top.append(back)
+        cap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+        self.title = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['heading']); self.sub = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['caption', 'dim-label'])
+        cap.append(self.title); cap.append(self.sub); top.append(cap)
+        for icon, tip, f in (('kjt-minus-symbolic', 'Zoom out', 1 / 1.6), ('kjt-plus-symbolic', 'Zoom in', 1.6), ('kjt-home-symbolic', 'Whole map', 0)):
+            b = Gtk.Button(icon_name=icon, tooltip_text=tip); b.add_css_class('flat'); b.connect('clicked', lambda _b, f=f: self.zoom(f) if f else self.fit()); top.append(b)
+        view.append(top)
+        self.area = Gtk.DrawingArea(vexpand=True, hexpand=True); self.area.set_draw_func(self.draw)
+        self.status = Gtk.Label(css_classes=['dim-label'], vexpand=True)
+        self.vstack = Gtk.Stack(vexpand=True); self.vstack.add_named(self.area, 'pic'); self.vstack.add_named(self.status, 'wait'); view.append(self.vstack)
+        self.stack.add_named(view, 'view')
+        self.pix = None; self.s = 1; self.tx = 0; self.ty = 0; self.fit_s = 1
+        sc = Gtk.EventControllerScroll(flags=Gtk.EventControllerScrollFlags.VERTICAL); sc.connect('scroll', self.on_scroll); self.area.add_controller(sc)
+        mo = Gtk.EventControllerMotion(); mo.connect('motion', lambda _c, x, y: setattr(self, 'mouse', (x, y))); self.area.add_controller(mo)
+        dr = Gtk.GestureDrag(); dr.connect('drag-begin', lambda *_: setattr(self, 'd0', (self.tx, self.ty))); dr.connect('drag-update', self.on_drag); self.area.add_controller(dr)
+        zm = Gtk.GestureZoom(); zm.connect('begin', lambda *_: setattr(self, 'z0', self.s)); zm.connect('scale-changed', self.on_pinch); self.area.add_controller(zm)
+        cl = Gtk.GestureClick(); cl.connect('pressed', lambda g, n, x, y: n == 2 and self.zoom(2, x, y)); self.area.add_controller(cl)
+        self.mouse = (0, 0)
+
+    def show_grid(self, a, opener):
+        while self.grid.get_first_child():
+            self.grid.remove(self.grid.get_first_child())
+        for m in a['maps']:
+            b = Gtk.Button(); b.add_css_class('card')
+            v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
+            pic = Gtk.Picture(content_fit=Gtk.ContentFit.COVER, height_request=130, can_shrink=True); v.append(pic)
+            v.append(Gtk.Label(label=m['t'], wrap=True, lines=2, ellipsize=Pango.EllipsizeMode.END, xalign=0, css_classes=['caption-heading']))
+            b.set_child(v); b.connect('clicked', lambda _b, m=m: opener(a, m)); self.grid.append(b)
+            self.fetch(a, m, True, lambda path, pic=pic: pic.set_filename(path))
+        self.stack.set_visible_child_name('grid')
+
+    def fetch(self, a, m, thumb, done, fail=None):
+        """the picture from this computer, or fetched once and kept"""
+        import os, threading
+        from .core import NET, file_path, write_file
+        rel = 'maps/atlas/%s%s.jpg' % ('thumbs/' if thumb else '', m['id'])
+        path = file_path(rel)
+        if os.path.exists(path):
+            done(path); return
+        def run():
+            try:
+                data = NET.get(a['base'] + ('thumbs/' if thumb else '') + m['id'] + '.jpg', timeout=180, strict=True)
+                os.makedirs(os.path.dirname(path), exist_ok=True); write_file(rel, data)
+                GLib.idle_add(lambda: (done(path), False)[1])
+            except Exception:
+                if fail:
+                    GLib.idle_add(lambda: (fail(), False)[1])
+        threading.Thread(target=run, daemon=True).start()
+
+    def open(self, a, m):
+        self.title.set_label(m['t']); self.title.set_tooltip_text(m['t'])
+        self.sub.set_label(' · '.join(x for x in (m.get('y'), m.get('by'), 'Wikimedia Commons, public domain') if x))
+        self.pix = None; self.status.set_label('Opening the map… (large picture)'); self.vstack.set_visible_child_name('wait')
+        self.stack.set_visible_child_name('view')
+        def show(path):
+            try:
+                pb = GdkPixbuf.Pixbuf.new_from_file(path)
+                sf = cairo.ImageSurface(cairo.FORMAT_RGB24, pb.get_width(), pb.get_height())
+                c2 = cairo.Context(sf); Gdk.cairo_set_source_pixbuf(c2, pb, 0, 0); c2.paint()
+                self.pix = sf
+            except Exception:
+                self.status.set_label('This map could not be opened.'); return
+            self.vstack.set_visible_child_name('pic'); GLib.idle_add(lambda: (self.fit(), False)[1])
+        self.fetch(a, m, False, show, lambda: self.status.set_label('This map needs the internet the first time.'))
+
+    def fit(self):
+        if not self.pix:
+            return
+        w, h = self.area.get_width() or 800, self.area.get_height() or 600
+        pw, ph = self.pix.get_width(), self.pix.get_height()
+        self.fit_s = min(w / pw, h / ph); self.s = self.fit_s
+        self.tx = (w - pw * self.s) / 2; self.ty = (h - ph * self.s) / 2; self.area.queue_draw()
+
+    def zoom(self, f, x=None, y=None):
+        if not self.pix:
+            return
+        if x is None:
+            x, y = (self.area.get_width() or 800) / 2, (self.area.get_height() or 600) / 2
+        ns = max(self.fit_s * 0.8, min(3.0, self.s * f)); f = ns / self.s
+        self.tx = x - (x - self.tx) * f; self.ty = y - (y - self.ty) * f; self.s = ns; self.area.queue_draw()
+
+    def on_scroll(self, _c, _dx, dy):
+        self.zoom(1 / 1.15 if dy > 0 else 1.15, *self.mouse); return True
+
+    def on_drag(self, _g, dx, dy):
+        self.tx, self.ty = self.d0[0] + dx, self.d0[1] + dy; self.area.queue_draw()
+
+    def on_pinch(self, g, scale):
+        ok, x, y = g.get_bounding_box_center()
+        f = (self.z0 * scale) / self.s
+        if ok:
+            self.zoom(f, x, y)
+
+    def draw(self, _a, cr, w, h):
+        cr.set_source_rgb(0.91, 0.88, 0.81); cr.paint()
+        if not self.pix:
+            return
+        cr.translate(self.tx, self.ty); cr.scale(self.s, self.s)
+        cr.set_source_surface(self.pix, 0, 0); cr.get_source().set_filter(cairo.FILTER_GOOD if self.s < 1 else cairo.FILTER_BILINEAR); cr.paint()

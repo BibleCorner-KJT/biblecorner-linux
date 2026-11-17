@@ -2,6 +2,7 @@
 import json, os, re, html, unicodedata
 from gi.repository import Gtk, Adw, GLib, Pango
 from .core import STORE, SET, lang, read_file, book_name, strip_tags, info
+from .i18n import _
 from .richtext import html_into, make_view
 
 PW = json.load(open(os.path.join(os.path.dirname(__file__), 'place_words.json'), encoding='utf-8'))
@@ -143,7 +144,7 @@ class DictPage(Gtk.Box):
         self.split = Adw.NavigationSplitView(); self.split.set_vexpand(True); self.append(self.split)
         # the list
         lt = Adw.ToolbarView(); lh = Adw.HeaderBar(); lt.add_top_bar(lh); win.sidebar_button(lh)
-        lh.set_title_widget(Adw.WindowTitle(title='Bible Dictionary'))
+        lh.set_title_widget(Adw.WindowTitle(title=_('Bible Dictionary')))
         top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=8, margin_end=8, margin_top=6, margin_bottom=6)
         self.q = Gtk.SearchEntry(placeholder_text='Find a word, a name or a place'); self.q.connect('search-changed', lambda *_: self.later())
         top.append(self.q)

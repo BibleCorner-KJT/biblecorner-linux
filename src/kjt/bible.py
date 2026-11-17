@@ -2,6 +2,7 @@
 import bisect, math, re, unicodedata
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, OT, NT, DEFAULT_BIBLES, canon, book_name, lang, read_file, version
+from .i18n import _
 from .study import STUDY, COLORS
 from .richtext import html_into, make_view, setup_tags
 
@@ -63,22 +64,22 @@ class BiblePage(Gtk.Box):
         tv = Adw.ToolbarView(); self.append(tv); tv.set_vexpand(True)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); self.hb = hb
         win.sidebar_button(hb)
-        self.trbtn = Gtk.MenuButton(tooltip_text='Choose the Bible'); self.trbtn.set_popover(self.make_tr_menu(False)); hb.pack_start(self.trbtn)
+        self.trbtn = Gtk.MenuButton(tooltip_text=_('Choose the Bible')); self.trbtn.set_popover(self.make_tr_menu(False)); hb.pack_start(self.trbtn)
         # a long Bible name is cut short (the whole name is in the tooltip and the list)
         self.trlabel = Gtk.Label(ellipsize=Pango.EllipsizeMode.END, max_width_chars=18, width_chars=4); self.trbtn.set_child(self.trlabel)
-        self.prev = ib('kjt-prev-symbolic', 'Previous chapter (←)', lambda: self.step(-1))
-        self.next = ib('kjt-next-symbolic', 'Next chapter (→)', lambda: self.step(1))
-        self.where = Gtk.MenuButton(always_show_arrow=True, tooltip_text='Choose a book and chapter'); self.where.add_css_class('flat')
+        self.prev = ib('kjt-prev-symbolic', _('Previous chapter (←)'), lambda: self.step(-1))
+        self.next = ib('kjt-next-symbolic', _('Next chapter (→)'), lambda: self.step(1))
+        self.where = Gtk.MenuButton(always_show_arrow=True, tooltip_text=_('Choose a book and chapter')); self.where.add_css_class('flat')
         self.where.set_popover(self.make_picker())
         tb = Gtk.Box(spacing=2); tb.append(self.prev); tb.append(self.where); tb.append(self.next)
         hb.set_title_widget(tb)
 
         # tools (in the top bar on a big window; at the bottom on a small one)
         self.tools = Gtk.Box(spacing=2)
-        self.search_btn = ib('kjt-search-symbolic', 'Search the Bible (Ctrl+F)', toggle=True)
-        self.hf_btn = ib('kjt-cross-symbolic', 'The Holy Fathers on this chapter', toggle=True)
-        self.cmp_btn = Gtk.MenuButton(icon_name='kjt-compare-symbolic', tooltip_text='Compare with another Bible'); self.cmp_btn.add_css_class('flat'); self.cmp_btn.set_popover(self.make_tr_menu(True))
-        for w in (self.search_btn, self.hf_btn, self.cmp_btn, ib('kjt-listen-symbolic', 'Listen', self.listen), ib('kjt-map-symbolic', 'Map of this chapter', self.map),
+        self.search_btn = ib('kjt-search-symbolic', _('Search the Bible (Ctrl+F)'), toggle=True)
+        self.hf_btn = ib('kjt-cross-symbolic', _('The Holy Fathers on this chapter'), toggle=True)
+        self.cmp_btn = Gtk.MenuButton(icon_name='kjt-compare-symbolic', tooltip_text=_('Compare with another Bible')); self.cmp_btn.add_css_class('flat'); self.cmp_btn.set_popover(self.make_tr_menu(True))
+        for w in (self.search_btn, self.hf_btn, self.cmp_btn, ib('kjt-listen-symbolic', _('Listen'), self.listen), ib('kjt-map-symbolic', _('Map of this chapter'), self.map),
                   self.size_button()):
             self.tools.append(w)
         hb.pack_end(self.tools)
@@ -142,8 +143,8 @@ class BiblePage(Gtk.Box):
         top.append(lbox)
         # right beside the reference: one more verse, or one less (only seen while verses are chosen)
         grow = Gtk.Box(valign=Gtk.Align.CENTER, hexpand=True, halign=Gtk.Align.START, margin_start=6); grow.add_css_class('linked')
-        self.less_btn = Gtk.Button(label='− One less', tooltip_text='Take the last verse away from the choice'); self.less_btn.connect('clicked', lambda *_: self.shrink())
-        self.more_btn = Gtk.Button(label='+ Next verse', tooltip_text='Add the next verse to the choice'); self.more_btn.add_css_class('suggested-action'); self.more_btn.connect('clicked', lambda *_: self.grow())
+        self.less_btn = Gtk.Button(label=_('− One less'), tooltip_text='Take the last verse away from the choice'); self.less_btn.connect('clicked', lambda *_: self.shrink())
+        self.more_btn = Gtk.Button(label=_('+ Next verse'), tooltip_text='Add the next verse to the choice'); self.more_btn.add_css_class('suggested-action'); self.more_btn.connect('clicked', lambda *_: self.grow())
         grow.append(self.less_btn); grow.append(self.more_btn); top.append(grow)
         self.colors = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, min_children_per_line=4, max_children_per_line=20, homogeneous=True, column_spacing=5, row_spacing=5, valign=Gtk.Align.CENTER, halign=Gtk.Align.END)
         self.dots = {}
@@ -164,14 +165,14 @@ class BiblePage(Gtk.Box):
                               ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-picture-symbolic', 'Share as picture', self.share_picture),
                               ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-edit-symbolic', 'Edit', self.edit), ('kjt-note-symbolic', 'Note', self.note),
                               ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
-            btn = labelled(icon, tip.split(' (')[0], fn); acts.append(btn)
+            btn = labelled(icon, _(tip.split(' (')[0]), fn); acts.append(btn)
             if tip == 'Bookmark':
                 self.bm_btn = btn
             elif tip == 'Note':
                 self.note_btn = btn
             elif tip == 'Edit':
                 self.edit_btn = btn
-        self.del_btn = labelled('kjt-trash-symbolic', 'Remove bookmark', lambda: self.remove()); acts.insert(self.del_btn, 2)
+        self.del_btn = labelled('kjt-trash-symbolic', _('Remove bookmark'), lambda: self.remove()); acts.insert(self.del_btn, 2)
         topflow.append(self.colors); barbox.append(acts)
         tv.add_bottom_bar(self.bar)
 
@@ -623,12 +624,12 @@ class BiblePage(Gtk.Box):
             (btn.add_css_class if c == col else btn.remove_css_class)('kjt-dot-on')
         self.nocolor.get_parent().set_visible(bool(r and col))
         if r:
-            bits = ['Bookmarked'] + (['highlighted ' + col] if col else []) + (['note: ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
+            bits = [_('Bookmarked')] + ([_('highlighted') + ' ' + _(col)] if col else []) + ([_('note') + ': ' + r['note'].strip()[:60]] if r.get('note') else []) + [STUDY.pad_label(t) for t in (r.get('tags') or [])]
             self.sel_state.set_label(' · '.join(bits))
         else:
-            self.sel_state.set_label('Not bookmarked yet' + (' · for more verses, click the last one' if len(self.sel) == 1 else ''))
+            self.sel_state.set_label(_('Not bookmarked yet') + (' · ' + _('for more verses, click the last one') if len(self.sel) == 1 else ''))
         self.bm_btn.get_parent().set_visible(not r); self.del_btn.get_parent().set_visible(bool(r)); self.edit_btn.get_parent().set_visible(bool(r))
-        self.note_btn.label.set_label('Edit note' if r and r.get('note') else 'Note')
+        self.note_btn.label.set_label(_('Edit note') if r and r.get('note') else _('Note'))
         self.bar.set_reveal_child(True)
 
     def unselect(self):
@@ -756,7 +757,7 @@ class BiblePage(Gtk.Box):
         box.append(Gtk.Label(label=self.sel_label.get_label(), xalign=0, css_classes=['heading'], margin_start=6, margin_bottom=4))
         dots = Gtk.Box(spacing=6, margin_start=6, margin_bottom=4)
         for c in COLORS:
-            b = Gtk.Button(tooltip_text='Highlight: ' + c); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + c)
+            b = Gtk.Button(tooltip_text=_('Highlight') + ': ' + _(c)); b.add_css_class('kjt-dot'); b.add_css_class('kjt-dot-' + c)
             b.connect('clicked', lambda _b, c=c: (pop.popdown(), self.bookmark(c))); dots.append(b)
         box.append(dots)
         for icon, label, fn in (('kjt-copy-symbolic', 'Copy', self.copy), ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-note-symbolic', 'Write a note', self.note),
@@ -767,7 +768,7 @@ class BiblePage(Gtk.Box):
             if icon is None:
                 box.append(Gtk.Separator(margin_top=3, margin_bottom=3)); continue
             b = Gtk.Button(); b.add_css_class('flat')
-            row = Gtk.Box(spacing=10); row.append(Gtk.Image(icon_name=icon)); row.append(Gtk.Label(label=label, xalign=0)); b.set_child(row)
+            row = Gtk.Box(spacing=10); row.append(Gtk.Image(icon_name=icon)); row.append(Gtk.Label(label=_(label), xalign=0)); b.set_child(row)
             b.connect('clicked', lambda _b, fn=fn: (pop.popdown(), fn())); box.append(b)
         pop.set_child(box)
         pop.connect('closed', lambda p: GLib.idle_add(lambda: (p.unparent(), False)[1]))
@@ -794,8 +795,8 @@ class BiblePage(Gtk.Box):
         if mine:
             notes = sum(1 for _, r in mine if r.get('note'))
             row = Gtk.Box(spacing=8)
-            row.append(Gtk.Label(label=('📝 ' if notes else '🔖 ') + 'Your notes and bookmarks in this chapter: %d' % len(mine), xalign=0, hexpand=True, wrap=True))
-            nb = Gtk.Button(label='Next ↓', tooltip_text='Go to the next one'); nb.add_css_class('flat')
+            row.append(Gtk.Label(label=('📝 ' if notes else '🔖 ') + _('Your notes and bookmarks in this chapter: %d') % len(mine), xalign=0, hexpand=True, wrap=True))
+            nb = Gtk.Button(label=_('Next ↓'), tooltip_text=_('Go to the next one')); nb.add_css_class('flat')
             nb.connect('clicked', lambda *_: self.next_mark(mine)); row.append(nb)
             self.info.append(row)
             fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=8, min_children_per_line=1, column_spacing=4, row_spacing=4)
@@ -811,7 +812,7 @@ class BiblePage(Gtk.Box):
             self.info.append(fb)
         names = self.chapter_names()
         if names:
-            self.info.append(Gtk.Label(label='People and places in this chapter', xalign=0, css_classes=['dim-label', 'caption']))
+            self.info.append(Gtk.Label(label=_('People and places in this chapter'), xalign=0, css_classes=['dim-label', 'caption']))
             fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=4, row_spacing=4)
             for i, n, kind in names[:60]:
                 b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text='Open in the Bible Dictionary'); b.add_css_class('kjt-chip')
@@ -820,7 +821,7 @@ class BiblePage(Gtk.Box):
         d = read_file('fathers/%s.json.gz' % canon(self.book))
         n = len((d or {}).get('e', {}).get(str(self.ch), [])) if d else 0
         if n:
-            b = Gtk.Button(label='☦ The Holy Fathers on this chapter: %d' % n, halign=Gtk.Align.START); b.add_css_class('flat')
+            b = Gtk.Button(label='☦ ' + _('The Holy Fathers on this chapter: %d') % n, halign=Gtk.Align.START); b.add_css_class('flat')
             b.connect('clicked', lambda *_: (setattr(self, 'sel', []), self.mark_selection(), self.hf_btn.set_active(True), self.side_show('hf')))
             self.info.append(b)
         self.info.set_visible(bool(self.info.get_first_child()))
@@ -990,7 +991,7 @@ class BiblePage(Gtk.Box):
             elif want:
                 h.append('<p><small>On the verses you chose. Clear the choice to see the whole chapter.</small></p>')
             for v1, v2, _, a, src, q in rows:
-                nm, yrs, _ = names.get(a) or [a, '', 9999]
+                nm, yrs, _y = names.get(a) or [a, '', 9999]
                 vv = ('v. %d' % v1 + ('–%d' % v2 if v2 > v1 else '')) if v1 else 'the chapter'
                 if 'Catena Aurea' in src:
                     src = 'from the Catena Aurea'

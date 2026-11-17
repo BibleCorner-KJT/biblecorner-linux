@@ -6,7 +6,7 @@ from .core import STORE, NET, LANGS, DEFAULT_BIBLES, info, write_file, read_file
 
 PARALLEL = 4   # files fetched at the same time, within one download
 WORKERS = 2    # downloads running at the same time; the others wait their turn
-MAP_FILES = ['base.json', 'places.json', 'stories.json', 'words.json', 'chapters.json', 'ident.json', 'world.json']
+MAP_FILES = ['base.json', 'places.json', 'stories.json', 'words.json', 'chapters.json', 'ident.json', 'world.json', 'atlas.json']
 
 
 class Job:

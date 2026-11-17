@@ -2,6 +2,7 @@
 import os, shutil
 from gi.repository import Gtk, Adw, GLib
 from .core import STORE, SET, NET, LANGS, LANG_NAMES, DEFAULT_BIBLES, FILES, info, lang, read_file
+from .i18n import _
 from .downloads import DL, default_plan
 
 
@@ -26,7 +27,7 @@ class DownloadsPage(Gtk.Box):
         self.win = win
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
-        hb.set_title_widget(Adw.WindowTitle(title='Downloads and language'))
+        hb.set_title_widget(Adw.WindowTitle(title=_('Downloads and language')))
         self.page = Adw.PreferencesPage(); tv.set_content(self.page)
         # the downloads, each on its own line: waiting, running (with its progress), done, failed
         self.queue_box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.queue_box.add_css_class('boxed-list')

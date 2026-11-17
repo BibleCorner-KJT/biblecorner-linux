@@ -5,12 +5,13 @@ gi.require_version('Gtk', '4.0'); gi.require_version('Adw', '1'); gi.require_ver
 from gi.repository import Gtk, Adw, Gio, GLib, Gdk, GObject
 
 from .core import STORE, SET, NET, SITE, LANGS, LANG_NAMES, info, lang, canon, run_bg
+from .i18n import _
 from .downloads import DL, default_plan, have_data
 from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.7.6'
+VERSION = '2.8'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -97,15 +98,15 @@ class Window(Adw.ApplicationWindow):
         bl = Gtk.Label(label='KJT'); bl.add_css_class('kjt-brand'); brand.append(bl)
         bi = Gtk.Image(icon_name='kjt-cross-symbolic', pixel_size=18); bi.add_css_class('kjt-brand'); brand.append(bi)
         sh.set_title_widget(brand)
-        menu = Gio.Menu(); menu.append('Keyboard shortcuts', 'app.keys'); menu.append('About Knowing Jesus Today', 'app.about')
-        sh.pack_end(Gtk.MenuButton(icon_name='kjt-more-symbolic', menu_model=menu, tooltip_text='Menu'))
+        self.menu_btn = Gtk.MenuButton(icon_name='kjt-more-symbolic', menu_model=self.make_menu(), tooltip_text=_('Menu'))
+        sh.pack_end(self.menu_btn)
         self.nav = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE); self.nav.add_css_class('navigation-sidebar'); self.nav.add_css_class('kjt-nav')
         for n, (key, title, icon) in enumerate(PAGES):
             row = Gtk.ListBoxRow(); row.key = key
             b = Gtk.Box(spacing=12, margin_top=7, margin_bottom=7, margin_start=4)
             im = Gtk.Image(icon_name=icon); im.add_css_class('kjt-nav-icon'); b.append(im)
-            b.append(Gtk.Label(label=title, xalign=0)); row.set_child(b)
-            row.set_tooltip_text('%s (Ctrl+%d)' % (title, n + 1))
+            row.lab = Gtk.Label(label=_(title), xalign=0); b.append(row.lab); row.set_child(b); row.title = title; row.n = n
+            row.set_tooltip_text('%s (Ctrl+%d)' % (_(title), n + 1))
             self.nav.append(row)
         self.nav.connect('row-activated', lambda _l, row: self.show(row.key, from_nav=True))
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(self.nav); st.set_content(sc)
@@ -132,7 +133,7 @@ class Window(Adw.ApplicationWindow):
         GLib.timeout_add(300, self.fit_layout)
 
         k = Gtk.ShortcutController(scope=Gtk.ShortcutScope.GLOBAL)
-        for n, (key, _, _) in enumerate(PAGES):
+        for n, (key, _t, _i) in enumerate(PAGES):
             k.add_shortcut(Gtk.Shortcut.new(Gtk.ShortcutTrigger.parse_string('<Control>%d' % (n + 1)), Gtk.CallbackAction.new(lambda *_a, key=key: (self.show(key), True)[1])))
         self.add_controller(k)
 
@@ -297,9 +298,28 @@ class Window(Adw.ApplicationWindow):
         url = href if re.match(r'https?://', href) else SITE + ('' if href.startswith('/') else '/') + href
         Gtk.UriLauncher.new(url).launch(self, None, None, None)
 
+    @staticmethod
+    def make_menu():
+        # 2.8: SimpleX first to talk to us; the Android app beside this one; the daily post for the website's administrators
+        menu = Gio.Menu()
+        talk = Gio.Menu(); talk.append(_('Talk to us on SimpleX'), 'app.simplex'); talk.append(_('The Android app (Bible Corner)'), 'app.android'); menu.append_section(None, talk)
+        more = Gio.Menu(); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Knowing Jesus Today'), 'app.about'); menu.append_section(None, more)
+        return menu
+
     def language_changed(self):
         from .dictionary import forget
         forget()
+        # 2.8: the menus in the new language at once (the rest of the words when the app is opened again)
+        self.menu_btn.set_menu_model(self.make_menu()); self.menu_btn.set_tooltip_text(_('Menu'))
+        r = self.nav.get_first_child()
+        while r:
+            if hasattr(r, 'lab'):
+                r.lab.set_label(_(r.title)); r.set_tooltip_text('%s (Ctrl+%d)' % (_(r.title), r.n + 1))
+            r = r.get_next_sibling()
+        try:
+            self.toast(_('Some words change when the app is opened again.'))
+        except Exception:
+            pass
         for k, p in self.pages.items():
             p.fresh = True
         cur = self.stack.get_visible_child_name()
@@ -387,11 +407,16 @@ class Window(Adw.ApplicationWindow):
         return False
 
 
+SIMPLEX = 'https://smp17.simplex.im/g#AiHuYaIlklw4qpYJXYIUbpX4_foaHUezMaHI4vNyAlw'   # the KJT group (as on the website)
+
+
 class App(Adw.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_OPEN)
         GLib.set_application_name('Knowing Jesus Today')
-        for name, fn, keys in (('about', self.about, None), ('keys', self.keys, ['<Ctrl>question']), ('quit', lambda *_: self.quit(), ['<Ctrl>q'])):
+        for name, fn, keys in (('about', self.about, None), ('keys', self.keys, ['<Ctrl>question']), ('quit', lambda *_: self.quit(), ['<Ctrl>q']),
+                               ('simplex', lambda *_: self.open_uri(SIMPLEX), None), ('android', lambda *_: self.open_uri('https://biblecorner.com/app'), None),
+                               ('dpost', lambda *_: __import__('kjt.dpost', fromlist=['open_post']).open_post(self.props.active_window), None)):
             a = Gio.SimpleAction.new(name, None); a.connect('activate', fn); self.add_action(a)
             if keys:
                 self.set_accels_for_action('app.' + name, keys)
@@ -425,8 +450,13 @@ class App(Adw.Application):
         d.set_developer_name('Knowing Jesus Today')
         d.add_credit_section('Places', ['OpenBible.info Bible Geocoding Data (CC BY 4.0)'])
         d.add_credit_section('Maps', ['Natural Earth (public domain)'])
+        d.add_link('Talk to us on SimpleX', SIMPLEX)
+        d.add_link('The Android app (Bible Corner)', 'https://biblecorner.com/app')
         d.add_credit_section('Library', ['CrossWire Bible Society https://crosswire.org', 'AndBible https://andbible.org', 'PySword versification tables (MIT)'])
         d.present(self.props.active_window)
+
+    def open_uri(self, uri):
+        Gtk.UriLauncher.new(uri).launch(self.props.active_window, None, None, None)
 
     def keys(self, *_):
         d = Adw.AlertDialog(heading='Keyboard shortcuts',

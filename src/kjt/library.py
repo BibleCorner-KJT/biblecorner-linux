@@ -3,6 +3,7 @@ Nothing is added without your choice: you see the list first, then keep what you
 import re
 from gi.repository import Gtk, Adw, GLib, Pango
 from .core import SET, STORE, NET, lang, run_bg, book_name, canon
+from .i18n import _
 from . import sword as S
 from .richtext import html_into, make_view
 
@@ -53,7 +54,7 @@ class LibraryPage(Gtk.Box):
         self.q.connect('search-changed', lambda *_: self.later())
         hb.set_title_widget(self.q)
         tabs = Gtk.Box(halign=Gtk.Align.CENTER, margin_top=8, margin_bottom=4); tabs.add_css_class('linked')
-        self.t_here = Gtk.ToggleButton(label='On this computer', active=True); self.t_get = Gtk.ToggleButton(label='Get more', group=self.t_here)
+        self.t_here = Gtk.ToggleButton(label=_('On this computer'), active=True); self.t_get = Gtk.ToggleButton(label=_('Get more'), group=self.t_here)
         self.t_here.connect('toggled', lambda b: b.get_active() and self.set_mode('here'))
         self.t_get.connect('toggled', lambda b: b.get_active() and self.set_mode('get'))
         tabs.append(self.t_here); tabs.append(self.t_get)
@@ -251,6 +252,7 @@ class LibraryPage(Gtk.Box):
             return
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
         hb.set_title_widget(Adw.WindowTitle(title=c.get('Description') or c['_name'], subtitle='Commentary'))
+        hb.pack_end(self.search_button(c, lambda q, emit, alive: self.search_verses(c, m, q, emit, alive)))
         bar = Gtk.Box(spacing=6, halign=Gtk.Align.CENTER, margin_top=6, margin_bottom=6)
         names = [book_name(S.OSIS2CODE.get(o, o)) if S.OSIS2CODE.get(o) else n for o, n, _ in books]
         bdd = Gtk.DropDown.new_from_strings(names); spin = Gtk.SpinButton.new_with_range(1, 150, 1)
@@ -300,6 +302,7 @@ class LibraryPage(Gtk.Box):
     def push_node(self, c, g, n, title):
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
         hb.set_title_widget(Adw.WindowTitle(title=title.replace('_', ' '), subtitle=c.get('Description') or c['_name']))
+        hb.pack_end(self.search_button(c, lambda q, emit, alive: self.search_book(c, g, q, emit, alive)))
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         kids = g.children(n)
         text = g.text(n) if n else ''
@@ -350,6 +353,7 @@ class LibraryPage(Gtk.Box):
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
         q = Gtk.SearchEntry(placeholder_text='Find a word', width_chars=20); hb.set_title_widget(q)
         names = m.names()
+        hb.pack_end(self.search_button(c, lambda qq, emit, alive: self.search_dict(c, m, names, qq, emit, alive)))
         model = Gtk.StringList.new([n for n in names])
         flt = Gtk.StringFilter(expression=Gtk.PropertyExpression.new(Gtk.StringObject, None, 'string'), match_mode=Gtk.StringFilterMatchMode.SUBSTRING, ignore_case=True)
         fm = Gtk.FilterListModel(model=model, filter=flt)
@@ -373,6 +377,117 @@ class LibraryPage(Gtk.Box):
         q.connect('search-changed', lambda e: flt.set_search(e.get_text().strip()))
         html_into(view, '<h2>%s</h2><p>Choose a word on the left, or type it above.</p>' % GLib.markup_escape_text(c.get('Description') or c['_name']), self.on_link)
         self.nav.push(Adw.NavigationPage(title=c.get('Description') or c['_name'], child=tv))
+
+    # ---------- 2.8: searching the whole of a commentary, a book or a dictionary ----------
+    def search_button(self, c, run):
+        mb = Gtk.MenuButton(icon_name='kjt-search-symbolic', tooltip_text=_('Search the whole of it'))
+        pop = Gtk.Popover(); bx = Gtk.Box(spacing=6, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
+        e = Gtk.SearchEntry(placeholder_text=_('Search the whole of it'), width_chars=26); go = Gtk.Button(label='Search'); go.add_css_class('suggested-action')
+        bx.append(e); bx.append(go); pop.set_child(bx); mb.set_popover(pop)
+        def start(*_):
+            t = e.get_text().strip()
+            if len(t) >= 2:
+                pop.popdown(); self.search_results(c, t, run)
+        e.connect('activate', start); go.connect('clicked', start)
+        return mb
+
+    @staticmethod
+    def snip(t, q):
+        i = t.casefold().find(q.casefold())
+        if i < 0:
+            return None
+        a, b = max(0, i - 70), min(len(t), i + len(q) + 90)
+        E = GLib.markup_escape_text
+        return ('…' if a else '') + E(t[a:i]) + '<b><span background="#f6d36588">' + E(t[i:i + len(q)]) + '</span></b>' + E(t[i + len(q):b]) + ('…' if b < len(t) else '')
+
+    def search_results(self, c, q, run):
+        import threading
+        tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
+        hb.set_title_widget(Adw.WindowTitle(title='“%s”' % q, subtitle=c.get('Description') or c['_name']))
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=12, margin_bottom=20, margin_start=12, margin_end=12)
+        status = Gtk.Label(label='Searching…', xalign=0, css_classes=['dim-label']); box.append(status)
+        lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list'); box.append(lb)
+        cl = Adw.Clamp(maximum_size=860); cl.set_child(box)
+        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(cl); tv.set_content(sc)
+        page = Adw.NavigationPage(title='Search', child=tv)
+        st = {'n': 0, 'alive': True}
+        page.connect('hidden', lambda *_: st.__setitem__('alive', False) if not page.get_mapped() and page.get_parent() is None else None)
+        MAX = 300
+        def emit(label, snippet, go):
+            if st['n'] >= MAX:
+                return False
+            st['n'] += 1
+            def add():
+                row = Adw.ActionRow(title=GLib.markup_escape_text(label), subtitle=snippet, activatable=True); row.set_subtitle_lines(3)
+                row.add_suffix(Gtk.Image(icon_name='go-next-symbolic')); row.connect('activated', lambda *_: go()); lb.append(row)
+                status.set_label('Searching… %d found' % st['n']); return False
+            GLib.idle_add(add)
+            return st['n'] < MAX
+        def alive(where=None):
+            if where:
+                GLib.idle_add(lambda: (st['alive'] and status.set_label('Searching… %s · %d found' % (where, st['n'])), False)[1])
+            return st['alive']
+        def work():
+            try:
+                run(q, emit, alive)
+            finally:
+                GLib.idle_add(lambda: (status.set_label(('%d%s found' % (st['n'], '+' if st['n'] >= MAX else '')) if st['n'] else 'Nothing found.'), False)[1])
+        self.nav.push(page)
+        threading.Thread(target=work, daemon=True).start()
+
+    def search_verses(self, c, m, q, emit, alive):
+        for osis, name, nch in m.books():
+            nm = book_name(S.OSIS2CODE.get(osis, osis)) if S.OSIS2CODE.get(osis) else name
+            if not alive(nm):
+                return
+            for ch in range(1, nch + 1):
+                last = None
+                for v, t in m.chapter(osis, ch):
+                    if not t or t == last:
+                        continue
+                    last = t
+                    h = self.snip(S.to_plain(t, m.src), q)
+                    if h and not emit('%s %d:%d' % (nm, ch, v), h, lambda osis=osis, ch=ch, v=v: self.open_commentary(c, S.OSIS2CODE.get(osis, osis), ch, v)):
+                        return
+
+    def search_book(self, c, g, q, emit, alive):
+        total = len(g.idx) // 4
+        def trail(n):
+            out, nd, k = [], g.node(n), 0
+            while nd and nd['n'] != 0 and k < 50:
+                out.insert(0, nd['name'].replace('_', ' ')); k += 1
+                if nd['parent'] < 0:
+                    break
+                nd = g.node(nd['parent'] // 4)
+            return ' › '.join(out)
+        for n in range(1, total):
+            if n % 50 == 0 and not alive('%d%%' % (n * 100 // total)):
+                return
+            try:
+                t = g.text(n)
+            except Exception:
+                continue
+            h = self.snip(S.to_plain(t, g.src), q) if t else None
+            if h and not emit(trail(n) or c['_name'], h, lambda n=n: self.push_node(c, g, n, g.node(n)['name'])):
+                return
+
+    def search_dict(self, c, m, names, q, emit, alive):
+        for i, w in enumerate(names):
+            if i % 100 == 0 and not alive('%d%%' % (i * 100 // max(1, len(names)))):
+                return
+            try:
+                t = S.to_plain(m.get(i), m.src)
+            except Exception:
+                t = ''
+            h = self.snip(t, q) or (GLib.markup_escape_text(w) if q.casefold() in w.casefold() else None)
+            if h and not emit(w, h, lambda i=i, w=w: self.show_word(c, m, w, i)):
+                return
+
+    def show_word(self, c, m, w, i):
+        tv = Adw.ToolbarView(); tv.add_top_bar(Adw.HeaderBar())
+        view, sc = self.text_view(); tv.set_content(sc)
+        html_into(view, '<h2>%s</h2>%s' % (GLib.markup_escape_text(w), S.to_html(m.get(i), m.src)), self.on_link)
+        self.nav.push(Adw.NavigationPage(title=w[:40], child=tv))
 
     # ---------- from elsewhere in the app ----------
     def open_href(self, href):

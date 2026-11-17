@@ -1,7 +1,9 @@
 """The Holy Fathers: their writings, kept on this computer, to read like books."""
+import re
 import json, os
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import SET, read_file
+from .i18n import _
 from .richtext import html_into, make_view
 
 META = json.load(open(os.path.join(os.path.dirname(__file__), 'fathers_meta.json'), encoding='utf-8'))
@@ -37,9 +39,9 @@ class FathersPage(Gtk.Box):
         idx = read_file('library/index.json') or []
         self.idx = {x['id']: x for x in idx}
         T = self.topics()
-        page = Adw.NavigationPage(title='The Holy Fathers', tag='home')
+        page = Adw.NavigationPage(title=_('The Holy Fathers'), tag='home')
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb); self.win.sidebar_button(hb)
-        self.q = Gtk.SearchEntry(placeholder_text='Find a Father or a writing', width_chars=22); hb.set_title_widget(self.q)
+        self.q = Gtk.SearchEntry(placeholder_text=_('Find a Father or a writing'), width_chars=22); hb.set_title_widget(self.q)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         self.home_box = box
         self.q.connect('search-changed', lambda *_: self.fill_home())
@@ -63,7 +65,7 @@ class FathersPage(Gtk.Box):
             return
         # read by topic: coloured tiles, as on the website
         if not q:
-            box.append(Gtk.Label(label='Read by topic', xalign=0, css_classes=['title-3']))
+            box.append(Gtk.Label(label=_('Read by topic'), xalign=0, css_classes=['title-3']))
             tiles = [(t, self.topic_count(t[0])) for t in T['topics']]
             tiles = [x for x in tiles if x[1] > 0]
             fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=2, max_children_per_line=4, column_spacing=10, row_spacing=10)
@@ -81,7 +83,15 @@ class FathersPage(Gtk.Box):
             if len(tiles) > 8:
                 tb = Gtk.Button(label=('▴ Fewer topics' if more else '▾ All topics (%d)' % len(tiles)), halign=Gtk.Align.CENTER); tb.add_css_class('flat')
                 tb.connect('clicked', lambda *_: (SET.set('hf_all_topics', 0 if more else 1), self.fill_home())); box.append(tb)
-        # the Fathers, era by era, each era in its own colour
+        # the Fathers in their eras, or every Father by name (A to Z), as on the website
+        how = 'az' if SET.get('hf_how') == 'az' else 'era'
+        sw = Gtk.Box(halign=Gtk.Align.START, margin_top=8); sw.add_css_class('linked')
+        b_era = Gtk.ToggleButton(label=_('🕰 By era'), active=how == 'era'); b_az = Gtk.ToggleButton(label=_('🔤 By author (A–Z)'), group=b_era, active=how == 'az')
+        b_era.connect('toggled', lambda b: b.get_active() and (SET.set('hf_how', 'era'), GLib.idle_add(lambda: (self.fill_home(), False)[1])))
+        b_az.connect('toggled', lambda b: b.get_active() and (SET.set('hf_how', 'az'), GLib.idle_add(lambda: (self.fill_home(), False)[1])))
+        sw.append(b_era); sw.append(b_az); box.append(sw)
+        if how == 'az':
+            self.fill_az(box, q); return
         for i, (title, about, ids) in enumerate(T['eras']):
             have = [a for a in ids if a in self.idx and (not q or q in (self.idx[a]['name'] + ' ' + ' '.join(w['t'] for w in self.idx[a]['works']) + ' ' + T.get('about', {}).get(a, '')).casefold())]
             if not have:
@@ -105,6 +115,39 @@ class FathersPage(Gtk.Box):
                     v.append(Gtk.Label(label='  '.join(self.TOPIC[t][1] + ' ' + self.TOPIC[t][2] for t in tops[:3]), xalign=0, wrap=True, lines=2, max_width_chars=30, ellipsize=Pango.EllipsizeMode.END, css_classes=['caption']))
                 b.set_child(v); b.connect('clicked', lambda _b, a=a: self.open_author(a)); fb.append(b)
             box.append(fb)
+
+    @staticmethod
+    def sort_name(n):
+        return re.sub(r'^(?:(?:St\.?|Saint|Saints|Pope|Blessed|Venerable|The)\s+)+', '', n, flags=re.I).strip()
+
+    def fill_az(self, box, q):
+        """every Father by name, letter by letter; each with his dates, his era's colour and his writings"""
+        era_of = {}
+        for i, (_t, _a, ids) in enumerate(self.T['eras']):
+            for a in ids:
+                era_of.setdefault(a, i)
+        ids = [a for a in self.idx if not q or q in (self.idx[a]['name'] + ' ' + ' '.join(w['t'] for w in self.idx[a]['works']) + ' ' + self.T.get('about', {}).get(a, '')).casefold()]
+        ids.sort(key=lambda a: self.sort_name(self.idx[a]['name']).casefold())
+        if not ids:
+            box.append(Gtk.Label(label='Nothing found.', xalign=0, css_classes=['dim-label'])); return
+        letter, grp = None, None
+        for a in ids:
+            x = self.idx[a]; L = (self.sort_name(x['name'])[:1] or '?').upper()
+            if L != letter:
+                letter = L
+                lt = Gtk.Label(xalign=0, margin_top=6); lt.set_markup('<span foreground="#8a6a2a"><b><big><big>%s</big></big></b></span>' % GLib.markup_escape_text(L)); box.append(lt)
+                grp = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); grp.add_css_class('boxed-list'); box.append(grp)
+            col = ERA_COLORS[era_of.get(a, 0) % len(ERA_COLORS)]
+            life = x.get('when') or META['life'].get(a, '')
+            n = len(x['works'])
+            row = Adw.ExpanderRow(title=GLib.markup_escape_text(x['name']), subtitle=GLib.markup_escape_text('%s%s%d writing%s' % (life, ' · ' if life else '', n, '' if n == 1 else 's')))
+            dot = Gtk.Label(); dot.set_markup('<span foreground="%s" size="x-large">●</span>' % col); row.add_prefix(dot)
+            op = Gtk.Button(icon_name='go-next-symbolic', tooltip_text='Open', valign=Gtk.Align.CENTER); op.add_css_class('flat')
+            op.connect('clicked', lambda _b, a=a: self.open_author(a)); row.add_suffix(op)
+            for w in x['works']:
+                r = Adw.ActionRow(title=GLib.markup_escape_text(w['t']), subtitle=GLib.markup_escape_text('%d parts' % w['n']) if w.get('n', 1) > 1 else '', activatable=True)
+                r.connect('activated', lambda _r, a=a, w=w: self.open_work(a, w['id'])); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic')); row.add_row(r)
+            grp.append(row)
 
     def top_topics(self, a):
         n = {}
