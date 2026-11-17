@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.7.5" date="2026-11-17"><description><p>Sign in with your study key, as on the website (or with a name and password).</p></description></release>
     <release version="2.7.4" date="2026-11-17"><description><p>The Holy Fathers as on the website: read by topic, in coloured tiles (Prayer, Repentance, the Mother of God …); the Fathers in their eras, each era in its own colour, with the topics they wrote on; the topics of each writing; and a search.</p></description></release>
     <release version="2.7.3" date="2026-11-17"><description><p>My Study in two columns: the Study Pads on the left, the bookmarks and notes beside them, each scrolling on its own (drag the line between them to change their widths). Every page now fits medium and small windows: the small-screen layout follows the room the pages really have.</p></description></release>
     <release version="2.7.2" date="2026-11-17"><description><p>Choose several verses as on the website: click the first, then the last. “+ Next verse” and “− One less” now sit beside the verse reference. The last chosen verse is always fully highlighted.</p></description></release>

@@ -203,36 +203,67 @@ class StudyPage(Gtk.Box):
             g.add(row)
         (parent or self.right).append(g)
 
-    def sign_in_dialog(self):
-        d = Adw.AlertDialog(heading='Sign in to My KJT', body='Use the name (or e-mail) and password of your account on knowingjesus.today.')
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+    def sign_in_dialog(self, how=None):
+        how = how or SET.get('signin_how', 'key')
+        d = Adw.AlertDialog(heading='Sign in to My KJT', body='Open your study with your study key, or with the name (or e-mail) and password of your account on knowingjesus.today.')
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        tabs = Gtk.Box(halign=Gtk.Align.CENTER); tabs.add_css_class('linked')
+        t_key = Gtk.ToggleButton(label='🔑 Study key', active=how == 'key'); t_pw = Gtk.ToggleButton(label='Name and password', group=t_key, active=how != 'key')
+        tabs.append(t_key); tabs.append(t_pw); box.append(tabs)
+        stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, vhomogeneous=False)
+        # the study key
+        kb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        key = Adw.PasswordEntryRow(title='Your study key  (KJT-XXXX-XXXX-XXXX-XXXX)')
+        kl = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); kl.add_css_class('boxed-list'); kl.append(key); kb.append(kl)
+        kb.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label='Lost your study key? Get a new one on the website'))
+        stack.add_named(kb, 'key')
+        # name and password
+        pb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         lg = Adw.EntryRow(title='Name or e-mail'); pw = Adw.PasswordEntryRow(title='Password')
-        lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list'); lb.append(lg); lb.append(pw); box.append(lb)
-        self.err = Gtk.Label(wrap=True, css_classes=['error'], visible=False); box.append(self.err)
-        link = Gtk.LinkButton(uri=NET_SITE() + '/wp-login.php?action=lostpassword', label='Forgot your password?'); box.append(link)
-        reg = Gtk.LinkButton(uri=NET_SITE() + '/wp-login.php?action=register', label='No account yet? Make one on the website'); box.append(reg)
+        lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list'); lb.append(lg); lb.append(pw); pb.append(lb)
+        pb.append(Gtk.LinkButton(uri=NET_SITE() + '/wp-login.php?action=lostpassword', label='Forgot your password?'))
+        stack.add_named(pb, 'pw')
+        box.append(stack)
+        box.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label='No study yet? Make one on the website (a study key needs no e-mail)'))
         d.set_extra_child(box)
         d.add_response('cancel', 'Cancel'); d.add_response('go', 'Sign in'); d.set_response_appearance('go', Adw.ResponseAppearance.SUGGESTED)
         d.set_default_response('go'); d.set_close_response('cancel')
-        d.set_response_enabled('go', False)
+        def mode():
+            return 'key' if t_key.get_active() else 'pw'
         def check(*_):
-            d.set_response_enabled('go', bool(lg.get_text().strip() and pw.get_text()))
-        lg.connect('changed', check); pw.connect('changed', check)
-        pw.connect('entry-activated', lambda *_: d.get_response_enabled('go') and (d.close(), go()))
+            if mode() == 'key':
+                raw = ''.join(ch for ch in key.get_text().upper() if ch.isalnum())
+                ok = len(raw) in (16, 19)
+            else:
+                ok = bool(lg.get_text().strip() and pw.get_text())
+            d.set_response_enabled('go', ok)
+        def switch(*_):
+            stack.set_visible_child_name(mode()); SET.set('signin_how', mode()); check()
+            GLib.idle_add(lambda: ((key if mode() == 'key' else lg).grab_focus(), False)[1])
+        t_key.connect('toggled', switch); t_pw.connect('toggled', switch)
+        for e in (key, lg, pw):
+            e.connect('changed', check)
+        for e in (key, pw):
+            e.connect('entry-activated', lambda *_: d.get_response_enabled('go') and (d.close(), go()))
         def go():
             if not NET.online():
                 self.win.toast('Signing in needs the internet'); return
             self.win.toast('Signing in…')
-            STUDY.sign_in(lg.get_text().strip(), pw.get_text(), done)
+            if mode() == 'key':
+                STUDY.sign_in('', '', done, key=key.get_text().strip())
+            else:
+                STUDY.sign_in(lg.get_text().strip(), pw.get_text(), done)
         def done(res):
             if res.get('ok'):
                 self.win.toast('Welcome%s. Your study is now kept in step with My KJT.' % ((', ' + res['name']) if res.get('name') else ''))
                 self.fill()
             else:
-                why = {'wrong': 'The name or the password is not right.', 'limit': 'Too many tries. Please wait a few minutes.', 'net': 'The website could not be reached.'}.get(res.get('why'), 'Signing in did not work. Please try again.')
+                wrong = 'That study key was not recognised. Check it and try again.' if mode() == 'key' else 'The name or the password is not right.'
+                why = {'wrong': wrong, 'limit': 'Too many tries. Please wait an hour and try again.', 'net': 'The website could not be reached.'}.get(res.get('why'), 'Signing in did not work. Please try again.')
                 self.win.toast(why)
-                GLib.timeout_add(400, lambda: (self.sign_in_dialog(), False)[1])
+                GLib.timeout_add(400, lambda: (self.sign_in_dialog(mode()), False)[1])
         d.connect('response', lambda _d, res: go() if res == 'go' else None)
+        switch()
         d.present(self.win)
 
     def sign_out(self):

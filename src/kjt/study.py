@@ -207,10 +207,14 @@ class Study:
                 done(res)
         run_bg(work, fin)
 
-    def sign_in(self, login, password, done):
+    def sign_in(self, login, password, done, key=None):
+        """with a name (or e-mail) and password, or with a study key (KJT-XXXX-XXXX-XXXX-XXXX), as on the website"""
         def work():
             i = info(refresh=True)
-            r = NET.ajax('kjtb_app_pw', {'log': login, 'pwd': password, 'nonce': i.get('nonce_pw', '')})
+            if key:
+                r = NET.ajax('kjtb_app_key', {'key': key, 'nonce': i.get('nonce_pw', '')})
+            else:
+                r = NET.ajax('kjtb_app_pw', {'log': login, 'pwd': password, 'nonce': i.get('nonce_pw', '')})
             if not r.get('success'):
                 code = (r.get('data') or {}).get('code') if isinstance(r.get('data'), dict) else ''
                 return {'ok': False, 'why': 'wrong' if code == 'wrong' else ('limit' if code == 'limit' else 'error')}
