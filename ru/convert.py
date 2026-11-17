@@ -28,8 +28,35 @@ def get(url, tries=4):
     return ''
 
 
+BLOCK = {'p', 'h2', 'h3', 'h4', 'ol', 'ul', 'hr', 'blockquote'}
+
+
+def loose(h):
+    """text left between the blocks (the headings of the Lives are plain centred lines) becomes a heading"""
+    s = BeautifulSoup('<div>' + h + '</div>', 'html.parser').div
+    out, run = [], []
+    def flush():
+        t = ''.join(str(x) for x in run).strip()
+        txt = re.sub(r'<[^>]+>', ' ', t)
+        if re.sub(r'\s+', '', txt):
+            out.append('<h3>' + re.sub(r'\s*<br/?>\s*', ' ', re.sub(r'\s*\n\s*', ' ', t)).strip() + '</h3>')
+        run.clear()
+    for c in list(s.children):
+        if getattr(c, 'name', None) in BLOCK:
+            flush(); out.append(str(c))
+        else:
+            run.append(c)
+    flush()
+    return '\n'.join(out)
+
+
 def clean(node):
     """only plain reading tags, no attributes; links become their words"""
+    node.attrs = {}
+    for t in node.find_all('img'):   # a decorated first letter: its letter
+        alt = (t.get('alt') or '').strip()
+        if 0 < len(alt) <= 2:
+            t.replace_with(alt)
     for t in node.find_all(['script', 'style', 'noscript', 'img', 'figure', 'button', 'form', 'svg', 'audio', 'video']):
         t.decompose()
     for t in node.find_all(True):
@@ -44,7 +71,7 @@ def clean(node):
     h = re.sub(r'^<div>|</div>$', '', h)
     h = re.sub(r'<p>\s*</p>', '', h)
     h = re.sub(r'\n{3,}', '\n\n', h)
-    return h.strip()
+    return loose(h.strip())
 
 
 def slug(s):
@@ -160,8 +187,9 @@ def lives():
                 if p is not None:
                     p.decompose()
             root = s.find(class_='mw-parser-output') or s
-            names = [h.get_text(' ', strip=True) for h in root.find_all(['h2', 'h3'])][:6]
             h = clean(root)
+            names = [re.sub(r'<[^>]+>', '', x).strip() for x in re.findall(r'<h3>(.*?)</h3>', h)]
+            names = [n for n in names if n and not n.startswith('День') and len(n) < 160][:6]
             if len(re.sub(r'<[^>]+>', '', h)) < 80:
                 continue
             title = '%d %s' % (d, gen)
