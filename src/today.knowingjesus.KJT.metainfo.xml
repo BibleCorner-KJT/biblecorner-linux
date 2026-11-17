@@ -4,15 +4,48 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-2.0-or-later</project_license>
   <name>Knowing Jesus Today</name>
-  <summary>The Holy Bible and the Orthodox faith, also without internet</summary>
+  <summary>Holy Bible and the Orthodox faith</summary>
   <description>
-    <p>A whole app of its own: the Holy Bible in many languages with search, comparison and listening; the Holy Fathers beside every chapter and their writings to read like books; the Bible Dictionary; the Bible Maps in the land's real colours with the story maps; Today with God with the readings of the day.</p>
-    <p>Everything is kept on your computer and works without the internet. Sign in to keep your bookmarks, colours, notes and Study Pads in step with My KJT on the website and your phone.</p>
+    <p>Knowing Jesus Today is a Bible reader for Linux: read the Holy Bible with the Orthodox faith, study it with the Holy Fathers, and keep it all on your computer, to read also without the internet.</p>
+    <ul>
+      <li>The Holy Bible in many languages, with search, comparison, cross-references and the Greek and Hebrew words</li>
+      <li>The Holy Fathers beside every chapter, and their writings to read like books, by topic and by era</li>
+      <li>Bookmarks, colours, notes and Study Pads, kept in step with your phone and the website when you sign in</li>
+      <li>A library of free Bibles, commentaries, dictionaries and books from CrossWire and AndBible, the Septuagint and the Church Fathers first</li>
+      <li>The Bible Maps in the land's real colours, with story maps such as the journeys of St Paul</li>
+      <li>Today with God: the verse of the day, the feasts, the saints and the readings of the day</li>
+      <li>Share a verse as a picture, with your own photo if you like</li>
+    </ul>
+    <p>Everything you choose to download is kept on your computer.</p>
   </description>
   <launchable type="desktop-id">today.knowingjesus.KJT.desktop</launchable>
   <url type="homepage">https://knowingjesus.today/</url>
+  <url type="bugtracker">https://github.com/BibleCorner-KJT/biblecorner-linux/issues</url>
+  <url type="vcs-browser">https://github.com/BibleCorner-KJT/biblecorner-linux</url>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/reader.png</image>
+      <caption>The Holy Bible, with the Holy Fathers on the chosen verses</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/fathers.png</image>
+      <caption>The Holy Fathers, by topic and by era</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/maps.png</image>
+      <caption>The Bible Maps: the journeys of St Paul</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/library.png</image>
+      <caption>A library of free books, the Orthodox ones first</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/study.png</image>
+      <caption>Study Pads, bookmarks and notes</caption>
+    </screenshot>
+  </screenshots>
   <developer id="today.knowingjesus"><name>Knowing Jesus Today</name></developer>
-  <requires><display_length compare="ge">340</display_length></requires>
+  <requires><display_length compare="ge">360</display_length></requires>
   <supports><control>pointing</control><control>keyboard</control><control>touch</control></supports>
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>

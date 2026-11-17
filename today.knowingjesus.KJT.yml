@@ -1,6 +1,6 @@
 app-id: today.knowingjesus.KJT
 runtime: org.gnome.Platform
-runtime-version: '48'
+runtime-version: '51'
 sdk: org.gnome.Sdk
 command: kjt
 finish-args:
