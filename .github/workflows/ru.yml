@@ -1,0 +1,22 @@
+name: Russian books (Philokalia, Lives of the Saints)
+on:
+  push:
+    branches: [main]
+    paths: ['ru/convert.py', '.github/workflows/ru.yml']
+  workflow_dispatch:
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install beautifulsoup4
+      - run: python3 ru/convert.py
+      - name: Keep them in the branch "ru-books"
+        run: |
+          cd out/library
+          git init -q -b ru-books && git add -A
+          git -c user.name="KJT" -c user.email="noreply@knowingjesus.today" commit -qm "Russian books $(date -u +%F)"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ru-books
