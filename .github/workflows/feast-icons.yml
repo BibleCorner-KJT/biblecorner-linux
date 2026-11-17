@@ -10,4 +10,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - run: python3 icons/look.py
+      - run: python3 icons/feasts.py
+      - run: |
+          cd out && git init -q -b feast-icons && git add -A
+          git -c user.name="KJT" -c user.email="noreply@knowingjesus.today" commit -qm "Icons of the great feasts"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" feast-icons

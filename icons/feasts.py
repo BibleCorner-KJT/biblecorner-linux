@@ -5,20 +5,23 @@ import json, os, re, time, urllib.parse, urllib.request
 UA = 'KJT-Bible-Corner/1.0 (https://knowingjesus.today; Orthodox Bible app) python-urllib'
 API = 'https://commons.wikimedia.org/w/api.php'
 A = '15th c., Annunciation Cathedral in Moscow'
+AC = 'Annunciation Cathedral in Moscow'
+# exact files first (the festal row of the Annunciation Cathedral, 1405, and the Vasilyevsky row, 1408), then a search whose
+# result must have one of the words in its name
 Q = {
-    'nativity': ['Nativity (%s)' % A, 'Nativity of Christ icon Rublev', 'Nativity of Christ Novgorod icon 15th century'],
-    'theophany': ['Baptism (%s)' % A, 'Theophany icon Rublev', 'Baptism of Christ Novgorod icon'],
-    'meeting': ['Presentation (%s)' % A, 'Meeting of the Lord (%s)' % A, 'Presentation of Jesus at the Temple Rublev icon'],
-    'annunciation': ['Annunciation (%s)' % A, 'Annunciation Ustyug icon', 'Annunciation icon Rublev'],
-    'palm': ['Entry into Jerusalem (%s)' % A, 'Entry into Jerusalem Rublev icon'],
-    'pascha': ['Descent into Hell (%s)' % A, 'Anastasis icon 15th century', 'Descent into Hell Dionisius icon'],
-    'ascension': ['Ascension (%s)' % A, 'Ascension of Christ Rublev icon'],
-    'pentecost': ['Pentecost (%s)' % A, 'Descent of the Holy Spirit (%s)' % A, 'Pentecost icon Novgorod 15th century'],
-    'transfiguration': ['Transfiguration (%s)' % A, 'Transfiguration icon Theophanes the Greek', 'Transfiguration Rublev icon'],
-    'dormition': ['Dormition (%s)' % A, 'Dormition icon Theophanes the Greek', 'Dormition of the Theotokos icon 15th century'],
-    'nativity_theotokos': ['Nativity of the Theotokos icon 16th century', 'Nativity of the Mother of God icon Novgorod', 'Nativity of the Virgin icon Russian'],
-    'elevation': ['Exaltation of the Cross icon 15th century', 'Elevation of the Holy Cross icon Russian', 'Exaltation of the Holy Cross icon'],
-    'entry': ['Entry of the Theotokos into the Temple icon 16th century', 'Presentation of the Virgin icon Russian', 'Introduction of the Theotokos icon'],
+    'nativity': [['File:Nativity (15th c., %s).jpg' % AC], 'Nativity icon Russia 15th', ['nativity']],
+    'theophany': [['File:Baptism (15th c., %s).jpg' % AC, 'File:Baptism (%s).jpg' % AC], 'Baptism of Christ icon Russia 15th', ['baptism', 'theophany', 'kreshchenie']],
+    'meeting': [['File:Sretenie (%s).jpg' % AC], 'Sretenie icon', ['sretenie', 'presentation', 'meeting']],
+    'annunciation': [['File:Annunciation (%s).jpg' % AC, 'File:Annunciation from Vasilyevskiy chin (1408, Tretyakov gallery).jpg'], 'Annunciation icon Russia 15th', ['annunciation', 'blagoveshchenie']],
+    'palm': [['File:Entry into Jerusalem (%s).jpg' % AC], 'Entry into Jerusalem icon Russia', ['jerusalem']],
+    'pascha': [['File:Descent into Hell (%s).jpg' % AC, 'File:Resurrection (%s).jpg' % AC, 'File:Descent into Hell (%s) by shakko.jpg' % AC], 'Descent into Hell icon Russia 15th century', ['descent into hell', 'anastasis', 'resurrection', 'harrowing']],
+    'ascension': [['File:Ascension (%s).jpg' % AC, 'File:Ascension from Vasilyevskiy chin (15th c., GTG).jpg'], 'Ascension icon Russia 15th', ['ascension']],
+    'pentecost': [['File:Pentecost (%s).jpg' % AC, 'File:Descent of the Holy Spirit (%s).jpg' % AC, 'File:Pentecost (15th c., %s).jpg' % AC], 'Descent of the Holy Spirit icon Russia', ['pentecost', 'holy spirit', 'troitsa', 'soshestvie']],
+    'transfiguration': [['File:Transfiguration (%s).jpg' % AC, 'File:Transfiguration (15th c., %s).jpg' % AC, 'File:Transfiguration by Feofan Grek from Spaso-Preobrazhensky Cathedral in Pereslavl-Zalessky (15th c, Tretyakov gallery).jpeg'], 'Transfiguration icon Russia 15th', ['transfiguration', 'preobrazhenie']],
+    'dormition': [['File:Dormition (%s).jpg' % AC, 'File:Dormition (15th c., %s).jpg' % AC, 'File:Theofanus uspenie.jpg'], 'Dormition icon Russia 15th', ['dormition', 'uspenie']],
+    'nativity_theotokos': [['File:0648Ha. Hermitage Museum. Icon Nativity of the Virgin.jpg'], 'Nativity of the Virgin icon Russia', ['nativity of the virgin', 'nativity of the theotokos', 'nativity of mary', 'rozhdestvo bogoroditsy']],
+    'elevation': [['File:Unknown painter - Exaltation of the Cross - WGA23497.jpg'], 'Exaltation of the Cross icon', ['exaltation', 'elevation', 'vozdvizhenie']],
+    'entry': [[], 'Entry of the Theotokos into the Temple icon', ['entry of the theotokos', 'presentation of the virgin', 'presentation of mary', 'vvedenie', 'entrance of the theotokos', 'introduction']],
 }
 os.makedirs('out', exist_ok=True)
 def api(**p):
@@ -27,32 +30,42 @@ def api(**p):
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read())
 credits = {}
-for key, qs in Q.items():
+def good(p):
+    ii = (p.get('imageinfo') or [{}])[0]; em = ii.get('extmetadata') or {}
+    lic = (em.get('LicenseShortName') or {}).get('value', '')
+    if 'public domain' not in lic.lower() and lic.upper() not in ('PD', 'CC0'):
+        return None
+    if ii.get('width', 0) < 300 or not ii.get('thumburl'):
+        return None
+    return (p['title'], ii, em, lic)
+for key, (files, q, words) in Q.items():
     got = None
-    for q in qs:
-        r = api(action='query', generator='search', gsrsearch='filetype:bitmap ' + q, gsrnamespace='6', gsrlimit='8', prop='imageinfo', iiprop='url|extmetadata|size', iiurlwidth='600')
-        pages = sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda x: x.get('index', 99))
-        for p in pages:
-            ii = (p.get('imageinfo') or [{}])[0]; em = ii.get('extmetadata') or {}
-            lic = (em.get('LicenseShortName') or {}).get('value', '')
-            if 'public domain' not in lic.lower() and lic.upper() not in ('PD', 'CC0'):
-                continue
-            if ii.get('width', 0) < 300 or not ii.get('thumburl'):
-                continue
-            got = (p['title'], ii, em, lic); break
-        print(key, '|', q, '->', got[0] if got else None, flush=True)
+    for f in files:
+        r = api(action='query', titles=f, prop='imageinfo', iiprop='url|extmetadata|size', iiurlwidth='600')
+        for p in (r.get('query') or {}).get('pages', {}).values():
+            if 'missing' not in p:
+                got = good(p)
+        print(key, '|', f, '->', bool(got), flush=True)
         if got:
             break
-        time.sleep(1)
+    if not got:
+        r = api(action='query', generator='search', gsrsearch='filetype:bitmap ' + q, gsrnamespace='6', gsrlimit='30', prop='imageinfo', iiprop='url|extmetadata|size', iiurlwidth='600')
+        for p in sorted((r.get('query') or {}).get('pages', {}).values(), key=lambda x: x.get('index', 99)):
+            t = p['title'].lower()
+            if any(w in t for w in words) and not any(b in t for b in ('hall', 'interior', 'museum of russian icons', 'riza', 'detail', 'fragment')):
+                got = good(p)
+                if got:
+                    break
+        print(key, '| search', q, '->', got[0] if got else None, flush=True)
     if not got:
         continue
     title, ii, em, lic = got
     req = urllib.request.Request(ii['thumburl'], headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=60) as r, open('out/%s.jpg' % key, 'wb') as f:
-        f.write(r.read())
+    with urllib.request.urlopen(req, timeout=60) as r, open('out/%s.jpg' % key, 'wb') as fo:
+        fo.write(r.read())
     strip = lambda s: re.sub(r'<[^>]+>', '', s or '').strip()
-    credits[key] = {'file': title, 'page': ii.get('descriptionurl'), 'artist': strip((em.get('Artist') or {}).get('value')), 'date': strip((em.get('DateTimeOriginal') or {}).get('value')),
-                    'licence': lic, 'about': strip((em.get('ImageDescription') or {}).get('value'))[:300]}
+    credits[key] = {'file': title, 'page': ii.get('descriptionurl'), 'artist': re.sub(r'Public domain image.*$', '', strip((em.get('Artist') or {}).get('value'))).strip(),
+                    'date': re.sub(r'date QS:.*$', '', strip((em.get('DateTimeOriginal') or {}).get('value'))).strip(), 'licence': lic}
     time.sleep(1)
 json.dump(credits, open('out/credits.json', 'w'), ensure_ascii=False, indent=1)
 print(json.dumps(credits, ensure_ascii=False, indent=1))
