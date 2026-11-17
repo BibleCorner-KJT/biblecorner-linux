@@ -92,7 +92,7 @@ INDEX = []
 ROMAN = ['I', 'II', 'III', 'IV', 'V']
 def philokalia(vols=(1, 2, 3, 4, 5)):
     for v in vols:
-        base = 'https://azbyka.ru/otechnik/6/dobrotoljubie_tom_%d/' % v
+        base = 'https://azbyka.ru/otechnik/%s/dobrotoljubie_tom_%d/' % ('prochee' if v == 4 else '6', v)   # volume IV moved there
         toc = get(base)
         nums, subs = [], {}
         for m in re.finditer(r'dobrotoljubie_tom_%d/(\d+)(_\d+)?["#]' % v, toc):
@@ -189,7 +189,7 @@ def lives():
             root = s.find(class_='mw-parser-output') or s
             h = clean(root)
             names = [re.sub(r'<[^>]+>', '', x).strip() for x in re.findall(r'<h3>(.*?)</h3>', h)]
-            names = [n for n in names if n and not n.startswith('День') and len(n) < 160][:6]
+            names = [n for n in names if n and not n.startswith('День') and not re.match(r'(Конда|Тропа|Ин тропарь|Ин кондак)', n) and len(n) < 160][:6]
             if len(re.sub(r'<[^>]+>', '', h)) < 80:
                 continue
             title = '%d %s' % (d, gen)
