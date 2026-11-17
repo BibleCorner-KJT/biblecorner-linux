@@ -1,0 +1,93 @@
+{
+ "nativity": {
+  "file": "File:Nativity (15th c., Annunciation Cathedral in Moscow).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Nativity_(15th_c.,_Annunciation_Cathedral_in_Moscow).jpg",
+  "artist": "Andrei Rublev",
+  "date": "15th century",
+  "licence": "Public domain"
+ },
+ "theophany": {
+  "file": "File:Baptism (15th c., Annunciation Cathedral in Moscow).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Baptism_(15th_c.,_Annunciation_Cathedral_in_Moscow).jpg",
+  "artist": "Anonymous Russian icon painter (before 1917)",
+  "date": "15th century",
+  "licence": "Public domain"
+ },
+ "meeting": {
+  "file": "File:Sretenie (Annunciation Cathedral in Moscow).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Sretenie_(Annunciation_Cathedral_in_Moscow).jpg",
+  "artist": "Anonymous Russian icon painter (before 1917)",
+  "date": "XV в.",
+  "licence": "Public domain"
+ },
+ "annunciation": {
+  "file": "File:Annunciation (Annunciation Cathedral in Moscow).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Annunciation_(Annunciation_Cathedral_in_Moscow).jpg",
+  "artist": "Anonymous Russian icon painter (before 1917)",
+  "date": "15th century",
+  "licence": "Public domain"
+ },
+ "palm": {
+  "file": "File:Entry into Jerusalem (Annunciation Cathedral in Moscow).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Entry_into_Jerusalem_(Annunciation_Cathedral_in_Moscow).jpg",
+  "artist": "Anonymous Russian icon painter (before 1917)",
+  "date": "15th century",
+  "licence": "Public domain"
+ },
+ "pascha": {
+  "file": "File:Unknow - Descent into Hell with Deesis and Selected Saints. Pskov - Google Art Project.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Unknow_-_Descent_into_Hell_with_Deesis_and_Selected_Saints._Pskov_-_Google_Art_Project.jpg",
+  "artist": "Unknow (1200 - 1250) – Icon painter Details on Google Art Project",
+  "date": "(Late 14th century - mid. 15th century)",
+  "licence": "Public domain"
+ },
+ "ascension": {
+  "file": "File:Ascension from Vasilyevskiy chin (15th c., GTG).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Ascension_from_Vasilyevskiy_chin_(15th_c.,_GTG).jpg",
+  "artist": "Formerly attributed to Andrei Rublev",
+  "date": "1408",
+  "licence": "Public domain"
+ },
+ "pentecost": {
+  "file": "File:Pentecost (Annunciation Cathedral in Moscow).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Pentecost_(Annunciation_Cathedral_in_Moscow).jpg",
+  "artist": "Unknown authorUnknown author",
+  "date": "15th century",
+  "licence": "Public domain"
+ },
+ "transfiguration": {
+  "file": "File:Transfiguration by Feofan Grek from Spaso-Preobrazhensky Cathedral in Pereslavl-Zalessky (15th c, Tretyakov gallery).jpeg",
+  "page": "https://commons.wikimedia.org/wiki/File:Transfiguration_by_Feofan_Grek_from_Spaso-Preobrazhensky_Cathedral_in_Pereslavl-Zalessky_(15th_c,_Tretyakov_gallery).jpeg",
+  "artist": "Unknown artistUnknown artist",
+  "date": "ab. 1403",
+  "licence": "Public domain"
+ },
+ "dormition": {
+  "file": "File:Theofanus uspenie.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Theofanus_uspenie.jpg",
+  "artist": "Theophanes the Greek",
+  "date": "1392",
+  "licence": "Public domain"
+ },
+ "nativity_theotokos": {
+  "file": "File:0648Ha. Hermitage Museum. Icon Nativity of the Virgin.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:0648Ha._Hermitage_Museum._Icon_Nativity_of_the_Virgin.jpg",
+  "artist": "Unknown authorUnknown author",
+  "date": "2-я четверть XVI",
+  "licence": "Public domain"
+ },
+ "elevation": {
+  "file": "File:Unknown painter - Exaltation of the Cross - WGA23497.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Unknown_painter_-_Exaltation_of_the_Cross_-_WGA23497.jpg",
+  "artist": "Unknown Icon Painter, Russian (late 15th century in northern Russia)",
+  "date": "1490s",
+  "licence": "Public domain"
+ },
+ "entry": {
+  "file": "File:Russian - Presentation of the Virgin in the Temple - Walters 372410.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Russian_-_Presentation_of_the_Virgin_in_the_Temple_-_Walters_372410.jpg",
+  "artist": "Anonymous (Russian artist)Unknown author",
+  "date": "18th century",
+  "licence": "Public domain"
+ }
+}
