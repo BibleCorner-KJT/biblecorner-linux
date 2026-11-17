@@ -1,0 +1,11 @@
+name: Russian books (a look at the sources)
+on:
+  push:
+    branches: [main]
+    paths: ['ru/probe.sh', '.github/workflows/ru-probe.yml']
+jobs:
+  look:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ru/probe.sh
