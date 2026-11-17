@@ -1,7 +1,8 @@
 name: SimpleX daily posts
 on:
   schedule:
-    - cron: '41 13 * * *'      # 08:41 at the website's time (-05:00)
+    - cron: '17 * * * *'       # each hour: it joins groups, and sends what waits for it on the website
+  workflow_dispatch:
   push:
     branches: [main]
     paths: ['sx-bot/**', '.github/workflows/simplex-bot.yml']
@@ -22,9 +23,7 @@ jobs:
           path: ~/sxdata
           key: sxdata-${{ github.run_id }}
           restore-keys: sxdata-
-      - name: Post
-        env:
-          MODE: ${{ github.event_name == 'schedule' && 'post' || 'setup' }}
+      - name: Visit the website, join, send
         run: bash sx-bot/run.sh
       - name: Keep the bot's keys
         if: always()
