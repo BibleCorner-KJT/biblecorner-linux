@@ -2,7 +2,7 @@ name: Russian books (Philokalia, Lives of the Saints)
 on:
   push:
     branches: [main]
-    paths: ['ru/convert.py', '.github/workflows/ru.yml']
+    paths: ['ru/convert.py', 'ru/what.txt', '.github/workflows/ru.yml']
   workflow_dispatch:
 jobs:
   make:
@@ -13,7 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install beautifulsoup4
-      - run: python3 ru/convert.py
+      - name: The books made before
+        run: git clone -q --depth 1 -b ru-books "https://github.com/${{ github.repository }}.git" out/library || mkdir -p out/library
+      - run: rm -rf out/library/.git && python3 ru/convert.py $(cat ru/what.txt 2>/dev/null)
       - name: Keep them in the branch "ru-books"
         run: |
           cd out/library

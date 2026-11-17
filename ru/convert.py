@@ -63,20 +63,41 @@ INDEX = []
 
 # ---------------------------------------------------------------- the Philokalia
 ROMAN = ['I', 'II', 'III', 'IV', 'V']
-def philokalia():
-    for v in range(1, 6):
+def philokalia(vols=(1, 2, 3, 4, 5)):
+    for v in vols:
         base = 'https://azbyka.ru/otechnik/6/dobrotoljubie_tom_%d/' % v
         toc = get(base)
-        nums = []
-        for m in re.finditer(r'dobrotoljubie_tom_%d/(\d+)(?:_\d+)?["#]' % v, toc):
+        nums, subs = [], {}
+        for m in re.finditer(r'dobrotoljubie_tom_%d/(\d+)(_\d+)?["#]' % v, toc):
             n = int(m.group(1))
             if n not in nums:
                 nums.append(n)
+            if m.group(2) and m.group(1) + m.group(2) not in subs.setdefault(n, []):
+                subs[n].append(m.group(1) + m.group(2))
         print('tom', v, len(nums), 'pages', flush=True)
         works = {}
         for n in nums:
-            html = get(base + str(n)); time.sleep(1.2)
+            html = get(base + str(n), tries=2); time.sleep(1.2)
             if not html:
+                # some volumes have no page for a section: then each of its parts
+                html = ''.join(get(base + sid, tries=2) or '' for sid in subs.get(n, []))
+                time.sleep(1.2)
+                if not html:
+                    continue
+                parts = []
+                for sid in subs.get(n, []):
+                    h1 = get(base + sid, tries=2); time.sleep(1.2)
+                    if not h1:
+                        continue
+                    s1 = BeautifulSoup(h1, 'html.parser'); b1 = s1.find(id='selectable-content')
+                    if not b1:
+                        continue
+                    for x in b1.select('.bg_data_tooltip, .noprint, .book-nav, .nav-part-left, .nav-part-right, .related-item'):
+                        x.decompose()
+                    t1 = re.sub(r',\s*Добротолюбие.*$', '', s1.find('title').get_text(' ', strip=True) if s1.find('title') else '').strip() or sid
+                    parts.append({'t': t1, 'h': clean(b1)})
+                if parts:
+                    works['%02d' % n] = {'t': parts[0]['t'], 'p': parts}
                 continue
             s = BeautifulSoup(html, 'html.parser')
             box = s.find(id='selectable-content')
@@ -157,8 +178,19 @@ if __name__ == '__main__':
     what = sys.argv[1:] or ['philokalia', 'lives']
     if 'philokalia' in what:
         philokalia()
+    for w in what:
+        if re.fullmatch(r'tom\d', w):
+            philokalia((int(w[3]),))
     if 'lives' in what:
         lives()
+    # kept: the books made before and not made again now
+    try:
+        old = json.load(open(os.path.join(OUT, 'ru-index.json')))
+    except Exception:
+        old = []
+    ids = [x['id'] for x in INDEX]
+    INDEX[:0] = [x for x in old if x['id'] not in ids]
+    INDEX.sort(key=lambda x: x['id'])
     with open(os.path.join(OUT, 'ru-index.json'), 'w') as f:
         json.dump(INDEX, f, ensure_ascii=False, indent=0)
     print('done', sum(x['kb'] for x in INDEX), 'KB gz in all')
