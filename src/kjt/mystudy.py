@@ -13,7 +13,11 @@ class StudyPage(Gtk.Box):
         self.filter = ''
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
-        hb.set_title_widget(Adw.WindowTitle(title=_('My Study')))
+        # 2.11: Bible Study Journey, as in the Android app: the Journey (reading) and My study (bookmarks, notes, Study Pads)
+        from .journey import JourneyView, JOURNEY, T as JT
+        self.vs = Adw.ViewStack(vexpand=True)
+        sw = Adw.ViewSwitcher(stack=self.vs, policy=Adw.ViewSwitcherPolicy.WIDE); hb.set_title_widget(sw)
+        self.journey = JourneyView(win)
         self.sync_btn = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text=_('Bring in step with My KJT now')); self.sync_btn.connect('clicked', lambda *_: self.sync())
         hb.pack_end(self.sync_btn)
         self.q = Gtk.SearchEntry(placeholder_text=_('Search your notes')); self.q.connect('search-changed', lambda *_: self.fill())
@@ -31,7 +35,14 @@ class StudyPage(Gtk.Box):
         self.sep = Gtk.Paned(start_child=self.left_sc, end_child=self.right_sc, shrink_start_child=False, resize_start_child=False, wide_handle=True,
                              position=SET.get('w_study_pads', 320))
         self.sep.connect('notify::position', lambda p, _x: SET.set('w_study_pads', p.get_position()) if self.wide and p.get_position() > 200 else None)
-        tv.set_content(self.sep)
+        self.vs.add_titled_with_icon(self.journey, 'journey', JT('Journey'), 'kjt-bible-symbolic')
+        self.vs.add_titled_with_icon(self.sep, 'study', _('My Study'), 'kjt-study-symbolic')
+        self.vs.set_visible_child_name(SET.get('sj_tab') or 'journey')
+        def tab(*_):
+            t = self.vs.get_visible_child_name(); SET.set('sj_tab', t)
+            self.q.set_visible(t == 'study')
+        self.vs.connect('notify::visible-child-name', tab); tab()
+        tv.set_content(self.vs)
         self.wide = None
         self.box = self.right
         STUDY.listen(self.refresh)
@@ -60,6 +71,10 @@ class StudyPage(Gtk.Box):
     def refresh(self):
         if self.get_mapped() or True:
             self.fill()
+        # the Journey: bring in what was read on the other devices (not more than twice a minute)
+        from .journey import JOURNEY
+        if time.time() - getattr(self, 'jsync', 0) > 30:
+            self.jsync = time.time(); JOURNEY.sync()
 
     def clear(self):
         w = self.get_width() or self.win.get_width() - 260
@@ -355,6 +370,8 @@ class StudyPage(Gtk.Box):
             self.win.toast('In step with My KJT' if res == 'ok' else ('Not signed in' if res == 'guest' else 'The website could not be reached'))
             self.fill()
         STUDY.sync(done)
+        from .journey import JOURNEY
+        JOURNEY.sync()
 
 
 _PAINTED = set()

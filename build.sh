@@ -23,7 +23,7 @@ if [ "${1:-}" = "--local" ]; then
   exit 0
 fi
 
-echo "2/3  The Knowing Jesus Today channel (GNOME Software looks there for updates)"
+echo "2/3  The Bible Corner - KJT channel (GNOME Software looks there for updates)"
 REMOTE=$(flatpak remotes --user --columns=name,url 2>/dev/null | awk -v u="$CHAN/repo/" '$2==u || $2==substr(u,1,length(u)-1) {print $1; exit}')
 if [ -z "$REMOTE" ]; then
   REMOTE=knowing-jesus-today
@@ -53,4 +53,4 @@ if flatpak list --system --app --columns=application 2>/dev/null | grep -qx $APP
 fi
 echo
 flatpak info --user $APP//stable | grep -E "Version|Origin" || true
-echo "Done. Open it from Activities (Knowing Jesus Today). From now on GNOME Software shows its updates by itself."
+echo "Done. Open it from Activities (Bible Corner - KJT). From now on GNOME Software shows its updates by itself."

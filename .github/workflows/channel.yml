@@ -33,7 +33,7 @@ jobs:
           flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak-builder --disable-rofiles-fuse --force-clean --default-branch=stable \
             --gpg-sign="$FPR" --gpg-homedir="$GNUPGHOME" --repo=repo build today.knowingjesus.KJT.yml
-          flatpak build-update-repo --generate-static-deltas --prune --title="Knowing Jesus Today" --default-branch=stable \
+          flatpak build-update-repo --generate-static-deltas --prune --title="Bible Corner - KJT" --default-branch=stable \
             --gpg-sign="$FPR" --gpg-homedir="$GNUPGHOME" repo
           KEY=$(base64 -w0 channel/kjt-channel.gpg)
           URL=https://biblecorner-kjt.github.io/biblecorner-linux
@@ -44,10 +44,10 @@ jobs:
           git clone -q --depth 1 -b bibles "https://github.com/${{ github.repository }}.git" bibles-tmp && cp -r bibles-tmp/packs site/bibles && rm -rf bibles-tmp
           cat > site/knowing-jesus-today.flatpakrepo <<REPO
           [Flatpak Repo]
-          Title=Knowing Jesus Today
+          Title=Bible Corner - KJT
           Url=$URL/repo/
           Homepage=https://knowingjesus.today/
-          Comment=The Knowing Jesus Today app for Linux
+          Comment=The Bible Corner - KJT app for Linux (knowingjesus.today)
           Icon=$URL/icon.png
           DefaultBranch=stable
           GPGKey=$KEY
@@ -56,7 +56,7 @@ jobs:
           [Flatpak Ref]
           Name=today.knowingjesus.KJT
           Branch=stable
-          Title=Knowing Jesus Today
+          Title=Bible Corner - KJT
           Url=$URL/repo/
           SuggestRemoteName=knowingjesus
           Homepage=https://knowingjesus.today/

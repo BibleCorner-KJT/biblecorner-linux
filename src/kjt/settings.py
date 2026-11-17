@@ -197,7 +197,7 @@ def set_icon(name):
     try:
         text = open(base, encoding='utf-8').read()
     except OSError:
-        text = '[Desktop Entry]\nType=Application\nName=Knowing Jesus Today\nExec=kjt\nIcon=x\nCategories=Education;Literature;\nStartupNotify=true\n'
+        text = '[Desktop Entry]\nType=Application\nName=Bible Corner - KJT\nExec=kjt\nIcon=x\nCategories=Education;Literature;\nStartupNotify=true\n'
     out = []
     for line in text.splitlines():
         if line.startswith('Exec='):

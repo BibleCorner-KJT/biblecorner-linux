@@ -109,6 +109,10 @@ class BiblePage(Gtk.Box):
         self.info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=22, margin_end=22, margin_top=12)
         self.info.add_css_class('kjt-chapinfo')
         inner.append(self.info); inner.append(self.view)
+        # 2.11: "Mark as read" under the chapter (Bible Study Journey)
+        from .journey import MarkBar
+        self.markbar = MarkBar(self); inner.append(self.markbar)
+        self.scroll.get_vadjustment().connect('value-changed', lambda a: self.markbar.scrolled(a))
         c = Adw.Clamp(maximum_size=860, tightening_threshold=600); c.set_child(inner); self.scroll.set_child(c)
         from .ui import steady; steady(self.scroll)
         self.osv.set_content(self.scroll)
@@ -471,6 +475,7 @@ class BiblePage(Gtk.Box):
             self.vpos.append(start); self.vnum.append(v); self.vend.append(buf.get_char_count())
             buf.insert(end(), '\n' if other else ' ')
         buf.place_cursor(buf.get_start_iter())
+        self.markbar.chapter_shown()
         self.mark_selection()
         self.fill_info(marks)
         if self.osv.get_show_sidebar():

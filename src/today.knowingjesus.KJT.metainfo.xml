@@ -3,10 +3,10 @@
   <id>today.knowingjesus.KJT</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-2.0-or-later</project_license>
-  <name>Knowing Jesus Today</name>
+  <name>Bible Corner - KJT</name>
   <summary>Holy Bible and the Orthodox faith</summary>
   <description>
-    <p>Knowing Jesus Today is a Bible reader for Linux: read the Holy Bible with the Orthodox faith, study it with the Holy Fathers, and keep it all on your computer, to read also without the internet.</p>
+    <p>Bible Corner - KJT (Knowing Jesus Today) is a Bible reader for Linux: read the Holy Bible with the Orthodox faith, study it with the Holy Fathers, and keep it all on your computer, to read also without the internet.</p>
     <ul>
       <li>The Holy Bible in many languages, with search, comparison, cross-references and the Greek and Hebrew words</li>
       <li>The Holy Fathers beside every chapter, and their writings to read like books, by topic and by era</li>
@@ -44,12 +44,13 @@
       <caption>Study Pads, bookmarks and notes</caption>
     </screenshot>
   </screenshots>
-  <developer id="today.knowingjesus"><name>Knowing Jesus Today</name></developer>
+  <developer id="today.knowingjesus"><name>Knowing Jesus Today (knowingjesus.today)</name></developer>
   <requires><display_length compare="ge">360</display_length></requires>
   <supports><control>pointing</control><control>keyboard</control><control>touch</control></supports>
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.11" date="2026-11-17"><description><p>Now called Bible Corner - KJT, like the Android app. Bible Study Journey, as in the Android app: your reading journey (the whole Bible chapter by chapter, books, milestones, reading plans of the Church, streaks, the prayer before reading) beside My Study; "Mark as read" under every chapter (or automatically), kept in step with your account on the website and the phone.</p></description></release>
     <release version="2.10" date="2026-11-17"><description><p>Light or dark: a button at the top of the sidebar, and Appearance in the menu (follow the computer, light or dark). The sun on Today with God is now a plain "Today" button, shown only on another day. The icons of the great feasts (old icons, public domain) on Today with God. The grammar of each Greek and Hebrew word (STEPBible). In Russian: the Philokalia (St Theophan the Recluse) and the Lives of the Saints (St Dimitry of Rostov) in the Holy Fathers. More of the app in the nine languages. A day with a coming feast no longer stops Today with God.</p></description></release>
     <release version="2.9" date="2026-11-17"><description><p>A new icon, and five to choose from (Downloads and language › App icon): purple, navy blue, black, green and wine red, the same as the Android app. The History books have a clearer colour in the book list.</p></description></release>
     <release version="2.8.1" date="2026-11-17"><description><p>More of the app in the nine languages: Downloads and language, My Study, the Library and Today with God.</p></description></release>

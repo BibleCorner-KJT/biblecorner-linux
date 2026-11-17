@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.10'
+VERSION = '2.11'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -64,7 +64,7 @@ DARK = 'button.kjt-bk-law { background: alpha(#dc2626, 0.16); color: #f2eaf4; }\
 
 PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy Bible', 'kjt-bible-symbolic'),
          ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
-         ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'), ('study', 'My Study', 'kjt-study-symbolic'),
+         ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'), ('study', 'Study Journey', 'kjt-study-symbolic'),
          ('downloads', 'Downloads', 'kjt-download-symbolic')]
 
 
@@ -79,7 +79,7 @@ def icon_button(icon, tip, fn=None, flat=True, toggle=False):
 
 class Window(Adw.ApplicationWindow):
     def __init__(self, app):
-        super().__init__(application=app, title='Knowing Jesus Today')
+        super().__init__(application=app, title='Bible Corner - KJT')
         self.set_size_request(340, 420)  # fits the smallest screens
         self.set_default_size(SET.get('w', 1200), SET.get('h', 820))
         if SET.get('max'):
@@ -94,7 +94,7 @@ class Window(Adw.ApplicationWindow):
 
         # the sidebar
         st = Adw.ToolbarView(); sh = Adw.HeaderBar(); st.add_top_bar(sh)
-        brand = Gtk.Box(spacing=4, tooltip_text='Knowing Jesus Today')
+        brand = Gtk.Box(spacing=4, tooltip_text='Bible Corner - KJT')
         bl = Gtk.Label(label='KJT'); bl.add_css_class('kjt-brand'); brand.append(bl)
         bi = Gtk.Image(icon_name='kjt-cross-symbolic', pixel_size=18); bi.add_css_class('kjt-brand'); brand.append(bi)
         sh.set_title_widget(brand)
@@ -321,7 +321,7 @@ class Window(Adw.ApplicationWindow):
         talk = Gio.Menu(); talk.append(_('Talk to us on SimpleX'), 'app.simplex'); talk.append(_('The Android app (Bible Corner)'), 'app.android'); menu.append_section(None, talk)
         look = Gio.Menu(); look.append(_('Follow the computer'), 'app.style::auto'); look.append(_('Light'), 'app.style::light'); look.append(_('Dark'), 'app.style::dark')
         menu.append_section(_('Appearance'), look)
-        more = Gio.Menu(); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Knowing Jesus Today'), 'app.about'); menu.append_section(None, more)
+        more = Gio.Menu(); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Bible Corner - KJT'), 'app.about'); menu.append_section(None, more)
         return menu
 
     def language_changed(self):
@@ -366,7 +366,7 @@ class Window(Adw.ApplicationWindow):
         if have_data():
             self.background()
             return False
-        d = Adw.AlertDialog(heading=_('Welcome to Knowing Jesus Today'),
+        d = Adw.AlertDialog(heading=_('Welcome to Bible Corner - KJT'),
                             body=_('The app keeps the Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps on this computer, so you can read them without the internet. Choose your languages:'))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3, min_children_per_line=2, column_spacing=6)
@@ -431,7 +431,7 @@ SIMPLEX = 'https://smp17.simplex.im/g#AiHuYaIlklw4qpYJXYIUbpX4_foaHUezMaHI4vNyAl
 class App(Adw.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_OPEN)
-        GLib.set_application_name('Knowing Jesus Today')
+        GLib.set_application_name('Bible Corner - KJT')
         for name, fn, keys in (('about', self.about, None), ('keys', self.keys, ['<Ctrl>question']), ('quit', lambda *_: self.quit(), ['<Ctrl>q']),
                                ('simplex', lambda *_: self.open_uri(SIMPLEX), None), ('android', lambda *_: self.open_uri('https://biblecorner.com/app'), None),
                                ('dpost', lambda *_: __import__('kjt.dpost', fromlist=['open_post']).open_post(self.props.active_window), None)):
@@ -443,9 +443,10 @@ class App(Adw.Application):
         Adw.Application.do_startup(self)
         disp = Gdk.Display.get_default()
         Gtk.IconTheme.get_for_display(disp).add_search_path(os.path.join(os.path.dirname(__file__), 'icons'))
-        p = Gtk.CssProvider(); p.load_from_data(CSS.encode(), -1)
+        from .journey import CSS as JCSS, CSS_DARK as JDARK   # 2.11: Bible Study Journey
+        p = Gtk.CssProvider(); p.load_from_data((CSS + JCSS).encode(), -1)
         Gtk.StyleContext.add_provider_for_display(disp, p, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        dark = Gtk.CssProvider(); dark.load_from_data(DARK.encode(), -1)
+        dark = Gtk.CssProvider(); dark.load_from_data((DARK + JDARK).encode(), -1)
         sm = Adw.StyleManager.get_default()
         def scheme(*_):
             if sm.get_dark():
@@ -472,7 +473,7 @@ class App(Adw.Application):
         self.do_activate()
 
     def about(self, *_):
-        d = Adw.AboutDialog(application_name='Knowing Jesus Today', application_icon=APP_ID, version=VERSION, website='https://knowingjesus.today',
+        d = Adw.AboutDialog(application_name='Bible Corner - KJT', application_icon=APP_ID, version=VERSION, website='https://knowingjesus.today',
                             comments='The Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps, kept on your computer: the Orthodox faith, to know Jesus today.',
                             license_type=Gtk.License.GPL_2_0)
         d.set_developer_name('Knowing Jesus Today')
