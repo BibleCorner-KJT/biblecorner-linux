@@ -2,74 +2,12 @@
 As in the Android app, the words and verses come from the website's own page (in the reader's language),
 so editing that page updates the app; a copy is kept on this computer, so it works without internet."""
 import re
-from html.parser import HTMLParser
-from urllib.parse import urlencode
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, NET, SITE, lang, run_bg
 from .i18n import _
+from .pageparse import Tree, page_url
 
 EMO = {'thankful': '🙏', 'angry': '😠', 'anxious': '😟', 'betrayed': '💔', 'dealing-with-loss': '🕊️', 'discouraged': '😞', 'financial-issues': '🪙', 'hatred': '🔥', 'in-danger': '🛡️', 'jealous': '😒', 'lacking-faith': '🕯️', 'lazy': '💤', 'leaving-on-a-trip': '🧳', 'lonely': '🫂', 'need-courage': '🦁', 'need-direction': '🧭', 'prayerful': '📿', 'sad': '😢', 'scared': '😨', 'seeking-peace': '🌿', 'sinful': '🤲', 'tempted': '⚠️', 'weak': '🌱', 'comfort': '🤍'}
-VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr'}
-
-
-# ---------- a very small reader of the page (only what is needed: ids, classes, links, text) ----------
-class Node:
-    __slots__ = ('tag', 'attrs', 'kids', 'parent')
-
-    def __init__(self, tag, attrs, parent):
-        self.tag, self.attrs, self.kids, self.parent = tag, dict(attrs), [], parent
-
-    def cls(self, c):
-        return c in (self.attrs.get('class') or '').split()
-
-    def text(self, skip=None):
-        out = []
-        def walk(n):
-            for k in n.kids:
-                if isinstance(k, str):
-                    out.append(k)
-                elif k.tag not in ('script', 'style') and k.tag != skip:
-                    walk(k)
-        walk(self)
-        return re.sub(r'\s+', ' ', ''.join(out)).strip()
-
-    def all(self, pred=lambda n: True):
-        for k in self.kids:
-            if not isinstance(k, str):
-                if pred(k):
-                    yield k
-                yield from k.all(pred)
-
-    def first(self, pred=lambda n: True):
-        return next(self.all(pred), None)
-
-    def children(self, tag=None):
-        return [k for k in self.kids if not isinstance(k, str) and (tag is None or k.tag == tag)]
-
-
-class Tree(HTMLParser):
-    def __init__(self, html):
-        super().__init__(convert_charrefs=True)
-        self.root = Node('#root', {}, None); self.cur = self.root
-        self.feed(html); self.close()
-
-    def handle_starttag(self, tag, attrs):
-        n = Node(tag, attrs, self.cur); self.cur.kids.append(n)
-        if tag not in VOID:
-            self.cur = n
-
-    def handle_startendtag(self, tag, attrs):
-        self.cur.kids.append(Node(tag, attrs, self.cur))
-
-    def handle_endtag(self, tag):
-        n = self.cur
-        while n is not None and n.tag != tag:
-            n = n.parent
-        if n is not None and n.parent is not None:
-            self.cur = n.parent
-
-    def handle_data(self, data):
-        self.cur.kids.append(data)
 
 
 def parse_you(html):
@@ -111,12 +49,6 @@ def parse_you(html):
         if c['passages']:
             out['comfort'] = c
     return out if out['feelings'] else None
-
-
-def page_url(key, fallback):
-    u = ((STORE.kv('info') or {}).get('pages') or {}).get(key) or fallback
-    lg = lang()
-    return u + (('&' if '?' in u else '?') + urlencode({'lang': lg}) if lg != 'en' else '')
 
 
 # ---------- the page ----------

@@ -1,0 +1,189 @@
+"""2.16: a street map of the world, drawn here from OpenStreetMap's map pictures (tiles), with places marked on it.
+Drag to move, scroll (or + and −) to zoom, click a mark to choose it. The pictures are kept on this computer for
+a week. Map © OpenStreetMap contributors (shown on the map)."""
+import math, os, threading, time
+import cairo
+from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
+from .core import DATA, NET
+from .i18n import _
+
+TILE = 256
+URL = 'https://tile.openstreetmap.org/%d/%d/%d.png'
+KEEP = 7 * 86400
+_cache = {}            # (z, x, y) -> cairo picture / None while loading
+_lock = threading.Semaphore(4)
+
+
+def to_px(lat, lon, z):
+    n = TILE * (2 ** z)
+    lat = max(-85.0, min(85.0, lat))
+    x = (lon + 180.0) / 360.0 * n
+    s = math.sin(math.radians(lat))
+    y = (0.5 - math.log((1 + s) / (1 - s)) / (4 * math.pi)) * n
+    return x, y
+
+
+def to_ll(x, y, z):
+    n = TILE * (2 ** z)
+    lon = x / n * 360.0 - 180.0
+    lat = math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / n))))
+    return lat, lon
+
+
+class TileMap(Gtk.Overlay):
+    def __init__(self, on_pick=None):
+        super().__init__(hexpand=True, vexpand=True)
+        self.lat, self.lon, self.z = 30.0, 10.0, 2
+        self.marks = []          # (lat, lon, key, '#hex', label)
+        self.sel = None; self.here = None; self.on_pick = on_pick
+        self.area = Gtk.DrawingArea(hexpand=True, vexpand=True); self.area.set_draw_func(self.draw); self.set_child(self.area)
+        self.area.set_cursor(Gdk.Cursor.new_from_name('grab'))
+        d = Gtk.GestureDrag(); d.connect('drag-begin', self.drag_begin); d.connect('drag-update', self.drag_update); self.area.add_controller(d)
+        c = Gtk.GestureClick(); c.connect('released', self.click); self.area.add_controller(c)
+        sc = Gtk.EventControllerScroll(flags=Gtk.EventControllerScrollFlags.VERTICAL); sc.connect('scroll', self.scroll); self.area.add_controller(sc)
+        mo = Gtk.EventControllerMotion(); mo.connect('motion', lambda _c, x, y: setattr(self, 'pointer', (x, y))); self.area.add_controller(mo)
+        self.pointer = None
+        zb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, halign=Gtk.Align.END, valign=Gtk.Align.START, margin_top=10, margin_end=10); zb.add_css_class('linked')
+        for icon, d_ in (('kjt-plus-symbolic', 1), ('kjt-minus-symbolic', -1)):
+            b = Gtk.Button(icon_name=icon, tooltip_text=_('Larger') if d_ > 0 else _('Smaller')); b.add_css_class('osd'); b.connect('clicked', lambda _b, d_=d_: self.zoom_by(d_)); zb.append(b)
+        self.add_overlay(zb)
+        att = Gtk.Label(label='© OpenStreetMap', halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=6, margin_bottom=4)
+        att.add_css_class('kjt-map-att'); att.set_tooltip_text(_('Map © OpenStreetMap contributors')); self.add_overlay(att)
+        self.dir = os.path.join(DATA, 'tiles'); os.makedirs(self.dir, exist_ok=True)
+
+    # the map's place
+    def center(self, lat, lon, z=None):
+        self.lat, self.lon = lat, lon
+        if z is not None:
+            self.z = max(2, min(18, int(z)))
+        self.area.queue_draw()
+
+    def fit(self, pts, maxz=15):
+        """show all these places"""
+        pts = [p for p in pts if p]
+        if not pts:
+            return
+        w = max(200, self.area.get_width() or 600); h = max(200, self.area.get_height() or 400)
+        la = [p[0] for p in pts]; lo = [p[1] for p in pts]
+        for z in range(maxz, 1, -1):
+            x1, y1 = to_px(max(la), min(lo), z); x2, y2 = to_px(min(la), max(lo), z)
+            if x2 - x1 < w - 60 and y2 - y1 < h - 60:
+                break
+        cx, cy = to_px(max(la), min(lo), z); dx, dy = to_px(min(la), max(lo), z)
+        self.lat, self.lon = to_ll((cx + dx) / 2, (cy + dy) / 2, z); self.z = z
+        self.area.queue_draw()
+
+    def set_marks(self, marks, sel=None, here=None):
+        self.marks, self.sel, self.here = marks, sel, here; self.area.queue_draw()
+
+    def select(self, key):
+        self.sel = key; self.area.queue_draw()
+
+    def zoom_by(self, d, at=None):
+        nz = max(2, min(18, self.z + d))
+        if nz == self.z:
+            return
+        w, h = self.area.get_width(), self.area.get_height()
+        if at:
+            cx, cy = to_px(self.lat, self.lon, self.z)
+            px, py = cx + at[0] - w / 2, cy + at[1] - h / 2
+            plat, plon = to_ll(px, py, self.z)
+            nx, ny = to_px(plat, plon, nz)
+            self.lat, self.lon = to_ll(nx - (at[0] - w / 2), ny - (at[1] - h / 2), nz)
+        self.z = nz; self.area.queue_draw()
+
+    # moving
+    def drag_begin(self, g, x, y):
+        self.drag0 = to_px(self.lat, self.lon, self.z); self.moved = False
+
+    def drag_update(self, g, dx, dy):
+        if abs(dx) + abs(dy) > 3:
+            self.moved = True
+        n = TILE * 2 ** self.z
+        x, y = self.drag0[0] - dx, max(0, min(n, self.drag0[1] - dy))
+        self.lat, self.lon = to_ll(x % n, y, self.z); self.area.queue_draw()
+
+    def scroll(self, c, dx, dy):
+        self.zoom_by(-1 if dy > 0 else 1, self.pointer); return True
+
+    def click(self, g, n, x, y):
+        if getattr(self, 'moved', False):
+            self.moved = False; return
+        w, h = self.area.get_width(), self.area.get_height(); cx, cy = to_px(self.lat, self.lon, self.z)
+        best, bd = None, 18 ** 2
+        for m in self.marks:
+            mx, my = to_px(m[0], m[1], self.z); sx, sy = mx - cx + w / 2, my - cy + h / 2
+            d = (sx - x) ** 2 + (sy - y) ** 2
+            if d < bd:
+                best, bd = m, d
+        if best and self.on_pick:
+            self.sel = best[2]; self.area.queue_draw(); self.on_pick(best[2])
+
+    # the pictures
+    def tile(self, z, x, y):
+        k = (z, x, y)
+        if k in _cache:
+            return _cache[k]
+        _cache[k] = None
+        path = os.path.join(self.dir, '%d_%d_%d.png' % k)
+        def work():
+            with _lock:
+                if not (os.path.exists(path) and time.time() - os.path.getmtime(path) < KEEP and os.path.getsize(path) > 100):
+                    data = NET.get(URL % k, timeout=30, strict=True)
+                    if not data or len(data) < 100:
+                        raise ValueError('no tile')
+                    with open(path + '.part', 'wb') as f:
+                        f.write(data)
+                    os.replace(path + '.part', path)
+                return path
+        def done(r):
+            if isinstance(r, str):
+                try:
+                    _cache[k] = cairo.ImageSurface.create_from_png(r)
+                except Exception:
+                    _cache.pop(k, None)
+                    try:
+                        os.remove(r)
+                    except OSError:
+                        pass
+                self.area.queue_draw()
+            else:
+                GLib.timeout_add_seconds(20, lambda: (_cache.pop(k, None), False)[1])   # try again later
+        if len(_cache) > 900:
+            for kk in list(_cache)[:300]:
+                _cache.pop(kk, None)
+        from .core import run_bg
+        run_bg(work, done)
+        return None
+
+    def draw(self, area, cr, w, h):
+        cr.set_source_rgb(0.93, 0.92, 0.9); cr.paint()
+        z = self.z; n = 2 ** z; cx, cy = to_px(self.lat, self.lon, z)
+        x0, y0 = cx - w / 2, cy - h / 2
+        for ty in range(int(math.floor(y0 / TILE)), int(math.floor((y0 + h) / TILE)) + 1):
+            if ty < 0 or ty >= n:
+                continue
+            for tx in range(int(math.floor(x0 / TILE)), int(math.floor((x0 + w) / TILE)) + 1):
+                t = self.tile(z, tx % n, ty)
+                if t is not None:
+                    px, py = tx * TILE - x0, ty * TILE - y0
+                    cr.set_source_surface(t, px, py); cr.paint()
+        # the places
+        for m in sorted(self.marks, key=lambda m: m[2] == self.sel):
+            mx, my = to_px(m[0], m[1], z); sx, sy = mx - x0, my - y0
+            if sx < -20 or sy < -20 or sx > w + 20 or sy > h + 20:
+                continue
+            on = m[2] == self.sel; r = 9 if on else 6
+            rgb = Gdk.RGBA(); rgb.parse(m[3] or '#7a1f78')
+            cr.arc(sx, sy, r + 2, 0, 2 * math.pi); cr.set_source_rgb(1, 1, 1); cr.fill()
+            cr.arc(sx, sy, r, 0, 2 * math.pi); cr.set_source_rgba(rgb.red, rgb.green, rgb.blue, 1); cr.fill()
+            if on and m[4]:
+                lay = area.create_pango_layout(m[4]); lay.set_font_description(Pango.FontDescription.from_string('Sans Bold 10'))
+                lw, lh = lay.get_pixel_size()
+                cr.set_source_rgba(1, 1, 1, 0.92); cr.rectangle(sx + 12, sy - lh / 2 - 3, lw + 10, lh + 6); cr.fill()
+                cr.set_source_rgb(0.24, 0.04, 0.25); cr.move_to(sx + 17, sy - lh / 2)
+                PangoCairo.show_layout(cr, lay)
+        if self.here:
+            hx, hy = to_px(self.here[0], self.here[1], z); sx, sy = hx - x0, hy - y0
+            cr.arc(sx, sy, 9, 0, 2 * math.pi); cr.set_source_rgba(0.12, 0.47, 0.9, 0.25); cr.fill()
+            cr.arc(sx, sy, 5, 0, 2 * math.pi); cr.set_source_rgb(0.12, 0.47, 0.9); cr.fill()

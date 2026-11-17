@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.15'
+VERSION = '2.16'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -33,6 +33,40 @@ button.kjt-you-comfort { background: alpha(#1f6f78, 0.14); }
 .kjt-you-fs { font-size: 0.86em; opacity: 0.72; }
 .kjt-you-big2 { font-family: Serif; font-weight: 700; font-size: 1.6em; }
 .kjt-you-verse { font-family: Serif; font-size: 1.12em; line-height: 1.5; }
+.kjt-pray-p { font-family: Serif; font-size: 1.12em; }
+.kjt-pray-q { font-family: Serif; font-size: 1.12em; font-style: italic; border-left: 3px solid alpha(#c9a227, 0.7); padding-left: 10px; }
+.kjt-pray-poem { font-family: Serif; font-size: 1.1em; font-style: italic; }
+.kjt-pray-lab { font-weight: 800; font-size: 0.8em; letter-spacing: 1.5px; color: #7a1f78; }
+.kjt-ch-ic { font-size: 1.5em; }
+.kjt-fun-info { font-size: 1.05em; }
+.kjt-fun-clock { font-weight: 800; font-variant-numeric: tabular-nums; }
+button.kjt-fun-lvl { padding: 10px 20px; font-weight: 700; }
+button.kjt-sdk-cell { min-width: 42px; min-height: 42px; padding: 0; border-radius: 0; font-size: 1.25em; font-weight: 600; box-shadow: inset 0 0 0 1px alpha(currentColor, 0.18); background: alpha(#f3c548, 0.05); }
+button.kjt-sdk-given { font-weight: 900; color: #3e093f; background: alpha(#7a1f78, 0.08); }
+button.kjt-sdk-r { margin-right: 3px; }
+button.kjt-sdk-b { margin-bottom: 3px; }
+button.kjt-sdk-on { background: alpha(#c9a227, 0.45); }
+button.kjt-sdk-same { background: alpha(#c9a227, 0.22); }
+button.kjt-sdk-bad { color: #c62828; background: alpha(#c62828, 0.12); }
+button.kjt-sdk-pad { min-width: 40px; min-height: 40px; font-size: 1.15em; font-weight: 700; }
+.kjt-seek-w { font-weight: 700; letter-spacing: 1px; }
+.kjt-seek-done { text-decoration: line-through; opacity: 0.45; }
+entry.kjt-xw-cell { min-width: 30px; min-height: 30px; padding: 0; font-weight: 800; font-size: 1.1em; }
+entry.kjt-xw-bad { color: #c62828; background: alpha(#c62828, 0.12); }
+entry.kjt-xw-shown { color: #7a1f78; }
+.kjt-xw-n { font-size: 0.6em; font-weight: 700; opacity: 0.7; }
+.kjt-xw-clue { font-size: 0.95em; }
+button.kjt-mem { font-size: 1.05em; font-weight: 700; background: linear-gradient(135deg, #3e093f, #5b1a5c); color: #f3c548; border-radius: 14px; }
+button.kjt-mem-up { background: alpha(#f3c548, 0.18); color: inherit; }
+button.kjt-mem-ok { background: alpha(#2e7d32, 0.22); color: inherit; }
+button.kjt-tap { padding: 10px 14px; font-weight: 600; border-radius: 12px; }
+button.kjt-tap-ok { background: alpha(#2e7d32, 0.25); }
+button.kjt-tap-bad { background: alpha(#c62828, 0.3); }
+.kjt-tap-done { font-size: 0.9em; padding: 2px 8px; border-radius: 8px; background: alpha(#2e7d32, 0.14); }
+.kjt-vb-built { font-family: Serif; font-size: 1.25em; font-style: italic; min-height: 2em; }
+.kjt-who-clue { font-family: Serif; font-size: 1.2em; }
+.kjt-map-att { background: alpha(white, 0.85); color: #333; font-size: 0.75em; padding: 1px 5px; border-radius: 4px; }
+.kjt-pray-reply { border-left: 3px solid alpha(#1f6f78, 0.5); padding: 4px 0 4px 10px; }
 .kjt-card-title { font-family: Serif; font-weight: 700; font-size: 1.2em; color: #3e093f; }
 .kjt-verse { font-family: Serif; font-size: 1.22em; font-style: italic; }
 .kjt-reading { font-family: Serif; font-size: 1.08em; }
@@ -189,9 +223,12 @@ class Window(Adw.ApplicationWindow):
                 from .library import LibraryPage as P
             elif key == 'you':
                 from .you import YouPage as P
-            elif key in ('pray', 'fun', 'church'):
-                from .web import WebPage
-                P = lambda w, k=key: WebPage(w, k)
+            elif key == 'pray':
+                from .pray import PrayPage as P
+            elif key == 'church':
+                from .church import ChurchPage as P
+            elif key == 'fun':
+                from .fun import FunPage as P
             else:
                 from .settings import DownloadsPage as P
             p = P(self); self.pages[key] = p; self.stack.add_named(p, key)
