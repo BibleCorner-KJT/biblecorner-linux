@@ -162,7 +162,7 @@ class DictPage(Gtk.Box):
         self.ah.pack_end(self.map_btn)
         self.view = make_view(self.on_link)
         c = Adw.Clamp(maximum_size=780); c.set_child(self.view)
-        asc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); asc.set_child(c); at.set_content(asc)
+        asc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); asc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(asc); at.set_content(asc)
         self.article = Adw.NavigationPage(title='', child=at)
         self.split.set_content(self.article)
         if not SET.get('w_dict_side'):

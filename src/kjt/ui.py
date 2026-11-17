@@ -32,3 +32,11 @@ def resizable(split, child, key, end=False, lo=180, hi=900):
     d.connect('drag-end', lambda g, dx, dy: SET.set('w_' + key, box.get_width()))
     grip.add_controller(d)
     return box
+
+
+def steady(scrolled):
+    """a click into a long text must not make the page slide to the text's end (GTK scrolls to a widget that gets the keyboard)"""
+    v = scrolled.get_child()
+    if isinstance(v, Gtk.Viewport):
+        v.set_scroll_to_focus(False)
+    return scrolled

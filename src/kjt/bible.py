@@ -93,6 +93,10 @@ class BiblePage(Gtk.Box):
                                  top_margin=18, bottom_margin=40, pixels_below_lines=6, pixels_inside_wrap=5)
         self.view.add_css_class('kjt-bible')
         click = Gtk.GestureClick(); click.connect('pressed', self.on_press); click.connect('released', self.on_click); self.view.add_controller(click)
+        # before the text itself sees the press: its hidden cursor goes where you click, so the first click
+        # (which also gives the text the keyboard) neither jumps to the old cursor nor selects up to it
+        first = Gtk.GestureClick(button=0); first.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        first.connect('pressed', self.cursor_here); self.view.add_controller(first)
         self.press = (0, 0, 0)
         rclick = Gtk.GestureClick(button=3); rclick.connect('pressed', self.on_menu); self.view.add_controller(rclick)
         lp = Gtk.GestureLongPress(); lp.connect('pressed', lambda g, x, y: self.on_menu(g, 1, x, y)); self.view.add_controller(lp)
@@ -103,6 +107,7 @@ class BiblePage(Gtk.Box):
         self.info.add_css_class('kjt-chapinfo')
         inner.append(self.info); inner.append(self.view)
         c = Adw.Clamp(maximum_size=860, tightening_threshold=600); c.set_child(inner); self.scroll.set_child(c)
+        from .ui import steady; steady(self.scroll)
         self.osv.set_content(self.scroll)
         side = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         sh = Gtk.Box(spacing=6, margin_start=12, margin_end=6, margin_top=6, margin_bottom=2)
@@ -453,6 +458,7 @@ class BiblePage(Gtk.Box):
                 buf.insert_with_tags_by_name(end(), '\n' + re.sub(r'<[^>]+>', '', other[v]).strip(), 'cmp')
             self.vpos.append(start); self.vnum.append(v); self.vend.append(buf.get_char_count())
             buf.insert(end(), '\n' if other else ' ')
+        buf.place_cursor(buf.get_start_iter())
         self.mark_selection()
         self.fill_info(marks)
         if self.osv.get_show_sidebar():
@@ -474,6 +480,7 @@ class BiblePage(Gtk.Box):
             if adj.get_upper() - adj.get_page_size() < r.y - 60 and go.n > 0:
                 go.n -= 1; return True          # not laid out yet: try again in a moment
             adj.set_value(max(0, min(r.y - 70, adj.get_upper() - adj.get_page_size())))
+            self.view.get_buffer().place_cursor(it)      # the hidden cursor stays where you read
             return False
         go.n = tries
         GLib.timeout_add(40, go)
@@ -516,6 +523,14 @@ class BiblePage(Gtk.Box):
             return 0
         i = bisect.bisect_right(self.vpos, it.get_offset()) - 1
         return self.vnum[i] if i >= 0 else 0
+
+    def cursor_here(self, g, n, x, y):
+        if g.get_current_event_state() & Gdk.ModifierType.SHIFT_MASK:
+            return
+        bx, by = self.view.window_to_buffer_coords(Gtk.TextWindowType.WIDGET, int(x), int(y))
+        ok, it = self.view.get_iter_at_location(bx, by)
+        if ok:
+            self.view.get_buffer().place_cursor(it)
 
     def on_press(self, g, n, x, y):
         self.press = (x, y, GLib.get_monotonic_time())

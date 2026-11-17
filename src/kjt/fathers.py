@@ -40,7 +40,7 @@ class FathersPage(Gtk.Box):
                 grp.add(row)
             box.append(grp)
         c = Adw.Clamp(maximum_size=760); c.set_child(box)
-        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); tv.set_content(sc)
+        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc); tv.set_content(sc)
         page.set_child(tv)
         self.nav.replace([page])
 
@@ -74,7 +74,7 @@ class FathersPage(Gtk.Box):
                     grp.add(ex)
                 box.append(grp)
         c = Adw.Clamp(maximum_size=760); c.set_child(box)
-        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); tv.set_content(sc)
+        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc); tv.set_content(sc)
         page.set_child(tv); self.nav.push(page)
 
     def open_part(self, a, wid, n):
@@ -101,7 +101,7 @@ class FathersPage(Gtk.Box):
                 self.size = max(0.7, min(2.2, self.size * f)); SET.set('lib_size', self.size); draw()
             b.connect('clicked', zoom); hb.pack_end(b)
         c = Adw.Clamp(maximum_size=820); c.set_child(view)
-        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c)
+        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc)
         tv.set_content(sc)
         if len(parts) > 1:
             bar = Gtk.ActionBar()

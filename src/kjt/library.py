@@ -236,6 +236,7 @@ class LibraryPage(Gtk.Box):
         v = make_view(self.on_link)
         sc = Gtk.ScrolledWindow(vexpand=True, hexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
         cl = Adw.Clamp(maximum_size=820); cl.set_child(v); sc.set_child(cl)
+        from .ui import steady; steady(sc)
         return v, sc
 
     def on_link(self, href):

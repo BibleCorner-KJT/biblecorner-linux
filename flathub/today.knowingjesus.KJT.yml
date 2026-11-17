@@ -26,4 +26,4 @@ modules:
     sources:
       - type: git
         url: https://github.com/BibleCorner-KJT/biblecorner-linux.git
-        tag: v2.7
+        tag: v2.7.1
