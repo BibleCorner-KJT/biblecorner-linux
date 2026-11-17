@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths: ['sx-bot/**', '.github/workflows/simplex-bot.yml']
 concurrency: simplex-bot
+permissions:
+  contents: read
 jobs:
   post:
     runs-on: ubuntu-22.04

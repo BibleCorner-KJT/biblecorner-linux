@@ -17,7 +17,7 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4
-      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@933e9e8ca36e85046ebca8e211f0785c6becac40   # pinned (2026-11-17)
         with:
           bundle: knowing-jesus-today.flatpak
           manifest-path: today.knowingjesus.KJT.yml

@@ -327,6 +327,7 @@ class Net:
         with self.lock:
             try:
                 self.jar.save(ignore_discard=True)
+                os.chmod(self.jar.filename, 0o600)   # 2.14: the sign-in stays readable by you alone
             except Exception:
                 pass
         return out
