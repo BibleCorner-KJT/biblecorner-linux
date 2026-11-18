@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.21'
+VERSION = '2.22'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -398,7 +398,7 @@ class Window(Adw.ApplicationWindow):
         for key, title in (('kjt', 'KJT Website'),):
             site.append(_(title) + ' ↗', 'app.page::' + key)
         menu.append_section(_('On the website'), site)
-        more = Gio.Menu(); more.append(_('Report a problem'), 'app.report'); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Bible Corner - KJT'), 'app.about'); menu.append_section(None, more)
+        more = Gio.Menu(); (more.append(_('Close to the background'), 'app.hide') if SET.get('bg_keep') else None); more.append(_('Report a problem'), 'app.report'); more.append(_('Daily verse post (administrators)'), 'app.dpost'); more.append(_('Keyboard shortcuts'), 'app.keys'); more.append(_('About Bible Corner - KJT'), 'app.about'); menu.append_section(None, more)
         return menu
 
     def language_changed(self):
@@ -512,6 +512,10 @@ class Window(Adw.ApplicationWindow):
         if not self.is_maximized():
             w, h = self.get_default_size(); SET.set('w', w); SET.set('h', h)
         SET.set('max', self.is_maximized())
+        # 2.22: keep running in the background (Settings): the window hides; the tray icon or the app opens it again
+        app = self.get_application()
+        if SET.get('bg_keep') and app and not getattr(app, 'quitting', False):
+            app.to_background(self); return True
         return False
 
 
@@ -522,7 +526,7 @@ class App(Adw.Application):
     def __init__(self):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_OPEN)
         GLib.set_application_name('Bible Corner - KJT')
-        for name, fn, keys in (('about', self.about, None), ('keys', self.keys, ['<Ctrl>question']), ('quit', lambda *_: self.quit(), ['<Ctrl>q']),
+        for name, fn, keys in (('about', self.about, None), ('keys', self.keys, ['<Ctrl>question']), ('quit', lambda *_: self.really_quit(), ['<Ctrl>q']), ('hide', lambda *_: self.to_background(), None),
                                ('simplex', lambda *_: self.open_uri(SIMPLEX), None), ('android', lambda *_: self.open_uri('https://biblecorner.com/app'), None),
                                ('dpost', lambda *_: __import__('kjt.dpost', fromlist=['open_post']).open_post(self.props.active_window), None)):
             a = Gio.SimpleAction.new(name, None); a.connect('activate', fn); self.add_action(a)
@@ -578,6 +582,8 @@ class App(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
+        if SET.get('bg_keep'):
+            GLib.idle_add(lambda: (self.start_tray(), False)[1])
         # 2.18: Arabic reads from right to left: the whole app is laid out that way
         from .i18n import rtl
         Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL if rtl() else Gtk.TextDirection.LTR)
@@ -607,8 +613,70 @@ class App(Adw.Application):
         Adw.StyleManager.get_default().set_color_scheme({'auto': Adw.ColorScheme.DEFAULT, 'light': Adw.ColorScheme.FORCE_LIGHT, 'dark': Adw.ColorScheme.FORCE_DARK}[st])
 
     def do_activate(self):
-        w = self.props.active_window or Window(self)
+        ws = self.get_windows()
+        if ws and not ws[0].get_visible():
+            self.show_window(); return
+        w = self.props.active_window or (ws[0] if ws else None) or Window(self)
         w.present()
+
+    # 2.22: running in the background, with an icon in the tray
+    def start_tray(self):
+        if getattr(self, 'tray', None):
+            return
+        try:
+            from .tray import Tray
+            from .settings import current_icon
+            ic = os.path.join(os.path.dirname(__file__), 'appicons', current_icon() + '.png')
+            self.tray = Tray('Bible Corner - KJT', ic, self.show_window, self.really_quit, lambda: (_('Open Bible Corner'), _('Quit')))
+        except Exception as e:
+            self.tray = None
+            try:
+                from .core import log_problem; log_problem('tray: ' + str(e)[:150])
+            except Exception:
+                pass
+
+    def stop_tray(self):
+        t = getattr(self, 'tray', None)
+        if t:
+            t.close(); self.tray = None
+
+    def to_background(self, w=None):
+        w = w or self.props.active_window or (self.get_windows() or [None])[0]
+        if not w:
+            return
+        if not SET.get('bg_keep'):
+            w.close(); return
+        self.start_tray()
+        w.set_visible(False)
+        if not getattr(self, 'held', False):
+            self.hold(); self.held = True
+        if not SET.get('bg_told'):
+            SET.set('bg_told', 1)
+            n = Gio.Notification.new(_('Bible Corner is still running'))
+            n.set_body(_('Open it again from its icon in the tray, or from your list of apps. To close it fully, choose Quit (Ctrl+Q).'))
+            try:
+                self.send_notification('bg', n)
+            except Exception:
+                pass
+
+    def show_window(self):
+        ws = self.get_windows()
+        w = ws[0] if ws else Window(self)
+        w.set_visible(True); w.present()
+        if getattr(self, 'held', False):
+            self.release(); self.held = False
+
+    def really_quit(self):
+        self.quitting = True
+        for w in self.get_windows():
+            try:
+                w.on_close()
+            except Exception:
+                pass
+        if getattr(self, 'held', False):
+            self.release(); self.held = False
+        self.stop_tray()
+        self.quit()
 
     def do_open(self, files, n, hint):
         self.do_activate()

@@ -374,6 +374,14 @@ class SettingsPage(Gtk.Box):
         self.switch(g, 'Follow along', 'The verse being read glows, and the chapter scrolls with it', 'audio_follow', True, au)
         self.switch(g, 'Keep listening', 'Go on to the next chapter by itself', 'audio_keep', True, au)
         self.add(g)
+        # 2.22: closing the window
+        g = Adw.PreferencesGroup(title=_('When the window is closed'))
+        def bg():
+            app = self.win.get_application()
+            (app.start_tray() if SET.get('bg_keep') else app.stop_tray())
+            self.win.menu_btn.set_menu_model(self.win.make_menu())
+        self.switch(g, 'Keep running in the tray', 'Closing the window hides it: the app keeps running, with its icon in the tray (on GNOME, with the AppIndicator extension; otherwise under Background Apps). Quit closes it fully (Ctrl+Q).', 'bg_keep', False, bg)
+        self.add(g)
         # the rest
         g = Adw.PreferencesGroup(title=_('Help'))
         r = Adw.ActionRow(title=_('Report a problem'), activatable=True); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))

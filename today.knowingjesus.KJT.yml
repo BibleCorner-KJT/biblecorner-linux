@@ -10,6 +10,8 @@ finish-args:
   - --socket=fallback-x11
   - --device=dri
   - --socket=pulseaudio
+  # 2.22: the icon in the tray (Settings > Keep running in the tray)
+  - --talk-name=org.kde.StatusNotifierWatcher
   # 2.9: Settings > App icon: the chosen icon is a small menu entry of the user's own (~/.local/share/applications)
   - --filesystem=xdg-data/applications:create
 modules:
