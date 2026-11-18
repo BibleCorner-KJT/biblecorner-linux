@@ -331,6 +331,10 @@ class SettingsPage(Gtk.Box):
             self.win.language_changed()
         dd.connect('notify::selected', changed)
         g.add(dd); self.add(g)
+        # 2.24: accounts and avatar (in Study Journey, where the account is)
+        g = Adw.PreferencesGroup(title=_('Accounts on this computer'))
+        r = Adw.ActionRow(title=_('My account, my avatar and other accounts'), activatable=True); r.add_prefix(Gtk.Image(icon_name='avatar-default-symbolic')); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
+        r.connect('activated', lambda *_a: self.win.show('study')); g.add(r); self.add(g)
         # appearance
         g = Adw.PreferencesGroup(title=_('Appearance'))
         looks = [('auto', 'Follow the computer'), ('light', 'Light'), ('dark', 'Dark')]

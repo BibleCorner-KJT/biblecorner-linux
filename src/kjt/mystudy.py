@@ -1,7 +1,7 @@
 """My Study: bookmarks, highlights, notes and Study Pads; and your My KJT account (signing in here, in the app)."""
 import time
-from gi.repository import Gtk, Adw, Gdk, GLib, Pango
-from .core import STORE, SET, NET, OT, NT, info, book_name, strip_tags, canon
+from gi.repository import Gtk, Adw, Gdk, GLib, Pango, Gio
+from .core import STORE, SET, NET, OT, NT, info, book_name, strip_tags, canon, run_bg
 from .i18n import _
 from .study import STUDY, COLORS
 
@@ -323,11 +323,22 @@ class StudyPage(Gtk.Box):
         g = Adw.PreferencesGroup(title=_('My KJT account'))
         if u:
             when = STORE.kv('synced')
-            row = Adw.ActionRow(title=GLib.markup_escape_text(u.get('name') or 'Signed in'),
+            mine = getattr(self, 'me', None) if getattr(self, 'me', None) and self.me.get('id') == u.get('id') else None
+            row = Adw.ActionRow(title=GLib.markup_escape_text((mine or u).get('name') or 'Signed in'),
                                 subtitle=_('Kept in step with knowingjesus.today%s') % (time.strftime(' · last %d %b %H:%M', time.localtime(when)) if when else ''))
-            row.add_prefix(Gtk.Image(icon_name='avatar-default-symbolic', pixel_size=32))
+            # 2.24: the avatar (click it to change it)
+            avb = Gtk.Button(valign=Gtk.Align.CENTER, tooltip_text=_('Change my avatar')); avb.add_css_class('flat'); avb.add_css_class('circular')
+            avb.set_child(self.avatar((mine or {}).get('avatar'), (mine or u).get('name'), 44))
+            avb.connect('clicked', lambda *_: self.avatar_dialog()); row.add_prefix(avb)
             out = Gtk.Button(label=_('Sign out'), valign=Gtk.Align.CENTER); out.connect('clicked', lambda *_: self.sign_out()); row.add_suffix(out)
             g.add(row)
+            if not mine and not getattr(self, 'me_asked', False):
+                self.me_asked = True
+                from . import accounts as A
+                def got(m):
+                    if isinstance(m, dict):
+                        self.me = m; self.fill()
+                run_bg(lambda: (A.remember(), A.fetch_photo((A.me() or {}).get('avatar')), A.me())[2], got)
             waiting = len(STORE.outbox())
             if waiting:
                 g.add(Adw.ActionRow(title=_('%d changes wait for the internet') % waiting, subtitle=_('They are sent by themselves as soon as the website can be reached.')))
@@ -337,6 +348,150 @@ class StudyPage(Gtk.Box):
             b = Gtk.Button(label=_('Sign in'), valign=Gtk.Align.CENTER); b.add_css_class('suggested-action'); b.connect('clicked', lambda *_: self.sign_in_dialog()); row.add_suffix(b)
             g.add(row)
         (parent or self.right).append(g)
+        self.accounts_group(parent or self.right, (u or {}).get('id'))
+
+    # 2.24: the accounts on this computer
+    def avatar(self, av, name, size):
+        from . import accounts as A
+        a = Adw.Avatar(size=size, text=name or '', show_initials=True)
+        try:
+            t = A.texture(av, name, size * 2)
+            if t:
+                a.set_custom_image(t)
+        except Exception:
+            pass
+        return a
+
+    def accounts_group(self, parent, me_id):
+        from . import accounts as A
+        others = [a for a in A.load() if a.get('id') != me_id]
+        g = Adw.PreferencesGroup(title=_('Accounts on this computer'), description=_('Each person signs in once; then one click switches. Only a switch pass is kept on this computer (in its keyring), never a password.'))
+        for a in others:
+            row = Adw.ActionRow(title=GLib.markup_escape_text(a.get('name') or _('My study')))
+            row.add_prefix(self.avatar(a.get('avatar'), a.get('name'), 36))
+            sw = Gtk.Button(label=_('Switch'), valign=Gtk.Align.CENTER); sw.add_css_class('suggested-action'); sw.connect('clicked', lambda *_x, a=a: self.switch_to(a)); row.add_suffix(sw)
+            x = Gtk.Button(icon_name='user-trash-symbolic', valign=Gtk.Align.CENTER, tooltip_text=_('Forget on this computer')); x.add_css_class('flat')
+            x.connect('clicked', lambda *_x, a=a: self.forget_acct(a)); row.add_suffix(x)
+            g.add(row)
+        add = Adw.ButtonRow(title='＋ ' + _('Add another account')) if hasattr(Adw, 'ButtonRow') else None
+        if add is None:
+            add = Adw.ActionRow(title='＋ ' + _('Add another account'), activatable=True)
+            add.connect('activated', lambda *_x: self.add_account())
+        else:
+            add.connect('activated', lambda *_x: self.add_account())
+        g.add(add)
+        parent.append(g)
+
+    def switch_to(self, a):
+        from . import accounts as A
+        if not NET.online():
+            self.win.toast(_('This needs the internet. Try again when you are connected.')); return
+        def go():
+            self.win.toast(_('Opening…'))
+            def work():
+                if STORE.outbox():
+                    STUDY.flush()
+                if STORE.outbox():
+                    return 'waiting'      # never sent as the other person: they wait for this account
+                return A.switch(a)
+            def done(r):
+                if r == 'ok':
+                    self.me = None; self.me_asked = False
+                    STUDY.sync(lambda _x: (self.fill(), self.win.toast(_('Welcome') + ', ' + (a.get('name') or ''))))
+                elif r == 'waiting':
+                    self.win.toast(_('Some changes are still waiting to be sent. Try again in a moment, with the internet.'))
+                elif r == 'expired':
+                    self.win.toast(_('This account must sign in again on this computer (its password was changed, or it was not used for six months).')); self.fill()
+                else:
+                    self.win.toast(_('Could not switch now. Please try again.'))
+            run_bg(work, done)
+        go()
+
+    def forget_acct(self, a):
+        from . import accounts as A
+        d = Adw.AlertDialog(heading=_('Forget on this computer'), body=_('Forget this account on this computer? Its study stays safe on the website.'))
+        d.add_response('cancel', _('Cancel')); d.add_response('go', _('Forget on this computer')); d.set_response_appearance('go', Adw.ResponseAppearance.DESTRUCTIVE)
+        d.connect('response', lambda _d, r: run_bg(lambda: A.forget(a), lambda _x: self.fill()) if r == 'go' else None); d.present(self.win)
+
+    def add_account(self):
+        from . import accounts as A
+        if not (STORE.kv('info') or {}).get('user'):
+            self.sign_in_dialog(); return
+        def work():
+            A.remember()
+            if STORE.outbox():
+                STUDY.flush()
+            return not STORE.outbox()
+        def done(ok):
+            if ok is not True:
+                self.win.toast(_('Some changes are still waiting to be sent. Try again in a moment, with the internet.')); return
+            STUDY.sign_out(lambda: (self.fill(), self.sign_in_dialog()))
+        run_bg(work, done)
+
+    def avatar_dialog(self):
+        from . import accounts as A
+        m = getattr(self, 'me', None)
+        if not m:
+            self.win.toast(_('This needs the internet. Try again when you are connected.')); return
+        d = Adw.Dialog(title=_('My avatar'), content_width=460)
+        tv = Adw.ToolbarView(); tv.add_top_bar(Adw.HeaderBar()); d.set_child(tv)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=10, margin_bottom=16, margin_start=16, margin_end=16)
+        sc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True, max_content_height=640); sc.set_child(box); tv.set_content(sc)
+        prev = Gtk.Box(halign=Gtk.Align.CENTER); box.append(prev)
+        msg = Gtk.Label(wrap=True); msg.add_css_class('dim-label')
+        state = {'m': m}
+        def show():
+            while prev.get_first_child():
+                prev.remove(prev.get_first_child())
+            prev.append(self.avatar(state['m'].get('avatar'), state['m'].get('name'), 96))
+        def set_(fields, photo=None):
+            msg.set_label(_('Saving…'))
+            def work():
+                r = A.post(dict({'op': 'avatar'}, **fields), photo)
+                if r.get('success'):
+                    A.fetch_photo(r['data'].get('avatar')); A.remember(r['data'])
+                return r
+            def done(r):
+                if isinstance(r, dict) and r.get('success'):
+                    state['m'] = dict(state['m'], **r['data']); self.me = state['m']; show(); msg.set_label('✓ ' + _('Saved')); self.fill()
+                else:
+                    code = ((r or {}).get('data') or {}).get('code') if isinstance(r, dict) else ''
+                    msg.set_label(_('Choose a picture (JPEG, PNG or WebP, under 8 MB).') if code in ('type', 'file') else _('Could not save now. Please try again.'))
+            run_bg(work, done)
+        show()
+        h = Gtk.Label(label=_('A picture'), xalign=0); h.add_css_class('heading'); box.append(h)
+        fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=10, min_children_per_line=5, column_spacing=4, row_spacing=4)
+        for k, sym in (m.get('symbols') or {}).items():
+            b = Gtk.Button(label=sym); b.add_css_class('flat'); b.add_css_class('kjt-avsym')
+            b.connect('clicked', lambda *_x, k=k: set_({'t': 'sym', 'v': k, 'c': (state['m'].get('avatar') or {}).get('c', '')})); fb.append(b)
+        box.append(fb)
+        row = Gtk.Box(spacing=8, homogeneous=True)
+        ph = Gtk.Button(label='📷 ' + _('Choose a photo'))
+        def pick(*_x):
+            fd = Gtk.FileDialog(title=_('Choose a photo'))
+            flt = Gtk.FileFilter(); flt.set_name(_('Pictures')); [flt.add_mime_type(t) for t in ('image/jpeg', 'image/png', 'image/webp', 'image/gif')]
+            ls = Gio.ListStore.new(Gtk.FileFilter); ls.append(flt); fd.set_filters(ls)
+            def chosen(dlg, res):
+                try:
+                    f = dlg.open_finish(res)
+                except Exception:
+                    return
+                if f and f.get_path():
+                    set_({'t': 'photo', 'c': (state['m'].get('avatar') or {}).get('c', '')}, f.get_path())
+            fd.open(self.win, None, chosen)
+        ph.connect('clicked', pick); row.append(ph)
+        nb = Gtk.Button(label=_('Just my first letter')); nb.connect('clicked', lambda *_x: set_({'t': 'none', 'c': (state['m'].get('avatar') or {}).get('c', '')})); row.append(nb)
+        box.append(row)
+        h2 = Gtk.Label(label=_('A colour'), xalign=0); h2.add_css_class('heading'); box.append(h2)
+        cb = Gtk.Box(spacing=6)
+        for c in m.get('colours') or []:
+            b = Gtk.Button(); b.set_size_request(32, 32); b.add_css_class('circular')
+            pr = Gtk.CssProvider(); css = 'button { background: %s; min-width: 32px; min-height: 32px; }' % c
+            pr.load_from_string(css) if hasattr(pr, 'load_from_string') else pr.load_from_data(css, -1)
+            b.get_style_context().add_provider(pr, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            b.connect('clicked', lambda *_x, c=c: set_({'t': 'colour', 'c': c})); cb.append(b)
+        box.append(cb); box.append(msg)
+        d.present(self.win)
 
     def sign_in_dialog(self, how=None):
         how = how or SET.get('signin_how', 'key')
@@ -392,6 +547,9 @@ class StudyPage(Gtk.Box):
             if res.get('ok'):
                 self.win.toast('Welcome%s. Your study is now kept in step with My KJT.' % ((', ' + res['name']) if res.get('name') else ''))
                 self.fill()
+                from . import accounts as A
+                self.me = None; self.me_asked = False
+                run_bg(lambda: A.remember(), lambda _x: self.fill())
             else:
                 wrong = 'That study key was not recognised. Check it and try again.' if mode() == 'key' else 'The name or the password is not right.'
                 why = {'wrong': wrong, 'limit': 'Too many tries. Please wait an hour and try again.', 'net': 'The website could not be reached.'}.get(res.get('why'), 'Signing in did not work. Please try again.')

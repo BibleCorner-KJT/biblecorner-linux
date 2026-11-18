@@ -309,11 +309,11 @@ class Net:
         except Exception:
             return True
 
-    def get(self, url, data=None, timeout=40, strict=False):
+    def get(self, url, data=None, timeout=40, strict=False, headers=None):
         if not url.startswith('http'):
             url = SITE + url
         body = urllib.parse.urlencode(data).encode() if isinstance(data, dict) else data
-        req = urllib.request.Request(url, data=body, headers={'User-Agent': UA, 'Accept-Encoding': 'identity'})
+        req = urllib.request.Request(url, data=body, headers=dict({'User-Agent': UA, 'Accept-Encoding': 'identity'}, **(headers or {})))
         try:
             r = self.op.open(req, timeout=timeout)
             out = r.read()
