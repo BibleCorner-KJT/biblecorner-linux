@@ -130,7 +130,7 @@ PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy 
 
 
 def icon_button(icon, tip, fn=None, flat=True, toggle=False):
-    b = (Gtk.ToggleButton if toggle else Gtk.Button)(icon_name=icon, tooltip_text=tip)
+    b = (Gtk.ToggleButton if toggle else Gtk.Button)(icon_name=icon, tooltip_text=_(tip))
     if flat:
         b.add_css_class('flat')
     if fn:
@@ -287,7 +287,7 @@ class Window(Adw.ApplicationWindow):
     def toast(self, text, undo=None):
         t = Adw.Toast(title=GLib.markup_escape_text(text), timeout=5 if undo else 3)
         if undo:
-            t.set_button_label('Undo')
+            t.set_button_label(_('Undo'))
             t.connect('button-clicked', lambda *_: undo())
         self.toasts.add_toast(t)
 
@@ -410,8 +410,13 @@ class Window(Adw.ApplicationWindow):
             if hasattr(r, 'lab'):
                 r.lab.set_label(_(r.title)); r.set_tooltip_text('%s (Ctrl+%d)' % (_(r.title), r.n + 1))
             r = r.get_next_sibling()
+        # 2.18: right to left for Arabic, at once; and every page in the new language with one press
+        from .i18n import rtl
+        Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL if rtl() else Gtk.TextDirection.LTR)
         try:
-            self.toast(_('Some words change when the app is opened again.'))
+            t = Adw.Toast(title=GLib.markup_escape_text(_('Restart the app to show every page in the new language.')), timeout=0, button_label=_('Restart now'))
+            t.connect('button-clicked', lambda *_: self.restart())
+            self.toasts.add_toast(t)
         except Exception:
             pass
         for k, p in self.pages.items():
@@ -419,6 +424,14 @@ class Window(Adw.ApplicationWindow):
         cur = self.stack.get_visible_child_name()
         if cur:
             self.show(cur)
+
+    def restart(self):
+        """opens the app again (same window size and place in the Bible: they are kept as always)"""
+        try:
+            self.close()
+        except Exception:
+            pass
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     def offer_continue(self):
         """a small bubble: back to the very verse where you stopped reading"""
@@ -564,6 +577,9 @@ class App(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
+        # 2.18: Arabic reads from right to left: the whole app is laid out that way
+        from .i18n import rtl
+        Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL if rtl() else Gtk.TextDirection.LTR)
         disp = Gdk.Display.get_default()
         Gtk.IconTheme.get_for_display(disp).add_search_path(os.path.join(os.path.dirname(__file__), 'icons'))
         from .journey import CSS as JCSS, CSS_DARK as JDARK   # 2.11: Bible Study Journey

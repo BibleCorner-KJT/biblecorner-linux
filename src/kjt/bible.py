@@ -39,7 +39,7 @@ def fold(s):
 
 
 def ib(icon, tip, fn=None, toggle=False):
-    b = (Gtk.ToggleButton if toggle else Gtk.Button)(icon_name=icon, tooltip_text=tip)
+    b = (Gtk.ToggleButton if toggle else Gtk.Button)(icon_name=icon, tooltip_text=_(tip))
     b.add_css_class('flat')
     if fn:
         b.connect('toggled' if toggle else 'clicked', lambda *_: fn())
@@ -196,7 +196,7 @@ class BiblePage(Gtk.Box):
         mp = Gtk.Popover(); mb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
         for lab, fn in (('Compare with another Bible…', lambda: (mp.popdown(), GLib.idle_add(lambda: (self.cmp_btn.popup(), False)[1]))),
                         ('Map of this chapter', lambda: (mp.popdown(), self.map())), ('Larger text', lambda: self.zoom(1.1)), ('Smaller text', lambda: self.zoom(1 / 1.1))):
-            b = Gtk.Button(label=lab); b.add_css_class('flat'); b.get_child().set_xalign(0); b.connect('clicked', lambda _b, fn=fn: fn()); mb.append(b)
+            b = Gtk.Button(label=_(lab)); b.add_css_class('flat'); b.get_child().set_xalign(0); b.connect('clicked', lambda _b, fn=fn: fn()); mb.append(b)
         mb.append(self.colours_switch())
         mp.set_child(mb); more.set_popover(mp)
         for w in (ib('kjt-prev-symbolic', 'Previous chapter', lambda: self.step(-1)), self.c_search, self.c_hf, ib('kjt-listen-symbolic', 'Listen', self.listen), more,
@@ -212,7 +212,7 @@ class BiblePage(Gtk.Box):
         menu = Gtk.MenuButton(icon_name='kjt-textsize-symbolic', tooltip_text=_('Text size (Ctrl + and Ctrl −)')); menu.add_css_class('flat')
         pop = Gtk.Popover(); pb = Gtk.Box(spacing=6, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
         for icon, f, tip in (('kjt-minus-symbolic', 1 / 1.1, 'Smaller'), ('kjt-textsize-symbolic', 0, 'Usual size'), ('kjt-plus-symbolic', 1.1, 'Larger')):
-            b = Gtk.Button(icon_name=icon, tooltip_text=tip); b.connect('clicked', lambda _b, f=f: self.zoom(f)); pb.append(b)
+            b = Gtk.Button(icon_name=icon, tooltip_text=_(tip)); b.connect('clicked', lambda _b, f=f: self.zoom(f)); pb.append(b)
         col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6); col.append(pb); col.append(self.colours_switch())
         pop.set_child(col); menu.set_popover(pop)
         return menu

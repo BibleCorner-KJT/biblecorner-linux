@@ -512,6 +512,84 @@ _T = {
     'Warm peach: in studies, the page people read fastest on.': ('خوخي دافئ: في الدراسات، الصفحة التي قرأ عليها الناس أسرع.', 'Ζεστό ροδακινί: σε μελέτες, η σελίδα όπου οι άνθρωποι διάβαζαν πιο γρήγορα.', 'Melocotón cálido: en estudios, la página en la que la gente leía más rápido.', 'Pêche chaude : dans les études, la page sur laquelle on lisait le plus vite.', 'गर्म आड़ू रंग: अध्ययनों में, जिस पृष्ठ पर लोग सबसे तेज़ पढ़ते थे।', 'Тёплый персиковый: в исследованиях на нём читали быстрее всего.', 'Mainit na peach: sa mga pag-aaral, ang pahinang pinakamabilis basahin ng mga tao.', '暖桃色：研究中人们阅读速度最快的页面。'),
     'A dimmer sepia page for the evening, with less glare.': ('صفحة بنية أخفت للمساء، بوهج أقل.', 'Πιο αμυδρή σελίδα σέπια για το βράδυ, με λιγότερη λάμψη.', 'Una página sepia más tenue para la tarde, con menos deslumbramiento.', 'Une page sépia plus douce pour le soir, avec moins d’éblouissement.', 'शाम के लिए थोड़ा मद्धम सीपिया पृष्ठ, कम चमक के साथ।', 'Более приглушённая сепия для вечера, меньше бликов.', 'Mas malamlam na pahinang sepia para sa gabi, may kaunting silaw.', '傍晚用的较暗棕褐色页面，眩光更少。'),
     'Only for a dark room: a warm dark page with soft letters and little blue light. For long reading, a light page is clearer.': ('للغرفة المظلمة فقط: صفحة داكنة دافئة بحروف ناعمة وقليل من الضوء الأزرق. للقراءة الطويلة، الصفحة الفاتحة أوضح.', 'Μόνο για σκοτεινό δωμάτιο: ζεστή σκοτεινή σελίδα με απαλά γράμματα και λίγο μπλε φως. Για πολύωρο διάβασμα, η φωτεινή σελίδα είναι πιο καθαρή.', 'Solo para una habitación oscura: una página oscura y cálida, con letras suaves y poca luz azul. Para leer largo rato, una página clara es más nítida.', 'Seulement pour une pièce sombre : une page sombre et chaude, aux lettres douces et avec peu de lumière bleue. Pour lire longtemps, une page claire est plus nette.', 'केवल अंधेरे कमरे के लिए: नरम अक्षरों और कम नीली रोशनी वाला गर्म गहरा पृष्ठ। लंबे पढ़ने के लिए हल्का पृष्ठ अधिक साफ़ है।', 'Только для тёмной комнаты: тёплая тёмная страница с мягкими буквами и малым количеством синего света. Для долгого чтения светлая страница чётче.', 'Para lamang sa madilim na silid: mainit at madilim na pahina na may malambot na titik at kaunting asul na liwanag. Sa matagal na pagbasa, mas malinaw ang maliwanag na pahina.', '仅适用于暗室：温暖的深色页面，文字柔和，蓝光很少。长时间阅读时，浅色页面更清晰。'),
+    'January': ('يناير', 'Ιανουάριος', 'enero', 'janvier', 'जनवरी', 'январь', 'Enero', '一月'),
+    'February': ('فبراير', 'Φεβρουάριος', 'febrero', 'février', 'फ़रवरी', 'февраль', 'Pebrero', '二月'),
+    'March': ('مارس', 'Μάρτιος', 'marzo', 'mars', 'मार्च', 'март', 'Marso', '三月'),
+    'April': ('أبريل', 'Απρίλιος', 'abril', 'avril', 'अप्रैल', 'апрель', 'Abril', '四月'),
+    'May': ('مايو', 'Μάιος', 'mayo', 'mai', 'मई', 'май', 'Mayo', '五月'),
+    'June': ('يونيو', 'Ιούνιος', 'junio', 'juin', 'जून', 'июнь', 'Hunyo', '六月'),
+    'July': ('يوليو', 'Ιούλιος', 'julio', 'juillet', 'जुलाई', 'июль', 'Hulyo', '七月'),
+    'August': ('أغسطس', 'Αύγουστος', 'agosto', 'août', 'अगस्त', 'август', 'Agosto', '八月'),
+    'September': ('سبتمبر', 'Σεπτέμβριος', 'septiembre', 'septembre', 'सितंबर', 'сентябрь', 'Setyembre', '九月'),
+    'October': ('أكتوبر', 'Οκτώβριος', 'octubre', 'octobre', 'अक्टूबर', 'октябрь', 'Oktubre', '十月'),
+    'November': ('نوفمبر', 'Νοέμβριος', 'noviembre', 'novembre', 'नवंबर', 'ноябрь', 'Nobyembre', '十一月'),
+    'December': ('ديسمبر', 'Δεκέμβριος', 'diciembre', 'décembre', 'दिसंबर', 'декабрь', 'Disyembre', '十二月'),
+    'Monday': ('الاثنين', 'Δευτέρα', 'lunes', 'lundi', 'सोमवार', 'понедельник', 'Lunes', '星期一'),
+    'Tuesday': ('الثلاثاء', 'Τρίτη', 'martes', 'mardi', 'मंगलवार', 'вторник', 'Martes', '星期二'),
+    'Wednesday': ('الأربعاء', 'Τετάρτη', 'miércoles', 'mercredi', 'बुधवार', 'среда', 'Miyerkules', '星期三'),
+    'Thursday': ('الخميس', 'Πέμπτη', 'jueves', 'jeudi', 'गुरुवार', 'четверг', 'Huwebes', '星期四'),
+    'Friday': ('الجمعة', 'Παρασκευή', 'viernes', 'vendredi', 'शुक्रवार', 'пятница', 'Biyernes', '星期五'),
+    'Saturday': ('السبت', 'Σάββατο', 'sábado', 'samedi', 'शनिवार', 'суббота', 'Sabado', '星期六'),
+    'Sunday': ('الأحد', 'Κυριακή', 'domingo', 'dimanche', 'रविवार', 'воскресенье', 'Linggo', '星期日'),
+    'Drag to make this wider or narrower': ('اسحب لتوسيع هذا الجزء أو تضييقه', 'Σύρετε για να γίνει πιο φαρδύ ή πιο στενό', 'Arrastre para ensanchar o estrechar', 'Faites glisser pour élargir ou rétrécir', 'चौड़ा या संकरा करने के लिए खींचें', 'Перетащите, чтобы сделать шире или уже', 'I-drag para palaparin o paliitin', '拖动以调整宽窄'),
+    'Show the menu': ('أظهر القائمة', 'Εμφάνιση του μενού', 'Mostrar el menú', 'Afficher le menu', 'मेनू दिखाएँ', 'Показать меню', 'Ipakita ang menu', '显示菜单'),
+    'Usual size': ('الحجم المعتاد', 'Συνηθισμένο μέγεθος', 'Tamaño habitual', 'Taille habituelle', 'सामान्य आकार', 'Обычный размер', 'Karaniwang laki', '默认大小'),
+    'Compare with another Bible…': ('قارن مع كتاب مقدس آخر…', 'Σύγκριση με άλλη Αγία Γραφή…', 'Comparar con otra Biblia…', 'Comparer avec une autre Bible…', 'दूसरी बाइबल से तुलना करें…', 'Сравнить с другой Библией…', 'Ihambing sa ibang Bibliya…', '与其他圣经对照…'),
+    'Larger text': ('نص أكبر', 'Μεγαλύτερα γράμματα', 'Texto más grande', 'Texte plus grand', 'बड़ा पाठ', 'Крупнее текст', 'Mas malaking teksto', '放大文字'),
+    'Smaller text': ('نص أصغر', 'Μικρότερα γράμματα', 'Texto más pequeño', 'Texte plus petit', 'छोटा पाठ', 'Мельче текст', 'Mas maliit na teksto', '缩小文字'),
+    'Share as a picture…': ('شارك كصورة…', 'Κοινοποίηση ως εικόνα…', 'Compartir como imagen…', 'Partager en image…', 'तस्वीर के रूप में साझा करें…', 'Поделиться картинкой…', 'Ibahagi bilang larawan…', '以图片分享…'),
+    'Copy the text': ('انسخ النص', 'Αντιγραφή του κειμένου', 'Copiar el texto', 'Copier le texte', 'पाठ कॉपी करें', 'Скопировать текст', 'Kopyahin ang teksto', '复制文字'),
+    'Verse of the day': ('آية اليوم', 'Εδάφιο της ημέρας', 'Versículo del día', 'Verset du jour', 'आज का वचन', 'Стих дня', 'Talata ng araw', '每日经文'),
+    'The readings of the day': ('قراءات اليوم', 'Τα αναγνώσματα της ημέρας', 'Las lecturas del día', 'Les lectures du jour', 'आज के पाठ', 'Чтения дня', 'Ang mga pagbasa sa araw', '今日读经'),
+    'Fold away or show': ('اطوِ أو أظهر', 'Σύμπτυξη ή εμφάνιση', 'Plegar o mostrar', 'Replier ou afficher', 'समेटें या दिखाएँ', 'Свернуть или показать', 'Itupi o ipakita', '折叠或展开'),
+    'Click to show only this Study Pad': ('انقر لإظهار مفكرة الدراسة هذه فقط', 'Κάντε κλικ για να εμφανίζεται μόνο αυτό το Σημειωματάριο μελέτης', 'Pulse para ver solo este Cuaderno de estudio', 'Cliquez pour n’afficher que ce Carnet d’étude', 'केवल यही अध्ययन पैड दिखाने के लिए क्लिक करें', 'Нажмите, чтобы показать только эту учебную тетрадь', 'I-click para ipakita lamang ang Study Pad na ito', '点击只显示此学习本'),
+    'Make a new Study Pad': ('أنشئ مفكرة دراسة جديدة', 'Νέο Σημειωματάριο μελέτης', 'Crear un Cuaderno de estudio nuevo', 'Créer un nouveau Carnet d’étude', 'नया अध्ययन पैड बनाएँ', 'Создать новую учебную тетрадь', 'Gumawa ng bagong Study Pad', '新建学习本'),
+    'All': ('الكل', 'Όλα', 'Todo', 'Tout', 'सब', 'Все', 'Lahat', '全部'),
+    '🏛️ Places': ('🏛️ أماكن', '🏛️ Τόποι', '🏛️ Lugares', '🏛️ Lieux', '🏛️ स्थान', '🏛️ Места', '🏛️ Mga lugar', '🏛️ 地点'),
+    '👤 Names': ('👤 أسماء', '👤 Ονόματα', '👤 Nombres', '👤 Noms', '👤 नाम', '👤 Имена', '👤 Mga pangalan', '👤 人名'),
+    '🕊️ Apostles': ('🕊️ الرسل', '🕊️ Απόστολοι', '🕊️ Apóstoles', '🕊️ Apôtres', '🕊️ प्रेरित', '🕊️ Апостолы', '🕊️ Mga apostol', '🕊️ 使徒'),
+    '📖 Fathers': ('📖 الآباء', '📖 Πατέρες', '📖 Padres', '📖 Pères', '📖 पिता', '📖 Отцы', '📖 Mga Ama', '📖 教父'),
+    '🏕️ Peoples': ('🏕️ شعوب', '🏕️ Λαοί', '🏕️ Pueblos', '🏕️ Peuples', '🏕️ जातियाँ', '🏕️ Народы', '🏕️ Mga bayan', '🏕️ 民族'),
+    '✝️ The faith': ('✝️ الإيمان', '✝️ Η πίστη', '✝️ La fe', '✝️ La foi', '✝️ विश्वास', '✝️ Вера', '✝️ Ang pananampalataya', '✝️ 信仰'),
+    'Zoom in': ('تكبير', 'Μεγέθυνση', 'Acercar', 'Zoom avant', 'ज़ूम इन', 'Приблизить', 'Palakihin', '放大'),
+    'Zoom out': ('تصغير', 'Σμίκρυνση', 'Alejar', 'Zoom arrière', 'ज़ूम आउट', 'Отдалить', 'Paliitin', '缩小'),
+    'Jerusalem close up': ('أورشليم عن قرب', 'Η Ιερουσαλήμ από κοντά', 'Jerusalén de cerca', 'Jérusalem de près', 'यरूशलेम पास से', 'Иерусалим крупно', 'Jerusalem nang malapitan', '近看耶路撒冷'),
+    'Whole map': ('الخريطة كاملة', 'Ολόκληρος ο χάρτης', 'Mapa completo', 'Carte entière', 'पूरा नक्शा', 'Вся карта', 'Buong mapa', '整张地图'),
+    'Grey squares are today’s capitals, to find your way; they are not places of the Bible.': ('المربعات الرمادية هي عواصم اليوم، لتهتدي بها؛ وليست من أماكن الكتاب المقدس.', 'Τα γκρίζα τετράγωνα είναι οι σημερινές πρωτεύουσες, για προσανατολισμό· δεν είναι τόποι της Γραφής.', 'Los cuadrados grises son las capitales de hoy, para orientarse; no son lugares de la Biblia.', 'Les carrés gris sont les capitales d’aujourd’hui, pour se repérer ; ce ne sont pas des lieux de la Bible.', 'धूसर वर्ग आज की राजधानियाँ हैं, रास्ता समझने के लिए; ये बाइबल के स्थान नहीं हैं।', 'Серые квадраты — нынешние столицы, для ориентира; это не библейские места.', 'Ang mga abong parisukat ay mga kabisera ngayon, para sa direksiyon; hindi sila mga lugar sa Bibliya.', '灰色方块是今天的首都，用于辨认方位；它们不是圣经中的地点。'),
+    'My languages': ('لغاتي', 'Οι γλώσσες μου', 'Mis idiomas', 'Mes langues', 'मेरी भाषाएँ', 'Мои языки', 'Aking mga wika', '我的语言'),
+    'All languages': ('كل اللغات', 'Όλες οι γλώσσες', 'Todos los idiomas', 'Toutes les langues', 'सभी भाषाएँ', 'Все языки', 'Lahat ng wika', '所有语言'),
+    'Everything': ('كل شيء', 'Όλα', 'Todo', 'Tout', 'सब कुछ', 'Всё', 'Lahat', '全部'),
+    'Copied: paste it in a message or a post': ('نُسخ: الصقه في رسالة أو منشور', 'Αντιγράφηκε: επικολλήστε το σε μήνυμα ή ανάρτηση', 'Copiado: péguelo en un mensaje o una publicación', 'Copié : collez-le dans un message ou une publication', 'कॉपी हो गया: इसे संदेश या पोस्ट में चिपकाएँ', 'Скопировано: вставьте в сообщение или пост', 'Nakopya: i-paste sa mensahe o post', '已复制：可粘贴到消息或帖子中'),
+    'Restart the app to show every page in the new language.': ('أعد تشغيل التطبيق لتظهر كل الصفحات باللغة الجديدة.', 'Επανεκκινήστε την εφαρμογή για να εμφανιστούν όλες οι σελίδες στη νέα γλώσσα.', 'Reinicie la aplicación para ver todas las páginas en el nuevo idioma.', 'Redémarrez l’application pour voir toutes les pages dans la nouvelle langue.', 'हर पृष्ठ नई भाषा में देखने के लिए ऐप फिर से शुरू करें।', 'Перезапустите приложение, чтобы все страницы были на новом языке.', 'I-restart ang app para makita ang bawat pahina sa bagong wika.', '重新启动应用，即可以新语言显示所有页面。'),
+    'Restart now': ('أعد التشغيل الآن', 'Επανεκκίνηση τώρα', 'Reiniciar ahora', 'Redémarrer', 'अभी फिर से शुरू करें', 'Перезапустить', 'I-restart ngayon', '立即重启'),
+    'Undo': ('تراجع', 'Αναίρεση', 'Deshacer', 'Annuler', 'पूर्ववत करें', 'Отменить', 'I-undo', '撤销'),
+    'Close': ('أغلق', 'Κλείσιμο', 'Cerrar', 'Fermer', 'बंद करें', 'Закрыть', 'Isara', '关闭'),
+    'English': ('الإنجليزية', 'Αγγλικά', 'Inglés', 'Anglais', 'अंग्रेज़ी', 'Английский', 'Ingles', '英语'),
+    'Ancient Greek': ('اليونانية القديمة', 'Αρχαία ελληνικά', 'Griego antiguo', 'Grec ancien', 'प्राचीन यूनानी', 'Древнегреческий', 'Sinaunang Griyego', '古希腊语'),
+    'Greek': ('اليونانية', 'Ελληνικά', 'Griego', 'Grec', 'यूनानी', 'Греческий', 'Griyego', '希腊语'),
+    'Russian': ('الروسية', 'Ρωσικά', 'Ruso', 'Russe', 'रूसी', 'Русский', 'Ruso', '俄语'),
+    'Arabic': ('العربية', 'Αραβικά', 'Árabe', 'Arabe', 'अरबी', 'Арабский', 'Arabe', '阿拉伯语'),
+    'French': ('الفرنسية', 'Γαλλικά', 'Francés', 'Français', 'फ़्रांसीसी', 'Французский', 'Pranses', '法语'),
+    'Spanish': ('الإسبانية', 'Ισπανικά', 'Español', 'Espagnol', 'स्पेनी', 'Испанский', 'Espanyol', '西班牙语'),
+    'Chinese': ('الصينية', 'Κινεζικά', 'Chino', 'Chinois', 'चीनी', 'Китайский', 'Tsino', '中文'),
+    'Hindi': ('الهندية', 'Χίντι', 'Hindi', 'Hindi', 'हिन्दी', 'Хинди', 'Hindi', '印地语'),
+    'Tagalog': ('التاغالوغية', 'Ταγκαλόγκ', 'Tagalo', 'Tagalog', 'तागालोग', 'Тагальский', 'Tagalog', '他加禄语'),
+    'Filipino': ('الفلبينية', 'Φιλιππινέζικα', 'Filipino', 'Filipino', 'फ़िलिपीनो', 'Филиппинский', 'Filipino', '菲律宾语'),
+    'Latin': ('اللاتينية', 'Λατινικά', 'Latín', 'Latin', 'लैटिन', 'Латынь', 'Latin', '拉丁语'),
+    'Hebrew': ('العبرية', 'Εβραϊκά', 'Hebreo', 'Hébreu', 'इब्रानी', 'Иврит', 'Hebreo', '希伯来语'),
+    'Ancient Hebrew': ('العبرية القديمة', 'Αρχαία εβραϊκά', 'Hebreo antiguo', 'Hébreu ancien', 'प्राचीन इब्रानी', 'Древнееврейский', 'Sinaunang Hebreo', '古希伯来语'),
+    'Church Slavonic': ('السلافونية الكنسية', 'Εκκλησιαστικά σλαβονικά', 'Eslavo eclesiástico', 'Slavon d’Église', 'चर्च स्लावोनिक', 'Церковнославянский', 'Church Slavonic', '教会斯拉夫语'),
+    'Syriac': ('السريانية', 'Συριακά', 'Siríaco', 'Syriaque', 'सुरियानी', 'Сирийский', 'Siriako', '叙利亚语'),
+    'Coptic': ('القبطية', 'Κοπτικά', 'Copto', 'Copte', 'कॉप्टिक', 'Коптский', 'Koptiko', '科普特语'),
+    'German': ('الألمانية', 'Γερμανικά', 'Alemán', 'Allemand', 'जर्मन', 'Немецкий', 'Aleman', '德语'),
+    'Italian': ('الإيطالية', 'Ιταλικά', 'Italiano', 'Italien', 'इतालवी', 'Итальянский', 'Italyano', '意大利语'),
+    'Portuguese': ('البرتغالية', 'Πορτογαλικά', 'Portugués', 'Portugais', 'पुर्तगाली', 'Португальский', 'Portuges', '葡萄牙语'),
+    'Romanian': ('الرومانية', 'Ρουμανικά', 'Rumano', 'Roumain', 'रोमानियाई', 'Румынский', 'Rumano', '罗马尼亚语'),
+    'Ukrainian': ('الأوكرانية', 'Ουκρανικά', 'Ucraniano', 'Ukrainien', 'यूक्रेनी', 'Украинский', 'Ukranyano', '乌克兰语'),
+    'Bulgarian': ('البلغارية', 'Βουλγαρικά', 'Búlgaro', 'Bulgare', 'बुल्गारियाई', 'Болгарский', 'Bulgaro', '保加利亚语'),
+    'Serbian': ('الصربية', 'Σερβικά', 'Serbio', 'Serbe', 'सर्बियाई', 'Сербский', 'Serbiyo', '塞尔维亚语'),
+    'Georgian': ('الجورجية', 'Γεωργιανά', 'Georgiano', 'Géorgien', 'जॉर्जियाई', 'Грузинский', 'Georgian', '格鲁吉亚语'),
+    'Armenian': ('الأرمنية', 'Αρμενικά', 'Armenio', 'Arménien', 'आर्मेनियाई', 'Армянский', 'Armenyo', '亚美尼亚语'),
     'Report a problem': ('أبلغ عن مشكلة', 'Ανάφερε ένα πρόβλημα', 'Informar de un problema', 'Signaler un problème', 'समस्या बताएँ', 'Сообщить о проблеме', 'Mag-ulat ng problema', '报告问题'),
     'Tell us what went wrong, and what you were doing just before. No name, email or account is sent: only what you write and the details below.': ('أخبرنا بما حدث من خطأ، وبما كنت تفعله قبله مباشرة. لا يُرسل اسم ولا بريد ولا حساب: فقط ما تكتبه والتفاصيل أدناه.', 'Πες μας τι πήγε στραβά και τι έκανες λίγο πριν. Δεν στέλνεται όνομα, email ή λογαριασμός: μόνο ό,τι γράψεις και τα παρακάτω στοιχεία.', 'Cuéntanos qué salió mal y qué estabas haciendo justo antes. No se envía nombre, correo ni cuenta: solo lo que escribas y los datos de abajo.', 'Dis-nous ce qui n’a pas marché, et ce que tu faisais juste avant. Aucun nom, e-mail ni compte n’est envoyé : seulement ce que tu écris et les détails ci-dessous.', 'हमें बताएँ क्या गलत हुआ, और ठीक पहले आप क्या कर रहे थे। कोई नाम, ईमेल या खाता नहीं भेजा जाता: केवल जो आप लिखते हैं और नीचे के विवरण।', 'Расскажите, что пошло не так и что вы делали перед этим. Имя, email и аккаунт не отправляются: только то, что вы напишете, и сведения ниже.', 'Sabihin sa amin kung ano ang nagkamali, at kung ano ang ginagawa mo bago iyon. Walang pangalan, email o account na ipinapadala: ang isinulat mo lang at ang mga detalye sa ibaba.', '告诉我们出了什么问题，以及之前你在做什么。不会发送姓名、邮箱或账户：只发送你写的内容和下面的信息。'),
     'Details sent with it': ('التفاصيل المرسلة معه', 'Στοιχεία που στέλνονται μαζί', 'Datos que se envían con él', 'Détails envoyés avec', 'साथ भेजे जाने वाले विवरण', 'Сведения, отправляемые вместе', 'Mga detalyeng kasamang ipapadala', '一同发送的信息'),
@@ -535,3 +613,25 @@ def _(s, l=None):
 
 def rtl():
     return lang() == 'ar'
+
+
+# 2.18: dates in the reader's language (the computer's own date words may be in another language)
+_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+_GEN = {'el': ['Ιανουαρίου', 'Φεβρουαρίου', 'Μαρτίου', 'Απριλίου', 'Μαΐου', 'Ιουνίου', 'Ιουλίου', 'Αυγούστου', 'Σεπτεμβρίου', 'Οκτωβρίου', 'Νοεμβρίου', 'Δεκεμβρίου'], 'ru': ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']}
+
+
+def fmt_date(d, weekday=True, short=False):
+    """'Wednesday 18 November 2026' (or 'Wed 18 Nov 2026') in the app's language; d is a date or datetime"""
+    l = lang()
+    m = _MONTHS[d.month - 1]; wd = _DAYS[d.weekday()]
+    if l == 'zh':
+        s = '%d年%d月%d日' % (d.year, d.month, d.day)
+        return (s + ' ' + _(wd)) if weekday else s
+    mn = _GEN[l][d.month - 1] if l in _GEN else _(m)
+    wn = _(wd)
+    if short and l == 'en':
+        mn, wn = m[:3], wd[:3]
+    s = ('%d de %s de %d' if l == 'es' else '%d %s %d') % (d.day, mn, d.year)
+    sep = '، ' if l == 'ar' and not short else ', ' if l in ('el', 'ru', 'es') and not short else ' '
+    return (wn + sep + s) if weekday else s

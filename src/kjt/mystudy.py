@@ -145,7 +145,7 @@ class StudyPage(Gtk.Box):
         arrow = Gtk.Image(icon_name='pan-down-symbolic' if open_ else 'pan-end-symbolic'); hb.append(arrow)
         hb.append(Gtk.Label(label=title, xalign=0, css_classes=['heading']))
         hb.append(Gtk.Label(label=str(count), css_classes=['dim-label']))
-        b.set_child(hb); b.set_tooltip_text('Fold away or show'); head.append(b)
+        b.set_child(hb); b.set_tooltip_text(_('Fold away or show')); head.append(b)
         if extra:
             head.append(extra)
         lb = child or Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -183,7 +183,7 @@ class StudyPage(Gtk.Box):
         self.section('pads', _('Study Pads'), len(pads), child=grid, parent=side)
         for p in pads:
             grid.append(self.pad_card(p['tag'], sum(1 for r in recs if p['tag'] in (r.get('tags') or []))))
-        add = Gtk.Button(); add.add_css_class('card'); add.set_tooltip_text('Make a new Study Pad')
+        add = Gtk.Button(); add.add_css_class('card'); add.set_tooltip_text(_('Make a new Study Pad'))
         ab = Gtk.Box(spacing=8, margin_top=8, margin_bottom=8, margin_start=8, margin_end=8, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
         ab.append(Gtk.Image(icon_name='kjt-plus-symbolic')); ab.append(Gtk.Label(label=_('New Study Pad'))); add.set_child(ab)
         add.connect('clicked', lambda *_: pad_dialog(self.win)); grid.append(add)
@@ -298,7 +298,7 @@ class StudyPage(Gtk.Box):
         e.connect('clicked', lambda *_: pad_dialog(self.win, tag)); card.append(e)
         g = Gtk.GestureClick(); g.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); txt.add_controller(g)
         gb = Gtk.GestureClick(); gb.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); badge.add_controller(gb)
-        card.set_tooltip_text('Click to show only this Study Pad')
+        card.set_tooltip_text(_('Click to show only this Study Pad'))
         card.set_cursor(Gdk.Cursor.new_from_name('pointer'))
         return card
 

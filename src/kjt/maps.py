@@ -597,7 +597,7 @@ class MapsPage(Gtk.Box):
         ctl = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=10, margin_bottom=10)
         for icon, tip, fn in (('kjt-plus-symbolic', 'Zoom in', lambda: self.mv.zoom_to(self.mv.s * 1.6)), ('kjt-minus-symbolic', 'Zoom out', lambda: self.mv.zoom_to(self.mv.s / 1.6)),
                               ('kjt-jerusalem-symbolic', 'Jerusalem close up', lambda: self.mv.jerusalem()), ('kjt-home-symbolic', 'Whole map', lambda: (self.clear_only(), self.mv.home()))):
-            bt = Gtk.Button(icon_name=icon, tooltip_text=tip); bt.add_css_class('circular'); bt.add_css_class('osd'); bt.connect('clicked', lambda _b, fn=fn: fn()); ctl.append(bt)
+            bt = Gtk.Button(icon_name=icon, tooltip_text=_(tip)); bt.add_css_class('circular'); bt.add_css_class('osd'); bt.connect('clicked', lambda _b, fn=fn: fn()); ctl.append(bt)
         ov.add_overlay(ctl)
         # a story's steps, on the map
         self.snav = Gtk.Box(spacing=4, halign=Gtk.Align.CENTER, valign=Gtk.Align.START, margin_top=10, visible=False); self.snav.add_css_class('osd'); self.snav.add_css_class('toolbar')
@@ -727,7 +727,7 @@ class MapsPage(Gtk.Box):
             cb.connect('toggled', lambda b, k=k: (self.mv.shown.__setitem__(k, b.get_active()), self.mv.queue_draw())); kf.append(cb)
         self.side.append(kf)
         sb = Gtk.Button(label='🧭 ' + M.T('tab_stories'), margin_top=10); sb.add_css_class('pill'); sb.connect('clicked', lambda *_: self.set_mode('stories')); self.side.append(sb)
-        note = self.label("Grey squares are today’s capitals, to find your way; they are not places of the Bible.", 'caption', 'dim-label'); note.set_margin_top(8)
+        note = self.label(_("Grey squares are today’s capitals, to find your way; they are not places of the Bible."), 'caption', 'dim-label'); note.set_margin_top(8)
 
     def atlas_home(self):
         """the old atlases: maps drawn by hand centuries ago (public domain, Wikimedia Commons); each picture is
@@ -959,7 +959,7 @@ class AtlasView(Gtk.Box):
         self.title = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['heading']); self.sub = Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['caption', 'dim-label'])
         cap.append(self.title); cap.append(self.sub); top.append(cap)
         for icon, tip, f in (('kjt-minus-symbolic', 'Zoom out', 1 / 1.6), ('kjt-plus-symbolic', 'Zoom in', 1.6), ('kjt-home-symbolic', 'Whole map', 0)):
-            b = Gtk.Button(icon_name=icon, tooltip_text=tip); b.add_css_class('flat'); b.connect('clicked', lambda _b, f=f: self.zoom(f) if f else self.fit()); top.append(b)
+            b = Gtk.Button(icon_name=icon, tooltip_text=_(tip)); b.add_css_class('flat'); b.connect('clicked', lambda _b, f=f: self.zoom(f) if f else self.fit()); top.append(b)
         view.append(top)
         self.area = Gtk.DrawingArea(vexpand=True, hexpand=True); self.area.set_draw_func(self.draw)
         self.status = Gtk.Label(css_classes=['dim-label'], vexpand=True)

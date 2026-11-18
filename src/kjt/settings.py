@@ -164,7 +164,7 @@ class DownloadsPage(Gtk.Box):
             g.add(ex2)
             MAIN = ['English', 'Arabic', 'Greek', 'Ancient Greek', 'Russian', 'Church Slavonic', 'Chinese', 'French', 'Hindi', 'Spanish', 'Tagalog', 'Filipino']
             for lg in sorted(by_lang, key=lambda x: (MAIN.index(x) if x in MAIN else 99, x)):
-                ex3 = Adw.ExpanderRow(title=GLib.markup_escape_text(lg), subtitle='%d' % len(by_lang[lg])); ex3.add_css_class('kjt-lib-lang')
+                ex3 = Adw.ExpanderRow(title=GLib.markup_escape_text(_(lg)), subtitle='%d' % len(by_lang[lg])); ex3.add_css_class('kjt-lib-lang')
                 if q:
                     ex3.set_expanded(True)
                 for tr, v in sorted(by_lang[lg], key=lambda x: x[1][1]):

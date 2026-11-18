@@ -148,7 +148,7 @@ class DictPage(Gtk.Box):
         top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=8, margin_end=8, margin_top=6, margin_bottom=6)
         self.q = Gtk.SearchEntry(placeholder_text=_('Find a word, a name or a place')); self.q.connect('search-changed', lambda *_: self.later())
         top.append(self.q)
-        self.kinds = Gtk.DropDown.new_from_strings([k[1] for k in KINDS]); self.kinds.connect('notify::selected', lambda *_: self.fill())
+        self.kinds = Gtk.DropDown.new_from_strings([_(k[1]) for k in KINDS]); self.kinds.connect('notify::selected', lambda *_: self.fill())
         top.append(self.kinds)
         lt.add_top_bar(top)
         self.list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE); self.list.add_css_class('navigation-sidebar')
@@ -156,7 +156,7 @@ class DictPage(Gtk.Box):
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(self.list); lt.set_content(sc)
         self.count = Gtk.Label(css_classes=['dim-label', 'caption'], margin_bottom=4); lt.add_bottom_bar(self.count)
         from .ui import resizable
-        self.split.set_sidebar(Adw.NavigationPage(title='Bible Dictionary', child=resizable(self.split, lt, 'dict_side', lo=220, hi=700)))
+        self.split.set_sidebar(Adw.NavigationPage(title=_('Bible Dictionary'), child=resizable(self.split, lt, 'dict_side', lo=220, hi=700)))
         # the article
         at = Adw.ToolbarView(); self.ah = Adw.HeaderBar(); at.add_top_bar(self.ah)
         self.map_btn = Gtk.Button(icon_name='kjt-map-symbolic', tooltip_text=_('Show on the Bible Maps')); self.map_btn.add_css_class('flat'); self.map_btn.connect('clicked', lambda *_: self.win.show_on_map(self.cur.get('map')))

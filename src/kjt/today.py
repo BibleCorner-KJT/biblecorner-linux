@@ -2,7 +2,7 @@
 import datetime, re
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, NET, DEFAULT_BIBLES, lang, book_name, run_bg, strip_tags, file_path
-from .i18n import _
+from .i18n import _, fmt_date
 from .bible import bible_name
 
 
@@ -39,7 +39,7 @@ class TodayPage(Gtk.Box):
         self.compact = c
         self.box.set_margin_start(8 if c else 16); self.box.set_margin_end(8 if c else 16)
         if self.label.get_label():
-            self.label.set_label(self.day.strftime('%a %-d %b %Y' if c else '%A %-d %B %Y'))
+            self.label.set_label(fmt_date(self.day, short=c))
 
     def data(self):
         d = dict(STORE.kv('today_' + lang()) or STORE.kv('today_en') or {})
@@ -123,9 +123,9 @@ class TodayPage(Gtk.Box):
             text, ref = get(); picture.share(self.win, text, ref)
         def copy():
             text, ref = get()
-            Gdk.Display.get_default().get_clipboard().set('%s\n— %s' % (text, ref)); self.win.toast('Copied: paste it in a message or a post')
+            Gdk.Display.get_default().get_clipboard().set('%s\n— %s' % (text, ref)); self.win.toast(_('Copied: paste it in a message or a post'))
         for lab, fn in (('Share as a picture…', pic), ('Copy the text', copy)):
-            b = Gtk.Button(label=lab); b.add_css_class('flat'); b.get_child().set_xalign(0)
+            b = Gtk.Button(label=_(lab)); b.add_css_class('flat'); b.get_child().set_xalign(0)
             b.connect('clicked', lambda _b, fn=fn: (pop.popdown(), fn())); bx.append(b)
         pop.set_child(bx); mb.set_popover(pop)
         return mb
@@ -140,7 +140,7 @@ class TodayPage(Gtk.Box):
             ic = {'☦': 'kjt-cross-symbolic', '✝': 'kjt-heart-symbolic', '📖': 'kjt-bible-symbolic', '🕯': 'kjt-today-symbolic'}.get(icon)
             if ic:
                 im = Gtk.Image(icon_name=ic, pixel_size=18, valign=Gtk.Align.START, margin_top=3); im.add_css_class('kjt-nav-icon'); row.append(im)
-            l = Gtk.Label(label=title, xalign=0, wrap=True, hexpand=True); l.add_css_class('kjt-card-title'); row.append(l)
+            l = Gtk.Label(label=_(title), xalign=0, wrap=True, hexpand=True); l.add_css_class('kjt-card-title'); row.append(l)
             if share:
                 row.append(self.share_btn(share))
             inner.append(row)
@@ -179,7 +179,7 @@ class TodayPage(Gtk.Box):
     def show(self):
         self.clear()
         iso = self.day.isoformat()
-        self.label.set_label(self.day.strftime('%a %-d %b %Y' if self.compact else '%A %-d %B %Y'))
+        self.label.set_label(fmt_date(self.day, short=self.compact))
         d = next((x for x in (self.data().get('days') or []) if x['date'] == iso), None)
         if not d:
             box = self.card('Today with God', '☦')
@@ -192,8 +192,8 @@ class TodayPage(Gtk.Box):
                 self.refresh(force=True)
             return
         # the day in the Church
-        day_name = self.day.strftime('%A %-d %B %Y')
-        head = self.card(d.get('title') or d.get('feast') or self.day.strftime('%A'), '☦',
+        day_name = fmt_date(self.day)
+        head = self.card(d.get('title') or d.get('feast') or _(self.day.strftime('%A')), '☦',
                          share=lambda: ('\n'.join(x for x in (d.get('title'), d.get('feast'), ('🍃 ' + d['fast']) if d.get('fast') else '', d.get('saints')) if x), 'Today with God · ' + day_name))
         if d.get('feast'):
             head.append(self.text(d['feast'], 'kjt-feast'))

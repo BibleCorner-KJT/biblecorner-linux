@@ -1,4 +1,5 @@
 """Small things shared by the pages."""
+from .i18n import _
 from gi.repository import Gtk, Gdk
 from .core import SET
 
@@ -6,7 +7,7 @@ from .core import SET
 def resizable(split, child, key, end=False, lo=180, hi=900):
     """a side panel you can make wider or narrower by dragging its edge; the width is remembered"""
     box = Gtk.Box()
-    grip = Gtk.Box(); grip.set_size_request(7, -1); grip.add_css_class('kjt-grip'); grip.set_tooltip_text('Drag to make this wider or narrower')
+    grip = Gtk.Box(); grip.set_size_request(7, -1); grip.add_css_class('kjt-grip'); grip.set_tooltip_text(_('Drag to make this wider or narrower'))
     try:
         grip.set_cursor(Gdk.Cursor.new_from_name('col-resize'))
     except Exception:

@@ -19,7 +19,7 @@ def lang_of(c):
 
 
 def lang_label(code):
-    return LANG_LABEL.get(code, code)
+    return _(LANG_LABEL.get(code, code))
 
 
 def osis_ref(r):
@@ -61,15 +61,15 @@ class LibraryPage(Gtk.Box):
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); body.append(tabs)
         self.filters = Gtk.Box(spacing=8, halign=Gtk.Align.CENTER, margin_bottom=4, visible=False)
         self.langs = ['mine', 'all']
-        self.lang_dd = Gtk.DropDown.new_from_strings(['My languages', 'All languages']); self.lang_dd.connect('notify::selected', lambda *_: self.later())
-        self.kind_dd = Gtk.DropDown.new_from_strings(['Everything'] + [k[1] for k in KINDS]); self.kind_dd.connect('notify::selected', lambda *_: self.later())
+        self.lang_dd = Gtk.DropDown.new_from_strings([_('My languages'), _('All languages')]); self.lang_dd.connect('notify::selected', lambda *_: self.later())
+        self.kind_dd = Gtk.DropDown.new_from_strings([_('Everything')] + [_(k[1]) for k in KINDS]); self.kind_dd.connect('notify::selected', lambda *_: self.later())
         self.filters.append(self.lang_dd); self.filters.append(self.kind_dd)
         body.append(self.filters)
         sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
         cl = Adw.Clamp(maximum_size=860); self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin_top=8, margin_bottom=24, margin_start=12, margin_end=12)
         cl.set_child(self.box); sc.set_child(cl); body.append(sc)
         tv.set_content(body)
-        self.nav.add(Adw.NavigationPage(title='Library', child=tv, tag='home'))
+        self.nav.add(Adw.NavigationPage(title=_('Library'), child=tv, tag='home'))
         self.timer = 0
         from .downloads import DL
         DL.sword_listeners.append(lambda: self.fill() if self.mode == 'here' or self.cat is not None else None)
@@ -102,7 +102,7 @@ class LibraryPage(Gtk.Box):
             self.cat = r if isinstance(r, list) else []
             langs = sorted({lang_of(c) for c in self.cat}, key=lambda l: (l not in (lang(), 'en', 'grc', 'el', 'ru', 'ar', 'cu'), lang_label(l)))
             self.langs = ['mine', 'all'] + langs
-            self.lang_dd.set_model(Gtk.StringList.new(['My languages', 'All languages'] + ['%s (%d)' % (lang_label(l), sum(1 for c in self.cat if lang_of(c) == l)) for l in langs]))
+            self.lang_dd.set_model(Gtk.StringList.new([_('My languages'), _('All languages')] + ['%s (%d)' % (lang_label(l), sum(1 for c in self.cat if lang_of(c) == l)) for l in langs]))
             self.fill()
         run_bg(lambda: S.catalogue(refresh), done)
 
