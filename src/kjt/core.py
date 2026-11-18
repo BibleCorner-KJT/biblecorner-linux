@@ -322,7 +322,10 @@ class Net:
             if e.code >= 500 or strict:
                 raise
         except Exception:
-            self.down_until = time.time() + 15
+            # 2.20: only the website itself failing means "offline" (a map picture or a route service that
+            # fails must not stop the rest, such as the church directory)
+            if url.startswith(SITE) or url.startswith(AJAX):
+                self.down_until = time.time() + 15
             raise
         with self.lock:
             try:

@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.19'
+VERSION = '2.20'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -38,6 +38,7 @@ button.kjt-you-comfort { background: alpha(#1f6f78, 0.14); }
 .kjt-pray-poem { font-family: Serif; font-size: 1.1em; font-style: italic; }
 .kjt-pray-lab { font-weight: 800; font-size: 0.8em; letter-spacing: 1.5px; color: #7a1f78; }
 .kjt-ch-ic { font-size: 1.5em; }
+.kjt-ch-star { font-size: 1.35em; color: #c9a227; min-width: 36px; padding: 2px 6px; }
 .kjt-fun-info { font-size: 1.25em; }
 .kjt-fun-clock { font-weight: 800; font-size: 1.3em; font-variant-numeric: tabular-nums; }
 button.kjt-fun-lvl { padding: 10px 20px; font-weight: 700; }

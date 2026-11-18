@@ -125,6 +125,10 @@ class ChurchPage(Gtk.Box):
         # the list and the map
         self.listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.listbox.add_css_class('boxed-list')
         lb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=6, margin_bottom=20, margin_start=10, margin_end=10)
+        # 2.20: My churches: the ones you starred, kept on this computer, always at the top
+        self.favhead = Gtk.Label(xalign=0); self.favhead.add_css_class('heading'); lb.append(self.favhead)
+        self.favlist = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.favlist.add_css_class('boxed-list'); lb.append(self.favlist)
+        self.favnote = Gtk.Label(label=_('Star a church to keep it here, on this computer.'), xalign=0, wrap=True); self.favnote.add_css_class('dim-label'); self.favnote.add_css_class('caption'); lb.append(self.favnote)
         lb.append(self.listbox)
         credit = Gtk.Label(label=_('Church data © OpenStreetMap contributors (ODbL), checked on the website.'), xalign=0, wrap=True); credit.add_css_class('dim-label'); credit.add_css_class('caption')
         lb.append(credit)
@@ -134,6 +138,48 @@ class ChurchPage(Gtk.Box):
         self.lsc.set_size_request(340, -1); self.paned.set_start_child(self.lsc); self.paned.set_end_child(self.map); self.paned.set_position(440)
         tv.set_content(self.paned)
         self.loaded = False
+        self.draw_favs()
+
+    # 2.20: My churches
+    def favs(self):
+        f = SET.get('ch_fav')
+        return f if isinstance(f, dict) else {}
+
+    def is_fav(self, cid):
+        return str(cid) in self.favs()
+
+    def set_fav(self, r, on):
+        f = dict(self.favs())
+        if on:
+            f[str(r['id'])] = {k: v for k, v in r.items() if k != 'd'}
+        else:
+            f.pop(str(r['id']), None)
+        SET.set('ch_fav', f)
+        self.draw_favs(); self.draw()
+
+    def star(self, r):
+        b = Gtk.ToggleButton(active=self.is_fav(r['id']), valign=Gtk.Align.CENTER); b.add_css_class('flat'); b.add_css_class('kjt-ch-star')
+        def look(b):
+            on = b.get_active(); b.set_label('★' if on else '☆')
+            b.set_tooltip_text(_('Remove from My churches') if on else _('Add to My churches'))
+        look(b)
+        def toggled(b):
+            look(b)
+            if b.get_active() != self.is_fav(r['id']):
+                GLib.idle_add(lambda: (self.set_fav(r, b.get_active()), False)[1])
+        b.connect('toggled', toggled)
+        return b
+
+    def draw_favs(self):
+        while self.favlist.get_first_child():
+            self.favlist.remove(self.favlist.get_first_child())
+        f = list(self.favs().values())
+        start = self.here or ((self.place['lat'], self.place['lon']) if self.place else None)
+        for r in f:
+            r = dict(r); r['d'] = km(start[0], start[1], r['lat'], r['lon']) if start else None
+            self.favlist.append(self.row(r))
+        self.favhead.set_label('★ ' + _('My churches') + (' (%d)' % len(f) if f else ''))
+        self.favlist.set_visible(bool(f)); self.favnote.set_visible(not f)
 
     def set_compact(self, c):
         self.paned.set_orientation(Gtk.Orientation.VERTICAL if c else Gtk.Orientation.HORIZONTAL)
@@ -154,6 +200,9 @@ class ChurchPage(Gtk.Box):
         else:
             self.say(_('Type a town, a postcode or a church name, or press Near me.'))
             self.map.center(30, 10, 2)
+            if self.favs():
+                self.draw(); self.say(_('Type a town, a postcode or a church name, or press Near me.'))
+                GLib.idle_add(lambda: (self.map.fit([(r['lat'], r['lon']) for r in self.favs().values()], maxz=13), False)[1])
 
     def say(self, t):
         self.status.set_label(t)
@@ -161,7 +210,7 @@ class ChurchPage(Gtk.Box):
     # the directory
     def index(self):
         ix = STORE.kv('ch_index')
-        if ix and time.time() - ix.get('_t', 0) < 86400 or not NET.online():
+        if ix and ix.get('cells') and time.time() - ix.get('_t', 0) < 86400 or not NET.online():
             return ix or {}
         # 2.18: the website's address first, then the other address of the same site; a failure is said, not hidden
         old = ix
@@ -173,6 +222,15 @@ class ChurchPage(Gtk.Box):
             except Exception as e:
                 self.problem = str(e)[:120]
                 log_problem('churches index ' + base + ': ' + self.problem)
+        # 2.20: through the website's address for the apps (when the files themselves are refused)
+        try:
+            r = NET.ajax('kjtb_desk', op='church_file', f='index')
+            if r.get('success') and isinstance(r.get('data'), dict) and r['data'].get('cells'):
+                ix = r['data']; ix['_t'] = time.time(); ix['_base'] = 'ajax'; STORE.set_kv('ch_index', ix); self.problem = None
+                return ix
+            log_problem('churches index (app address): ' + str(r.get('data'))[:120])
+        except Exception as e:
+            log_problem('churches index (app address): ' + str(e)[:120])
         return old or {}
 
     def cell(self, key, ver):
@@ -182,7 +240,18 @@ class ChurchPage(Gtk.Box):
         if not NET.online():
             return (c or {}).get('c') or []
         try:
-            d = json.loads(NET.get(((STORE.kv('ch_index') or {}).get('_base') or urls()[0]) + 'c_%s.json?v=%s' % (key, ver), timeout=40, strict=True).decode())
+            base = (STORE.kv('ch_index') or {}).get('_base') or urls()[0]
+            d = None
+            if base != 'ajax':
+                try:
+                    d = json.loads(NET.get(base + 'c_%s.json?v=%s' % (key, ver), timeout=40, strict=True).decode())
+                except Exception as e:
+                    log_problem('churches square ' + key + ': ' + str(e)[:100])
+            if d is None:
+                r = NET.ajax('kjtb_desk', op='church_file', f='c_' + key)
+                d = r['data'] if r.get('success') and isinstance(r.get('data'), dict) else None
+            if d is None:
+                raise ValueError('no square')
             STORE.set_kv('ch_c_' + key, {'v': ver, 'c': d.get('c') or []})
             kept = [x for x in (STORE.kv('ch_kept') or []) if x != key] + [key]
             STORE.set_kv('ch_kept', kept[-200:])
@@ -310,7 +379,9 @@ class ChurchPage(Gtk.Box):
             self.say((_('Churches found') + ': %d' % n + (' · ' + self.label if getattr(self, 'label', '') else '')) if n else _('No churches found here yet. Try a larger town nearby.'))
         for r in rows:
             self.listbox.append(self.row(r))
+        ids = {r['id'] for r in rows}
         marks = [(r['lat'], r['lon'], r['id'], JUR_COL.get(r['jur'], '#7a1f78'), self.name(r)) for r in rows]
+        marks += [(r['lat'], r['lon'], r['id'], '#d4a017', '★ ' + self.name(r)) for r in self.favs().values() if r['id'] not in ids]
         self.map.set_marks(marks, sel=self.open_id, here=self.here)
         if fit:
             near = [r for r in rows if r.get('d') is None or r['d'] <= max(25, rows[min(4, len(rows) - 1)].get('d') or 0) * 1.2] if rows else []
@@ -322,6 +393,7 @@ class ChurchPage(Gtk.Box):
                              subtitle=GLib.markup_escape_text(' · '.join(x for x in (_(KIND_NAMES[r['kind']]), _(JURS.get(r['jur'], JURS['other'])), self.dist(r.get('d'))) if x)))
         ex.set_title_lines(2); ex.set_subtitle_lines(2)
         ic = Gtk.Label(label=KIND_ICON.get(r['kind'], '⛪')); ic.add_css_class('kjt-ch-ic'); ex.add_prefix(ic)
+        ex.add_suffix(self.star(r))
         ex.connect('notify::expanded', lambda e, _p, r=r: self.opened(r) if e.get_expanded() else None)
         addr = ', '.join(x for x in (r['addr'], ' '.join(y for y in (r['postcode'], r['city']) if y), r['region'], r['country']) if x)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=8, margin_bottom=10, margin_start=14, margin_end=14)
@@ -413,14 +485,16 @@ class ChurchPage(Gtk.Box):
     def pick(self, cid):
         """a mark chosen on the map: its church opened in the list"""
         self.open_id = cid
-        ch = self.listbox.get_first_child()
-        while ch is not None:
-            if getattr(ch, 'cid', None) == cid:
-                ch.set_expanded(True)
-                GLib.idle_add(lambda ch=ch: (self.lsc.get_vadjustment().set_value(max(0, ch.compute_bounds(self.listbox)[1].get_y() - 20)) if ch.compute_bounds(self.listbox)[0] else None, False)[1])
-            elif ch.get_expanded() if hasattr(ch, 'get_expanded') else False:
-                ch.set_expanded(False)
-            ch = ch.get_next_sibling()
+        lb = self.listbox.get_parent()
+        for box in (self.favlist, self.listbox):
+            ch = box.get_first_child()
+            while ch is not None:
+                if getattr(ch, 'cid', None) == cid:
+                    ch.set_expanded(True)
+                    GLib.idle_add(lambda ch=ch: (self.lsc.get_vadjustment().set_value(max(0, ch.compute_bounds(lb)[1].get_y() - 20)) if ch.compute_bounds(lb)[0] else None, False)[1])
+                elif ch.get_expanded() if hasattr(ch, 'get_expanded') else False:
+                    ch.set_expanded(False)
+                ch = ch.get_next_sibling()
 
 
 TURN = {'left': 'Turn left', 'right': 'Turn right', 'slight left': 'Turn slightly left', 'slight right': 'Turn slightly right',
