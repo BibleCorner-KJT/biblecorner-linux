@@ -20,6 +20,12 @@ class StudyPage(Gtk.Box):
         self.journey = JourneyView(win)
         self.sync_btn = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text=_('Bring in step with My KJT now')); self.sync_btn.connect('clicked', lambda *_: self.sync())
         hb.pack_end(self.sync_btn)
+        # 2.17: export the study, as on the website and in the Android app: a file for AndBible, or a KJT backup
+        ex = Gtk.MenuButton(icon_name='document-save-symbolic', tooltip_text=_('Export my study')); ex.add_css_class('flat')
+        pop = Gtk.Popover(); pb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
+        for lab, fn in ((_('For AndBible (bookmarks, notes and Study Pads)'), self.export_andbible), (_('KJT JSON (restore backup)'), self.export_json)):
+            b = Gtk.Button(label=lab); b.add_css_class('flat'); b.get_child().set_xalign(0); b.connect('clicked', lambda _b, fn=fn: (pop.popdown(), fn())); pb.append(b)
+        pop.set_child(pb); ex.set_popover(pop); hb.pack_end(ex)
         self.q = Gtk.SearchEntry(placeholder_text=_('Search your notes')); self.q.connect('search-changed', lambda *_: self.fill())
         hb.pack_start(self.q)
         # two columns side by side (the Study Pads on the left, the bookmarks on the right), each scrolling
@@ -55,6 +61,50 @@ class StudyPage(Gtk.Box):
         self.add_tick_callback(tick)
 
     WIDE = 700
+
+    def save_dialog(self, name, write, done_text):
+        fd = Gtk.FileDialog(initial_name=name)
+        def fin(d, res):
+            try:
+                f = d.save_finish(res)
+            except GLib.Error:
+                return
+            try:
+                msg = write(f.get_path())
+            except Exception as e:
+                self.win.toast(_('Could not save the file.') + ' ' + str(e)[:80]); return
+            if msg:
+                d2 = Adw.AlertDialog(heading=_('Saved'), body=msg); d2.add_response('ok', _('OK')); d2.present(self.win)
+        fd.save(self.win, None, fin)
+
+    def export_andbible(self):
+        """2.17: a file AndBible adds to what it already has (as the website and the Android app make it)"""
+        from . import andbible
+        if not [r for r in STUDY.records() if not r.get('deleted')]:
+            self.win.toast(_('There are no bookmarks in your study to export yet.')); return
+        def write(path):
+            n, pads, skipped = andbible.build(path)
+            return (_('Your AndBible file is ready') + ': %d ' % n + _('bookmarks') + (', %d ' % pads + _('Study Pads') if pads else '') + '.\n\n'
+                    + _('To bring them into AndBible, open the file with AndBible (from your Downloads, or share it to AndBible). They are added to what AndBible already has; nothing there is replaced.'))
+        self.save_dialog('my-study-andbible.abdb.zip', write, '')
+
+    def export_json(self):
+        """the same backup as the website's KJT JSON (it can be restored there and here)"""
+        import datetime, json
+        def write(path):
+            data = {'format': 'KJT Bible Study', 'version': 1, 'exported': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    'records': [r for r in STUDY.records() if not r.get('deleted')], 'studypads': STORE.pads() or []}
+            try:
+                from .journey import JOURNEY
+                data['reading'] = JOURNEY.S
+            except Exception:
+                pass
+            with open(path + '.part', 'w', encoding='utf-8') as fh:
+                json.dump(data, fh, ensure_ascii=False, indent=1)
+            import os
+            os.replace(path + '.part', path)
+            return _('Your backup (bookmarks, notes and reading journey) was downloaded.')
+        self.save_dialog('my-kjt-bible-study.json', write, '')
 
     def do_size_allocate(self, width, height, baseline):
         Gtk.Box.do_size_allocate(self, width, height, baseline)
