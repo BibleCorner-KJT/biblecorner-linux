@@ -660,17 +660,12 @@ def art(gid, icon, size=56):
     return lbl(icon, 'kjt-you-emo', wrap=False)
 
 
-RACE = {'sudoku': 'sudokurace', 'crossword': 'xwrace', 'seek': 'seekrace', 'verse': 'verserace', 'whoami': 'whoami2'}
-RACE_NAMES = {'sudokurace': 'Sudoku Race', 'xwrace': 'Crossword Race', 'seekrace': 'Word Seek Race', 'verserace': 'Verse Race', 'whoami2': 'Who Am I? for two'}
-WEB_GAMES = [('chess', 'Holy War (Chess)', 'Chess: the side of good against the side of evil', True),
-             ('words', 'Word Builder', 'Build English words on the board: against the computer, or 2 to 4 players', True),
+RACE = {'sudoku': 'sudokurace', 'crossword': 'xwrace', 'seek': 'seekrace', 'verse': 'verserace', 'whoami': 'whoami2', 'chess': 'chess', 'checkers': 'checkers', 'c4': 'c4', 'ttt': 'ttt', 'mancala': 'mancala'}
+RACE_NAMES = {'chess': 'Holy War (Chess)', 'checkers': 'Checkers', 'c4': 'Loaves and Fishes', 'ttt': 'Fish & Dove', 'mancala': 'Mancala', 'sudokurace': 'Sudoku Race', 'xwrace': 'Crossword Race', 'seekrace': 'Word Seek Race', 'verserace': 'Verse Race', 'whoami2': 'Who Am I? for two'}
+WEB_GAMES = [('words', 'Word Builder', 'Build English words on the board: against the computer, or 2 to 4 players', True),
              ('journey', 'Journey to Jerusalem', 'Board game for 1–4 players: climb the ladders of good deeds, beware the serpents, and reach the Temple', True),
-             ('c4', 'Loaves and Fishes', 'Four in a row: the computer, a friend, or online', True),
-             ('checkers', 'Checkers', 'Jump, take and be crowned king', True),
              ('tavli', 'Tavli (backgammon)', 'Race your checkers home: the game of Greek and Arab homes', True),
              ('morris', 'Nine Men’s Morris', 'Make rows of three: one of the oldest games in the world', True),
-             ('mancala', 'Mancala', 'Sow the seeds and fill your store: an old game of Bible lands', True),
-             ('ttt', 'Fish & Dove', 'Three in a row: play the computer or a friend', True),
              ('duel', 'Quiz Duel', 'Who knows the Bible best? Play the computer or a friend', True),
              ('hunt', 'Word Hunt', 'Find words in a grid of letters, alone or against a friend', True),
              ('solitaire', 'Solitaire', 'Bible Tiles (Mahjong) or Bible Cards: you choose', False),
@@ -703,6 +698,37 @@ class FunPage(Gtk.Box):
         self.sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.sc.set_child(c); tv.set_content(self.sc)
         self.hub()
         self.connect('unmap', lambda *_a: self.unmap_do())
+        # 2.26: the games exactly as on the website (its own page and games), kept on this computer for use offline
+        self.tv = tv; self.hb = hb; self.wv = None
+        from . import webgame
+        if webgame.WebKit:
+            self.web_mode()
+
+    def web_mode(self):
+        from . import webgame
+        self.wv = webgame.view('')
+        if self.wv is None:
+            return
+        self.snd.set_visible(False); self.back.set_visible(False); self.back.set_sensitive(False)
+        wb = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text=_('Back'), visible=False); self.hb.pack_start(wb)
+        wb.connect('clicked', lambda *_a: self.wv.go_back() if self.wv.can_go_back() else None)
+        self.wv.connect('notify::uri', lambda v, _p: wb.set_visible(v.can_go_back()))
+        self.keep = Gtk.Button(icon_name='kjt-download-symbolic', tooltip_text=_('Keep all the games on this computer (for use without the internet)')); self.keep.add_css_class('flat')
+        self.keep.connect('clicked', lambda *_a: self.keep_all()); self.hb.pack_end(self.keep)
+        self.tv.set_content(self.wv)
+
+    def keep_all(self):
+        from . import sitecache
+        from .core import NET
+        if not NET.online():
+            self.win.toast(_('This needs the internet. Try again when you are connected.')); return
+        self.keep.set_sensitive(False); self.win.toast(_('Keeping the games on this computer…'))
+        def prog(i, n):
+            self.keep.set_tooltip_text('%d / %d' % (i, n)); return False
+        def done(n):
+            self.keep.set_sensitive(True); self.keep.set_tooltip_text(_('Keep all the games on this computer (for use without the internet)'))
+            self.win.toast(_('The games are kept on this computer: they work without the internet.') if n else _('Could not save now. Please try again.'))
+        run_bg(lambda: sitecache.keep_games(prog), done)
 
     def refresh(self):
         d = data()

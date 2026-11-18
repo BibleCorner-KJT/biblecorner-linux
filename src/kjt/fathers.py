@@ -31,6 +31,10 @@ class FathersPage(Gtk.Box):
         t = read_file('library/topics.json')
         if not t:
             t = json.load(open(os.path.join(os.path.dirname(__file__), 'fathers_topics.json'), encoding='utf-8'))
+        # 2.26: the topics and the eras in the reader's language
+        t = dict(t)
+        t['topics'] = [[x[0], x[1], _(x[2])] + list(x[3:]) for x in t.get('topics') or []]
+        t['eras'] = [[e[0] and _(e[0]), e[1] and _(e[1])] + list(e[2:]) for e in t.get('eras') or []]
         self.T = t
         self.TOPIC = {x[0]: x for x in t['topics']}
         return t

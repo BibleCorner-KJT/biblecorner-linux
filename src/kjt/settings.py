@@ -2,7 +2,7 @@
 keep or delete each) and Settings (language, appearance, app icon, reading, listening)."""
 import json, os, shutil
 from gi.repository import Gtk, Adw, GLib
-from .core import STORE, SET, NET, LANGS, LANG_NAMES, DEFAULT_BIBLES, FILES, DATA, info, lang, read_file
+from .core import STORE, SET, NET, LANGS, LANG_NAMES, DEFAULT_BIBLES, FILES, DATA, info, lang, read_file, run_bg
 from .i18n import _
 from .downloads import DL, default_plan
 
@@ -230,6 +230,22 @@ class DownloadsPage(Gtk.Box):
             row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda fp=fp, w=w: self.ask_delete(w.get('title') or w['id'], lambda: os.remove(fp))))
             ex.add_row(row)
         g.add(ex)
+        # 2.26: the games of Good Fun (the website's own, kept here)
+        from . import sitecache
+        gs = sitecache.kept_size()
+        row = Adw.ActionRow(title=_('Good Fun games'), subtitle=GLib.markup_escape_text(_('Every game, exactly as on the website, to play without the internet') + '\n' + self.status(gs > 2 * 1048576, mb(gs) if gs else '')))
+        row.set_subtitle_lines(3); row.add_prefix(Gtk.Image(icon_name='kjt-fun-symbolic'))
+        def keep_games():
+            if not NET.online():
+                self.win.toast(_('Downloading needs the internet')); return
+            self.win.toast(_('Keeping the games on this computer…'))
+            run_bg(lambda: sitecache.keep_games(), lambda n: (self.win.toast(_('The games are kept on this computer: they work without the internet.') if n else _('Could not save now. Please try again.')), self.refresh()))
+        if gs > 2 * 1048576:
+            row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), keep_games))
+            row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda: self.ask_delete(_('Good Fun games'), lambda: shutil.rmtree(sitecache.DIR, ignore_errors=True))))
+        else:
+            b = Gtk.Button(label=_('Download'), valign=Gtk.Align.CENTER); b.add_css_class('suggested-action'); b.connect('clicked', lambda *_a: keep_games()); row.add_suffix(b)
+        g.add(row)
         self.add(g)
 
         # ---- the free libraries (CrossWire, AndBible): books that are not Bibles

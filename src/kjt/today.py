@@ -23,10 +23,9 @@ class TodayPage(Gtk.Box):
         self.home = home = Gtk.Button(label=_('Today'), tooltip_text=_('Back to today'), visible=False); home.add_css_class('flat'); home.connect('clicked', lambda *_: self.goto(datetime.date.today())); hb.pack_start(home)
         # 2.13: the Orthodox calendar (as in the Android app): any day of any month, the great feasts marked
         self.cal_btn = Gtk.MenuButton(icon_name='x-office-calendar-symbolic', tooltip_text=_('Orthodox calendar')); self.cal_btn.add_css_class('flat')
-        pop = Gtk.Popover(); self.cal = Gtk.Calendar(margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
-        self.cal.connect('day-selected', lambda c: (pop.popdown(), self.goto(datetime.date(c.get_date().get_year(), c.get_date().get_month(), c.get_date().get_day_of_month()))))
-        self.cal.connect('notify::month', lambda *_a: self.mark_month()); self.cal.connect('notify::year', lambda *_a: self.mark_month())
-        pop.connect('show', lambda *_a: self.mark_month())
+        from .monthcal import MonthCal   # 2.26: the months and days in the app's language
+        pop = Gtk.Popover(); self.cal = MonthCal(lambda d: (pop.popdown(), self.goto(d)), lambda _y, _m: self.mark_month())
+        pop.connect('show', lambda *_a: (self.cal.set_month(self.day.year, self.day.month) if getattr(self, 'day', None) else None, self.mark_month()))
         pop.set_child(self.cal); self.cal_btn.set_popover(pop); hb.pack_end(self.cal_btn)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         c = Adw.Clamp(maximum_size=760); c.set_child(self.box)
@@ -51,13 +50,13 @@ class TodayPage(Gtk.Box):
 
     def mark_month(self):
         """the great feasts of the month shown in the calendar, marked"""
-        self.cal.clear_marks()
-        g = self.cal.get_date(); y, m = g.get_year(), g.get_month()
+        y, m = self.cal.y, self.cal.m; self.cal.marks = set()
         prefix = '%04d-%02d-' % (y, m)
         days = [x for x in (self.data().get('days') or []) if x['date'].startswith(prefix)]
         for x in days:
             if x.get('icon') or int(x.get('level', 0) or 0) >= 7:
-                self.cal.mark_day(int(x['date'][8:10]))
+                self.cal.marks.add(int(x['date'][8:10]))
+        self.cal.draw()
         if len(days) < 28 and NET.online() and getattr(self, 'cal_asked', '') != prefix:
             self.cal_asked = prefix
             self.fetch_from(datetime.date(y, m, 1), then=self.mark_month)

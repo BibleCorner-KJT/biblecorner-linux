@@ -26,15 +26,19 @@ def session():
     return _session
 
 
-def url(game=''):
+def url(game='', web=False):
+    """the games page, from this app's own copy of the website (sitecache), or the website itself (web=True)"""
+    from .sitecache import BASE
     q = '?kjt_embed=1&kjt_linux=1' + ('&lang=' + lang() if lang() != 'en' else '')
-    return SITE + '/fun-and-games/' + q + ('#play-' + game if game else '')
+    return (SITE if web else BASE) + '/fun-and-games/' + q + ('#play-' + game if game else '')
 
 
 def view(game, on_title=None):
     """the game in a web view; None when this computer cannot show one (then the browser is offered)"""
     if not WebKit:
         return None
+    from . import sitecache
+    sitecache.register(WebKit)
     wv = WebKit.WebView(network_session=session(), vexpand=True, hexpand=True)
     st = wv.get_settings()
     try:
@@ -46,7 +50,7 @@ def view(game, on_title=None):
         try:
             if kind == WebKit.PolicyDecisionType.NAVIGATION_ACTION:
                 u = dec.get_navigation_action().get_request().get_uri() or ''
-                if u.startswith('http') and '/fun-and-games/' not in u and '/wp-admin/admin-ajax.php' not in u and dec.get_navigation_action().is_user_gesture():
+                if u.startswith('http') and dec.get_navigation_action().is_user_gesture():
                     Gtk.UriLauncher.new(u).launch(v.get_root(), None, None, None); dec.ignore(); return True
             elif kind == WebKit.PolicyDecisionType.NEW_WINDOW_ACTION:
                 u = dec.get_navigation_action().get_request().get_uri() or ''

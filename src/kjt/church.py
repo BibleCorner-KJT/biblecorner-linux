@@ -48,6 +48,14 @@ def row_of(r):
             'web': r[11] or '', 'phone': r[12] or '', 'times': r[13] or '', 'name_en': r[14] or '', 'email': r[15] or '', 'contact': r[16] or ''}
 
 
+
+def raw_of(d):
+    """the other way (as the website keeps My churches)"""
+    k = KINDS.index(d.get('kind')) if d.get('kind') in KINDS else 0
+    return [d.get('id'), d.get('name', ''), k, d.get('jur', ''), d.get('addr', ''), d.get('city', ''), d.get('region', ''), d.get('postcode', ''),
+            d.get('country', ''), d.get('lat', 0), d.get('lon', 0), d.get('web', ''), d.get('phone', ''), d.get('times', ''), d.get('name_en', ''),
+            d.get('email', ''), d.get('contact', '')]
+
 # ---------- where am I (the desktop's location portal: it asks you first) ----------
 def locate(done, timeout=25):
     try:
@@ -158,6 +166,37 @@ class ChurchPage(Gtk.Box):
             f.pop(str(r['id']), None)
         SET.set('ch_fav', f)
         self.draw_favs(); self.draw()
+        self.fav_put(f)
+
+    # 2.26: signed in, My churches are kept in the account (the same list as on the phone and the website)
+    def fav_put(self, f):
+        if not (STORE.kv('info') or {}).get('user'):
+            return
+        def work():
+            from . import accounts as A
+            import urllib.parse
+            from .core import AJAX
+            body = urllib.parse.urlencode({'action': 'kjt_ch_fav', 'fav': json.dumps({k: raw_of(v) for k, v in f.items()})}).encode()
+            NET.get(AJAX, body, timeout=40, headers={'X-KJT-App': '1', 'Content-Type': 'application/x-www-form-urlencoded'})
+        run_bg(work, lambda _r: None)
+
+    def fav_get(self):
+        if not (STORE.kv('info') or {}).get('user') or not NET.online():
+            return
+        def work():
+            r = NET.ajax('kjt_ch_fav')
+            return r.get('data') if r.get('success') else None
+        def done(d):
+            if not isinstance(d, dict):
+                return
+            acc = {str(k): row_of(v) for k, v in (d.get('fav') or {}).items() if isinstance(v, list)}
+            loc = self.favs(); first = not SET.get('ch_fav_joined')
+            out = dict(loc, **acc) if first else acc
+            SET.set('ch_fav', out); SET.set('ch_fav_joined', 1)
+            if first and any(k not in acc for k in loc):
+                self.fav_put(out)
+            self.draw_favs(); self.draw()
+        run_bg(work, done)
 
     def star(self, r):
         b = Gtk.ToggleButton(active=self.is_fav(r['id']), valign=Gtk.Align.CENTER); b.add_css_class('flat'); b.add_css_class('kjt-ch-star')
@@ -254,6 +293,7 @@ class ChurchPage(Gtk.Box):
             return
         self.loaded = True
         self.load_index()
+        self.fav_get()
         if self.place:
             self.entry.set_text(self.place.get('label', '')); self.at(self.place['lat'], self.place['lon'], self.place.get('label', ''))
         else:
