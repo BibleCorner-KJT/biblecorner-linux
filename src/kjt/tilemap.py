@@ -36,9 +36,12 @@ class TileMap(Gtk.Overlay):
         self.lat, self.lon, self.z = 30.0, 10.0, 2
         self.marks = []          # (lat, lon, key, '#hex', label)
         self.sel = None; self.here = None; self.on_pick = on_pick; self.route = []
+        self.bubbles = []        # 2.23: (lat, lon, count) of a part of the world, drawn as a number
+        self.on_move = None      # 2.23: called (after a moment) when you move or zoom the map yourself
+        self._mv = 0
         self.area = Gtk.DrawingArea(hexpand=True, vexpand=True); self.area.set_draw_func(self.draw); self.set_child(self.area)
         self.area.set_cursor(Gdk.Cursor.new_from_name('grab'))
-        d = Gtk.GestureDrag(); d.connect('drag-begin', self.drag_begin); d.connect('drag-update', self.drag_update); self.area.add_controller(d)
+        d = Gtk.GestureDrag(); d.connect('drag-begin', self.drag_begin); d.connect('drag-update', self.drag_update); d.connect('drag-end', lambda *_a: self.moved and self.user_moved()); self.area.add_controller(d)
         c = Gtk.GestureClick(); c.connect('released', self.click); self.area.add_controller(c)
         sc = Gtk.EventControllerScroll(flags=Gtk.EventControllerScrollFlags.VERTICAL); sc.connect('scroll', self.scroll); self.area.add_controller(sc)
         mo = Gtk.EventControllerMotion(); mo.connect('motion', lambda _c, x, y: setattr(self, 'pointer', (x, y))); self.area.add_controller(mo)
@@ -93,7 +96,23 @@ class TileMap(Gtk.Overlay):
             plat, plon = to_ll(px, py, self.z)
             nx, ny = to_px(plat, plon, nz)
             self.lat, self.lon = to_ll(nx - (at[0] - w / 2), ny - (at[1] - h / 2), nz)
-        self.z = nz; self.area.queue_draw()
+        self.z = nz; self.area.queue_draw(); self.user_moved()
+
+    def user_moved(self):
+        if not self.on_move:
+            return
+        self._mv += 1; n = self._mv
+        GLib.timeout_add(350, lambda: (self.on_move() if n == self._mv else None, False)[1])
+
+    def set_bubbles(self, b):
+        self.bubbles = b or []; self.area.queue_draw()
+
+    def bounds(self):
+        """(south, west, north, east) of what is in view"""
+        w, h = self.area.get_width() or 600, self.area.get_height() or 400
+        cx, cy = to_px(self.lat, self.lon, self.z)
+        n_, w_ = to_ll(cx - w / 2, cy - h / 2, self.z); s_, e_ = to_ll(cx + w / 2, cy + h / 2, self.z)
+        return s_, w_, n_, e_
 
     # moving
     def drag_begin(self, g, x, y):
@@ -113,6 +132,11 @@ class TileMap(Gtk.Overlay):
         if getattr(self, 'moved', False):
             self.moved = False; return
         w, h = self.area.get_width(), self.area.get_height(); cx, cy = to_px(self.lat, self.lon, self.z)
+        for la, lo, n in self.bubbles:     # a number: zoom in there
+            mx, my = to_px(la, lo, self.z); sx, sy = mx - cx + w / 2, my - cy + h / 2
+            r = 14 + min(16, math.log10(max(1, n)) * 6)
+            if (sx - x) ** 2 + (sy - y) ** 2 < r * r:
+                self.lat, self.lon = la, lo; self.zoom_by(3 if self.z < 6 else 2); return
         best, bd = None, 18 ** 2
         for m in self.marks:
             mx, my = to_px(m[0], m[1], self.z); sx, sy = mx - cx + w / 2, my - cy + h / 2
@@ -179,6 +203,17 @@ class TileMap(Gtk.Overlay):
                     px, py = to_px(la, lo, z); sx, sy = px - x0, py - y0
                     (cr.move_to if i == 0 else cr.line_to)(sx, sy)
                 cr.set_source_rgba(*rgba); cr.set_line_width(width); cr.stroke()
+        # 2.23: how many churches in each part of the world (zoomed out)
+        for la, lo, n in self.bubbles:
+            mx, my = to_px(la, lo, z); sx, sy = mx - x0, my - y0
+            if sx < -30 or sy < -30 or sx > w + 30 or sy > h + 30:
+                continue
+            r = 14 + min(16, math.log10(max(1, n)) * 6)
+            cr.arc(sx, sy, r + 2, 0, 2 * math.pi); cr.set_source_rgba(1, 1, 1, 0.9); cr.fill()
+            cr.arc(sx, sy, r, 0, 2 * math.pi); cr.set_source_rgba(0.48, 0.12, 0.47, 0.88); cr.fill()
+            lay = area.create_pango_layout(('%d' % n) if n < 1000 else ('%.1fk' % (n / 1000.0) if n < 10000 else '%dk' % (n // 1000)))
+            lay.set_font_description(Pango.FontDescription.from_string('Sans Bold 9'))
+            lw, lh = lay.get_pixel_size(); cr.set_source_rgb(1, 1, 1); cr.move_to(sx - lw / 2, sy - lh / 2); PangoCairo.show_layout(cr, lay)
         # the places
         for m in sorted(self.marks, key=lambda m: m[2] == self.sel):
             mx, my = to_px(m[0], m[1], z); sx, sy = mx - x0, my - y0

@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.23" date="2026-11-18"><description><p>Churches near me shows the whole directory on the map as soon as it opens, as on the website: a number for each part of the world (click it to zoom in), and zoomed in, the churches in view, listed nearest the middle first. If the directory cannot be reached, the page says why.</p></description></release>
     <release version="2.22" date="2026-11-18"><description><p>Settings › Keep running in the tray: closing the window hides it, and the app keeps running with an icon in the tray (click it to open; its menu has Open and Quit). On GNOME the tray needs the AppIndicator extension; without it the app is under Background Apps. Quit (Ctrl+Q) closes it fully.</p></description></release>
     <release version="2.21" date="2026-11-18"><description><p>A bookmark of several verses opens in the Bible with all its verses chosen, and its bar shows the whole passage (John 3:16–17), its Study Pads and its note.</p></description></release>
     <release version="2.20" date="2026-11-18"><description><p>Churches near me: the directory now loads even when the website refuses apps its files (it comes through the app's own address), and a map picture that fails no longer stops it. My churches: star a church to keep it at the top of the page and on the map, every time.</p></description></release>

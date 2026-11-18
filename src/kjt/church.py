@@ -133,7 +133,7 @@ class ChurchPage(Gtk.Box):
         credit = Gtk.Label(label=_('Church data © OpenStreetMap contributors (ODbL), checked on the website.'), xalign=0, wrap=True); credit.add_css_class('dim-label'); credit.add_css_class('caption')
         lb.append(credit)
         self.lsc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True); self.lsc.set_child(lb)
-        self.map = TileMap(on_pick=self.pick)
+        self.map = TileMap(on_pick=self.pick); self.map.on_move = self.moved_map
         self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True, shrink_start_child=False, shrink_end_child=False)
         self.lsc.set_size_request(340, -1); self.paned.set_start_child(self.lsc); self.paned.set_end_child(self.map); self.paned.set_position(440)
         tv.set_content(self.paned)
@@ -191,10 +191,67 @@ class ChurchPage(Gtk.Box):
         else:
             self.paned.set_start_child(self.lsc); self.paned.set_end_child(self.map); self.map.set_size_request(-1, -1)
 
+    # 2.23: the whole directory on the map, as on the website: numbers for each part of the world;
+    # zoomed in, the churches in view (listed nearest the middle of the map first)
+    DETAIL = 8
+
+    def load_index(self):
+        def done(ix):
+            ix = ix if isinstance(ix, dict) else {}
+            self.cells = ix.get('cells') or []
+            if self.cells:
+                if not self.found:
+                    n = ix.get('n') or sum(c[1] for c in self.cells)
+                    self.say(_('{0} Orthodox churches and monasteries in {1} countries. Search, press Near me, or zoom in on the map.').replace('{0}', '{:,}'.format(n)).replace('{1}', str(ix.get('countries') or '')))
+            else:
+                self.say(_('The church directory could not be reached. Check the internet, then try again.') + ((' (' + self.problem + ')') if getattr(self, 'problem', None) else ''))
+            self.bubbles()
+        run_bg(self.index, done)
+
+    def bubbles(self):
+        cells = getattr(self, 'cells', None) or []
+        z = self.map.z
+        if z >= self.DETAIL or not cells:
+            self.map.set_bubbles([]); return
+        step = 20 if z <= 3 else 10 if z == 4 else 6 if z == 5 else 4 if z == 6 else 2
+        g = {}
+        for c in cells:
+            k = (int(math.floor(c[2] / step)), int(math.floor(c[3] / step)))
+            a = g.setdefault(k, [0, 0.0, 0.0]); a[0] += c[1]; a[1] += c[2] * c[1]; a[2] += c[3] * c[1]
+        self.map.set_bubbles([(a[1] / a[0], a[2] / a[0], a[0]) for a in g.values() if a[0]])
+
+    def moved_map(self):
+        self.bubbles()
+        if self.map.z < self.DETAIL or not getattr(self, 'cells', None):
+            return
+        s_, w_, n_, e_ = self.map.bounds()
+        keys = [c for c in self.cells if s_ - CELL <= c[2] <= n_ + CELL and w_ - CELL <= c[3] <= e_ + CELL]
+        if len(keys) > 30:
+            return
+        lat, lon = self.map.lat, self.map.lon
+        def work():
+            out = []
+            for c in keys:
+                out += [row_of(r) for r in self.cell(c[0], c[4] if len(c) > 4 else 0)]
+            inside = [r for r in out if s_ <= r['lat'] <= n_ and w_ <= r['lon'] <= e_]
+            for r in inside:
+                r['d'] = None; r['m'] = km(lat, lon, r['lat'], r['lon'])
+            inside.sort(key=lambda r: r['m'])
+            return inside
+        def done(inside):
+            if not isinstance(inside, list):
+                return
+            self.found = inside; self.center = None
+            self.draw(fit=False, label=_('In this part of the map'))
+            if not inside:
+                self.say(_('No churches in this part of the map. Zoom out to see more.'))
+        run_bg(work, done)
+
     def refresh(self):
         if self.loaded:
             return
         self.loaded = True
+        self.load_index()
         if self.place:
             self.entry.set_text(self.place.get('label', '')); self.at(self.place['lat'], self.place['lon'], self.place.get('label', ''))
         else:
@@ -202,7 +259,6 @@ class ChurchPage(Gtk.Box):
             self.map.center(30, 10, 2)
             if self.favs():
                 self.draw(); self.say(_('Type a town, a postcode or a church name, or press Near me.'))
-                GLib.idle_add(lambda: (self.map.fit([(r['lat'], r['lon']) for r in self.favs().values()], maxz=13), False)[1])
 
     def say(self, t):
         self.status.set_label(t)
@@ -386,7 +442,7 @@ class ChurchPage(Gtk.Box):
         if fit:
             near = [r for r in rows if r.get('d') is None or r['d'] <= max(25, rows[min(4, len(rows) - 1)].get('d') or 0) * 1.2] if rows else []
             pts = [(r['lat'], r['lon']) for r in near[:12]] + ([self.center] if getattr(self, 'center', None) else [])
-            GLib.idle_add(lambda: (self.map.fit(pts, maxz=14), False)[1])
+            GLib.idle_add(lambda: (self.map.fit(pts, maxz=14), self.bubbles(), False)[2])
 
     def row(self, r):
         ex = Adw.ExpanderRow(title=GLib.markup_escape_text(self.name(r)),
