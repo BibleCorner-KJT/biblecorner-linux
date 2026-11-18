@@ -1,0 +1,624 @@
+"""2.27: the Library, in one place.
+
+At the top, "On This Device": one page with everything kept on this computer (Bibles, Audio Bibles, Books,
+The Holy Fathers, Study tools, Games), its size, Delete, and "Update what is here".
+Below it, the libraries, each with the same two tabs, "On This Device" and "Get more":
+Bibles, Audio Bibles, Books (CrossWire and AndBible), The Holy Fathers, Study tools.
+The downloads show at the bottom of every page of the Library, each with its progress, Stop and Try again;
+a stopped or interrupted download goes on from where it stopped."""
+import json, os, shutil
+from gi.repository import Gtk, Adw, GLib
+from .core import STORE, SET, NET, FILES, DATA, lang, read_file, run_bg, book_name
+from .i18n import _
+from .downloads import DL
+
+CATS = [('bibles', 'Bibles', 'kjt-bible-symbolic', 'Read and search without the internet'),
+        ('audio', 'Audio Bibles', 'kjt-listen-symbolic', 'Listen without the internet'),
+        ('books', 'Books', 'kjt-library-symbolic', 'Commentaries, dictionaries and books from CrossWire and AndBible'),
+        ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic', 'Their writings, to read like books'),
+        ('study', 'Study tools', 'kjt-dict-symbolic', 'Bible Dictionary, Bible Maps, the Fathers on each chapter, Greek and Hebrew')]
+NAMES = dict((c[0], c[1]) for c in CATS)
+STUDY = [('dict', 'Bible Dictionary', 'Every entry, and every place of the maps', 'dictionary', 'kjt-dict-symbolic'),
+         ('maps', 'Bible Maps', 'The land in its real colours, the places and the story maps', 'maps', 'kjt-map-symbolic'),
+         ('commentary', 'The Holy Fathers on the Bible', 'Their commentary beside each chapter', 'fathers', 'kjt-cross-symbolic'),
+         ('study', 'For the reader', 'Cross-references, the Greek and Hebrew words, the words of Christ in red', 'xref', 'kjt-bible-symbolic')]
+MAIN_LANGS = ['English', 'Arabic', 'Greek', 'Ancient Greek', 'Russian', 'Church Slavonic', 'Chinese', 'French', 'Hindi', 'Spanish', 'Tagalog', 'Filipino']
+
+
+def size_of(path):
+    t = 0
+    for root, _d, files in os.walk(path):
+        for f in files:
+            try:
+                t += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return t
+
+
+def mb(n):
+    return ('%.1f GB' % (n / 1e9)) if n >= 1e9 else ('%.0f MB' % (n / 1e6)) if n > 1e6 else ('%.0f KB' % (n / 1e3))
+
+
+def esc(s):
+    return GLib.markup_escape_text(s or '')
+
+
+# ---------------------------------------------------------------- what is on this computer
+def here_bibles():
+    from .bible import bible_name
+    return sorted(STORE.bibles(), key=lambda t: bible_name(t).casefold())
+
+
+def has_mp3(p):
+    return any(fn.endswith('.mp3') for _r, _d, fs in os.walk(p) for fn in fs)
+
+
+def here_audio():
+    a = os.path.join(FILES, 'audio')
+    return sorted(f for f in (os.listdir(a) if os.path.isdir(a) else []) if os.path.isdir(os.path.join(a, f)) and has_mp3(os.path.join(a, f)))
+
+
+def here_books():
+    try:
+        from . import sword
+        return [c for c in sword.installed() if c['_kind'] != 'bible']
+    except Exception:
+        return []
+
+
+def fathers_index():
+    try:
+        return json.loads(read_file('library/index.json', as_json=False) or b'[]')
+    except Exception:
+        return []
+
+
+def here_works(idx=None):
+    lp = os.path.join(FILES, 'library')
+    return [w for w in (idx if idx is not None else fathers_index()) if os.path.exists(os.path.join(lp, w['id'] + '.json.gz'))]
+
+
+def folder_here(folder):
+    p = os.path.join(FILES, folder)
+    return os.path.isdir(p) and any(os.scandir(p))
+
+
+def here_study():
+    return [s for s in STUDY if folder_here(s[3])]
+
+
+def games_size():
+    try:
+        from . import sitecache
+        return sitecache.kept_size()
+    except Exception:
+        return 0
+
+
+def here_counts():
+    return {'bibles': len(STORE.bibles()), 'audio': len(here_audio()), 'books': len(here_books()), 'fathers': len(here_works()),
+            'study': len(here_study()), 'games': 1 if games_size() > 2 * 1048576 else 0}
+
+
+def used_space():
+    tot = size_of(FILES) + sum(os.path.getsize(os.path.join(DATA, f)) for f in ('kjt.db', 'kjt.db-wal') if os.path.exists(os.path.join(DATA, f)))
+    try:
+        free = shutil.disk_usage(FILES if os.path.isdir(FILES) else DATA).free
+    except OSError:
+        free = 0
+    return tot, free
+
+
+def book_title(code, tr):
+    try:
+        return book_name(code, tr=tr)
+    except Exception:
+        return code
+
+
+# ---------------------------------------------------------------- the downloads, at the bottom
+class DownloadBar(Gtk.Revealer):
+    def __init__(self):
+        super().__init__(transition_type=Gtk.RevealerTransitionType.SLIDE_UP)
+        self.add_css_class('kjt-dlbar')
+        self.list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.list.add_css_class('boxed-list')
+        w = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=12, margin_end=12, margin_top=8, margin_bottom=8)
+        head = Gtk.Box(spacing=6); self.title = Gtk.Label(xalign=0, hexpand=True, css_classes=['heading']); head.append(self.title)
+        self.stop_btn = Gtk.Button(label=_('Stop all')); self.stop_btn.add_css_class('flat'); self.stop_btn.connect('clicked', lambda *_a: DL.cancel_all()); head.append(self.stop_btn)
+        self.clear_btn = Gtk.Button(label=_('Clear the list')); self.clear_btn.add_css_class('flat'); self.clear_btn.connect('clicked', lambda *_a: DL.clear_finished()); head.append(self.clear_btn)
+        w.append(head)
+        sc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True, max_content_height=220); sc.set_child(self.list); w.append(sc)
+        sep = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); sep.append(Gtk.Separator()); sep.append(w)
+        self.set_child(sep)
+        self.rows = {}
+        DL.listen(self.update)
+
+    def update(self, dl):
+        jobs = list(dl.jobs)
+        failed = [j for j in jobs if j.state == 'failed']
+        if not dl.busy and not failed and jobs:
+            GLib.idle_add(lambda: (DL.clear_finished(), False)[1])
+        self.set_reveal_child(bool(dl.busy or failed))
+        running = sum(1 for j in jobs if j.state == 'running'); waiting = sum(1 for j in jobs if j.state == 'waiting')
+        self.title.set_label((_('Downloading') + ' · %d%%' % int(100 * overall(dl)) + (' · ' + _('waiting') + ' %d' % waiting if waiting else '')) if dl.busy else _('Some downloads did not finish'))
+        self.stop_btn.set_visible(dl.busy); self.clear_btn.set_visible(not dl.busy)
+        for key in list(self.rows):
+            if all(id(j) != key for j in jobs):
+                self.list.remove(self.rows.pop(key)['row'])
+        for j in jobs:
+            r = self.rows.get(id(j))
+            if not r:
+                row = Adw.ActionRow(title=esc(translate_title(j.title)))
+                bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, hexpand=True); bar.set_size_request(120, -1)
+                btn = Gtk.Button(valign=Gtk.Align.CENTER); btn.add_css_class('flat')
+                btn.connect('clicked', lambda b, j=j: DL.cancel(j) if j.state in ('waiting', 'running') else DL.retry(j))
+                row.add_suffix(bar); row.add_suffix(btn)
+                self.list.append(row)
+                r = self.rows[id(j)] = {'row': row, 'bar': bar, 'btn': btn}
+            st = {'waiting': _('Waiting its turn'),
+                  'running': ('%d%% · %d / %d%s' % (int(100 * j.fraction()), j.done, j.total, (' · ' + j.what) if j.what else '')) if j.total else _('Starting…'),
+                  'done': _('Done') + (' (%d %s)' % (j.errors, _('not found')) if j.errors else ''),
+                  'failed': _('Could not be downloaded: try again'), 'cancelled': _('Stopped')}[j.state]
+            r['row'].set_subtitle(esc(st))
+            r['bar'].set_fraction(j.fraction()); r['bar'].set_visible(j.state in ('running', 'done'))
+            r['btn'].set_icon_name('kjt-close-symbolic' if j.state in ('waiting', 'running') else 'kjt-refresh-symbolic')
+            r['btn'].set_tooltip_text(_('Stop') if j.state in ('waiting', 'running') else _('Try again'))
+            r['btn'].set_visible(j.state != 'done' or j.errors > 0)
+
+
+def overall(dl):
+    js = [j for j in dl.jobs if j.state in ('waiting', 'running', 'done')]
+    return (sum(j.fraction() for j in js) / len(js)) if js else 0.0
+
+
+def translate_title(t):
+    """'The Holy Bible · KJV' → each part in the language of the app"""
+    return ' · '.join(_(p) for p in (t or '').split(' · '))
+
+
+# ---------------------------------------------------------------- the Library
+class LibHub(Gtk.Box):
+    def __init__(self, win):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.win = win
+        self.nav = Adw.NavigationView(); self.nav.set_vexpand(True); self.append(self.nav)
+        self.bar = DownloadBar(); self.append(self.bar)
+        self.books = None
+        self.subs = {}          # tag -> {'fill': fn}
+        self.was_busy = False
+        # the first page
+        tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
+        hb.set_title_widget(Adw.WindowTitle(title=_('Library'), subtitle=_('Everything here is free')))
+        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        cl = Adw.Clamp(maximum_size=760); self.home = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin_top=12, margin_bottom=24, margin_start=12, margin_end=12)
+        cl.set_child(self.home); sc.set_child(cl); tv.set_content(sc)
+        self.nav.add(Adw.NavigationPage(title=_('Library'), child=tv, tag='home'))
+        self.nav.connect('popped', lambda *_a: GLib.idle_add(self.refresh_home))
+        DL.listen(self.on_dl)
+        self.dev_row = None
+
+    # ---------- the first page
+    def refresh(self):
+        self.refresh_home()
+        top = self.nav.get_visible_page()
+        tag = top.get_tag() if top else None
+        if tag in self.subs:
+            self.subs[tag]['fill']()
+
+    def refresh_home(self):
+        while self.home.get_first_child():
+            self.home.remove(self.home.get_first_child())
+        n = here_counts(); tot, free = used_space()
+        g = Adw.PreferencesGroup()
+        row = Adw.ActionRow(title='<b>' + esc(_('On This Device')) + '</b>', activatable=True, use_markup=True)
+        row.set_subtitle(esc(_('%d items') % sum(n.values()) + ' · ' + _('Space used') + ': ' + mb(tot) + ((' · ' + _('free') + ': ' + mb(free)) if free else '')))
+        row.add_prefix(Gtk.Image(icon_name='drive-harddisk-symbolic', pixel_size=32))
+        self.dev_bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, visible=False); self.dev_bar.set_size_request(120, -1); row.add_suffix(self.dev_bar)
+        row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
+        row.add_css_class('kjt-ondevice-row')
+        row.connect('activated', lambda *_a: self.open_device())
+        self.dev_row = row
+        g.add(row); self.home.append(g)
+        g = Adw.PreferencesGroup(title=_('Libraries'))
+        for key, title, icon, sub in CATS:
+            r = Adw.ActionRow(title=esc(_(title)), activatable=True)
+            have = n.get(key, 0)
+            r.set_subtitle(esc(_(sub) + '\n' + ('✓ %d %s' % (have, _('on this device')) if have else _('Nothing on this device yet'))))
+            r.set_subtitle_lines(3)
+            r.add_prefix(Gtk.Image(icon_name=icon, pixel_size=24)); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
+            r.connect('activated', lambda _r, key=key: self.open_cat(key))
+            g.add(r)
+        self.home.append(g)
+        self.on_dl(DL)
+
+    def on_dl(self, dl):
+        busy = dl.busy
+        if self.dev_row is not None:
+            try:
+                self.dev_bar.set_visible(busy); self.dev_bar.set_fraction(overall(dl))
+                self.dev_bar.set_show_text(busy); self.dev_bar.set_text(_('Downloading') + ' %d%%' % int(100 * overall(dl)))
+            except Exception:
+                pass
+        if self.was_busy and not busy:
+            GLib.idle_add(lambda: (self.refresh(), False)[1])
+        self.was_busy = busy
+
+    # ---------- pages pushed from here
+    def push(self, tag, title, sub, fill, tabs=False, search=False, end=None):
+        """a page of the Library: its header (with ← back), optional tabs and search, and its content"""
+        tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb)
+        wt = Adw.WindowTitle(title=_(title), subtitle=sub or ''); hb.set_title_widget(wt)
+        st = {'mode': 'here', 'q': None, 'wt': wt}
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        if tabs:
+            tb = Gtk.Box(halign=Gtk.Align.CENTER, margin_top=8, margin_bottom=4); tb.add_css_class('linked')
+            th = Gtk.ToggleButton(label=_('On This Device'), active=True); tg = Gtk.ToggleButton(label=_('Get more'), group=th)
+            th.connect('toggled', lambda b: b.get_active() and (st.__setitem__('mode', 'here'), refill()))
+            tg.connect('toggled', lambda b: b.get_active() and (st.__setitem__('mode', 'get'), refill()))
+            tb.append(th); tb.append(tg); body.append(tb); st['tg'] = tg; st['th'] = th
+        if search:
+            q = Gtk.SearchEntry(placeholder_text=_('Find'), width_chars=14); hb.pack_end(q); st['q'] = q
+            q.connect('search-changed', lambda *_a: refill())
+        if end:
+            hb.pack_end(end)
+        pp = Adw.PreferencesPage(vexpand=True); body.append(pp); tv.set_content(body)
+        st['page'] = pp; st['groups'] = []
+        def refill():
+            for gg in st['groups']:
+                pp.remove(gg)
+            st['groups'] = []
+            def add(gg):
+                pp.add(gg); st['groups'].append(gg)
+            fill(add, st)
+        self.subs[tag] = {'fill': refill, 'st': st}
+        self.nav.push(Adw.NavigationPage(title=_(title), child=tv, tag=tag))
+        refill()
+        return st
+
+    def open_device(self):
+        tot, free = used_space()
+        up = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text=_('Update what is here') + ': ' + _('Fetches the newest corrections of the Bibles and books already on this computer. Nothing new is added.'))
+        up.connect('clicked', lambda *_a: self.update_here())
+        self.push('device', 'On This Device', _('Space used') + ': ' + mb(tot) + ((' · ' + _('free') + ': ' + mb(free)) if free else ''), self.fill_device, end=up)
+
+    def open_cat(self, key, mode='here'):
+        if key == 'books':
+            return self.open_books(mode)
+        title = NAMES[key]
+        st = self.push('cat-' + key, title, '', lambda add, st, key=key: self.fill_cat(key, add, st), tabs=True, search=key in ('bibles', 'audio', 'fathers'))
+        if mode == 'get':
+            st['tg'].set_active(True)
+
+    def open_books(self, mode='here', kind=None):
+        from .library import LibraryPage
+        if self.books is None:
+            self.books = LibraryPage(self.win, back=lambda: self.nav.pop())
+        if self.books.get_parent() is not None:
+            self.books.get_parent().set_child(None)
+        if self.nav.get_visible_page().get_tag() != 'books':
+            self.nav.push(Adw.NavigationPage(title=_('Books'), child=self.books, tag='books'))
+        if kind:
+            self.books.show_kind(kind)
+        elif mode == 'get':
+            self.books.t_get.set_active(True)
+        else:
+            self.books.refresh()
+        return self.books
+
+    def open_href(self, href):
+        self.open_books().open_href(href)
+
+    # ---------- helpers
+    def btn(self, icon, tip, fn):
+        b = Gtk.Button(icon_name=icon, tooltip_text=tip, valign=Gtk.Align.CENTER); b.add_css_class('flat')
+        b.connect('clicked', lambda *_a: fn()); return b
+
+    def get_btn(self, plan, label=None):
+        b = Gtk.Button(label=label or _('Download'), valign=Gtk.Align.CENTER); b.add_css_class('pill'); b.add_css_class('kjt-lib-get')
+        b.connect('clicked', lambda *_a: self.get(plan)); return b
+
+    def get(self, plan):
+        if not NET.online():
+            self.win.toast(_('Downloading needs the internet')); return
+        DL.start(plan); self.win.toast(_('Downloading…'))
+
+    def ask_delete(self, what, fn):
+        d = Adw.AlertDialog(heading=_('Delete from this computer?'), body=what + '\n\n' + _('You can download it again at any time.'))
+        d.add_response('no', _('Cancel')); d.add_response('yes', _('Delete')); d.set_response_appearance('yes', Adw.ResponseAppearance.DESTRUCTIVE)
+        d.connect('response', lambda _d, r: (fn(), self.refresh()) if r == 'yes' else None); d.present(self.win)
+
+    def more_row(self, key, text=None):
+        r = Adw.ActionRow(title=esc(text or _('Get more')), activatable=True); r.add_prefix(Gtk.Image(icon_name='folder-download-symbolic'))
+        r.add_suffix(Gtk.Image(icon_name='go-next-symbolic')); r.add_css_class('kjt-lib-more')
+        r.connect('activated', lambda *_a: self.open_cat(key, 'get')); return r
+
+    def none_row(self, text):
+        r = Adw.ActionRow(title=esc(text)); r.add_css_class('dim-label'); return r
+
+    # ---------- On This Device: everything, by kind
+    def fill_device(self, add, st):
+        any_here = False
+        for key, title, icon, _sub in CATS:
+            g = Adw.PreferencesGroup(title=_(title))
+            n = getattr(self, 'here_' + key)(g, st, flat=True)
+            any_here = any_here or n
+            if not n:
+                g.add(self.none_row(_('Nothing on this device yet')))
+            g.add(self.more_row(key))
+            add(g)
+        g = Adw.PreferencesGroup(title=_('Games'))
+        self.games_row(g); add(g)
+
+    # ---------- a library: On This Device | Get more
+    def fill_cat(self, key, add, st):
+        g = Adw.PreferencesGroup()
+        if st['mode'] == 'here':
+            n = getattr(self, 'here_' + key)(g, st)
+            if not n:
+                g.add(self.none_row(_('Nothing on this device yet')))
+                g.add(self.more_row(key))
+            add(g)
+        else:
+            getattr(self, 'get_' + key)(g, st, add)
+            add(g)
+
+    def q(self, st):
+        return ((st.get('q').get_text() if st.get('q') else '') or '').strip().casefold()
+
+    # Bibles
+    def here_bibles(self, g, st, flat=False):
+        from .bible import bible_name
+        vers = (STORE.kv('info') or {}).get('versions') or {}
+        books_of = dict(STORE.bible_size()); q = self.q(st); n = 0
+        for tr in here_bibles():
+            if q and q not in bible_name(tr).casefold():
+                continue
+            row = Adw.ActionRow(title=esc(bible_name(tr)), subtitle=esc('✓ %d %s' % (books_of.get(tr, 0), _('books'))))
+            rb = Gtk.Button(label=_('Read'), valign=Gtk.Align.CENTER); rb.add_css_class('flat')
+            rb.connect('clicked', lambda *_a, tr=tr: self.read_bible(tr)); row.add_suffix(rb)
+            if tr in vers:
+                row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), lambda tr=tr: self.get({'bibles': [tr], 'refresh': True})))
+            row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda tr=tr: self.ask_delete(bible_name(tr), lambda: self.remove_bible(tr))))
+            g.add(row); n += 1
+        return n
+
+    def read_bible(self, tr):
+        b = self.win.bible
+        if hasattr(b, 'set_tr'):
+            b.set_tr(tr)
+        self.win.show('bible')
+
+    def get_bibles(self, g, st, add):
+        vers = (STORE.kv('info') or {}).get('versions') or {}; have = set(STORE.bibles()); q = self.q(st)
+        by_lang = {}
+        for tr, v in vers.items():
+            if tr not in have and (not q or q in (v[1] or '').casefold() or q in (v[0] or '').casefold() or q in _(v[0]).casefold()):
+                by_lang.setdefault(v[0], []).append((tr, v))
+        if not vers:
+            g.add(self.none_row(_('The list of Bibles to download comes with the internet.')))
+        for lg in sorted(by_lang, key=lambda x: (MAIN_LANGS.index(x) if x in MAIN_LANGS else 99, x)):
+            ex = Adw.ExpanderRow(title=esc(_(lg)), subtitle='%d' % len(by_lang[lg])); ex.add_css_class('kjt-lib-lang')
+            if q or lg == ({'en': 'English', 'ar': 'Arabic', 'el': 'Greek', 'ru': 'Russian', 'fr': 'French', 'es': 'Spanish', 'zh': 'Chinese', 'hi': 'Hindi', 'tl': 'Tagalog'}).get(lang()):
+                ex.set_expanded(True)
+            for tr, v in sorted(by_lang[lg], key=lambda x: x[1][1]):
+                row = Adw.ActionRow(title=esc(v[1])); row.add_suffix(self.get_btn({'bibles': [tr]})); ex.add_row(row)
+            g.add(ex)
+        g2 = Adw.PreferencesGroup()
+        r = Adw.ActionRow(title=esc(_('More Bibles from CrossWire and AndBible')), subtitle=esc(_('Hundreds of Bibles in many languages')), activatable=True)
+        r.add_prefix(Gtk.Image(icon_name='kjt-library-symbolic')); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
+        r.connect('activated', lambda *_a: self.open_books('get', kind='bible')); g2.add(r); add(g2)
+
+    def remove_bible(self, tr):
+        if len(STORE.bibles()) <= 1:
+            self.win.toast(_('Keep at least one Bible')); return
+        try:
+            from . import sword
+            c = next((c for c in sword.installed() if sword.bible_code(c) == tr), None)
+        except Exception:
+            c = None
+        if c:
+            sword.remove(c)
+        else:
+            STORE.delete_bible(tr)
+        if SET.get('tr') == tr:
+            SET.set('tr', STORE.bibles()[0])
+        self.win.toast(_('Deleted'))
+
+    # Audio Bibles
+    def here_audio(self, g, st, flat=False):
+        from .bible import bible_name
+        a = os.path.join(FILES, 'audio'); q = self.q(st); n = 0
+        for f in here_audio():
+            p = os.path.join(a, f); tr, _s, track = f.partition('_')
+            name = bible_name(tr) + (' · ' + _('With music') if track == 'music' else (' · ' + track if track else ''))
+            if q and q not in name.casefold():
+                continue
+            bk = sorted(b for b in os.listdir(p) if os.path.isdir(os.path.join(p, b)) and any(x.endswith('.mp3') for x in os.listdir(os.path.join(p, b))))
+            nch = sum(len([x for x in os.listdir(os.path.join(p, b)) if x.endswith('.mp3')]) for b in bk)
+            ex = Adw.ExpanderRow(title=esc(name), subtitle=esc('✓ %d %s · %d %s · %s' % (len(bk), _('books'), nch, _('chapters'), mb(size_of(p)))))
+            ex.add_suffix(self.btn('user-trash-symbolic', _('Delete all of these recordings'), lambda p=p, name=name: self.ask_delete(name, lambda: shutil.rmtree(p, ignore_errors=True))))
+            for b in bk:
+                bp = os.path.join(p, b); nn = len([x for x in os.listdir(bp) if x.endswith('.mp3')])
+                row = Adw.ActionRow(title=esc(book_title(b, tr)), subtitle='%d %s · %s' % (nn, _('chapters'), mb(size_of(bp))))
+                row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda bp=bp, b=b, tr=tr: self.ask_delete(book_title(b, tr), lambda: shutil.rmtree(bp, ignore_errors=True))))
+                ex.add_row(row)
+            g.add(ex); n += 1
+        return n
+
+    def get_audio(self, g, st, add):
+        al = getattr(self, 'audio_list', None)
+        if al is None:
+            g.add(self.none_row(_('Loading…') if NET.online() else _('The list comes with the internet.')))
+            if NET.online() and not getattr(self, 'audio_asking', False):
+                self.audio_asking = True
+                def work():
+                    r = NET.ajax('kjtb_audio_list')
+                    return r.get('data') if r.get('success') else []
+                def done(d):
+                    self.audio_asking = False; self.audio_list = d if isinstance(d, list) else []
+                    s = self.subs.get('cat-audio')
+                    if s and s['st']['mode'] == 'get':
+                        s['fill']()
+                run_bg(work, done)
+            return
+        if not al:
+            g.add(self.none_row(_('No recordings to download now.'))); return
+        q = self.q(st); a = os.path.join(FILES, 'audio')
+        for x in al:
+            for t in x['tracks']:
+                name = x['name'] + ((' · ' + _(t['label'])) if len(x['tracks']) > 1 or t['id'] else '')
+                if q and q not in name.casefold() and q not in _(x.get('lang') or '').casefold():
+                    continue
+                folder = x['tr'] + ('_' + t['id'] if t['id'] else '')
+                tr_here = next((h for h in STORE.bibles() if h == x['tr']), x['tr'])
+                def kept(b, folder=folder):
+                    p = os.path.join(a, folder, b)
+                    return len([f for f in os.listdir(p) if f.endswith('.mp3')]) if os.path.isdir(p) else 0
+                books = t['books']; nk = sum(1 for b in books if kept(b) >= len(books[b]['ch']))
+                ex = Adw.ExpanderRow(title=esc(name), subtitle=esc('%d %s · %s' % (len(books), _('book') if len(books) == 1 else _('books'), mb(t['bytes'])) + (' · ✓ %d %s' % (nk, _('on this device')) if nk else '')))
+                todo = {b: books[b]['ch'] for b in books if kept(b) < len(books[b]['ch'])}
+                if todo:
+                    plan = {'audio': [{'tr': x['tr'], 'track': t['id'], 'name': x['name'], 'label': t['label'] if t['id'] else '', 'books': todo,
+                                       'bnames': {b: book_title(b, tr_here) for b in todo}}]}
+                    ex.add_suffix(self.get_btn(plan, _('Download all') + ' (' + mb(sum(books[b]['bytes'] for b in todo)) + ')'))
+                for b in books:
+                    k = kept(b); full = k >= len(books[b]['ch'])
+                    row = Adw.ActionRow(title=esc(book_title(b, tr_here)), subtitle=esc('%d %s · %s' % (len(books[b]['ch']), _('chapters'), mb(books[b]['bytes'])) + (' · ✓ ' + _('On This Device') if full else (' · %d ✓' % k if k else ''))))
+                    if not full:
+                        row.add_suffix(self.get_btn({'audio': [{'tr': x['tr'], 'track': t['id'], 'name': x['name'], 'label': t['label'] if t['id'] else '', 'books': {b: books[b]['ch']},
+                                                                 'bname': book_title(b, tr_here), 'bnames': {b: book_title(b, tr_here)}}]}))
+                    ex.add_row(row)
+                g.add(ex)
+
+    # Books (CrossWire and AndBible): its own page; here only for On This Device
+    def here_books(self, g, st, flat=False):
+        n = 0
+        try:
+            from . import sword
+        except Exception:
+            return 0
+        for c in here_books():
+            row = Adw.ActionRow(title=esc(c.get('Description') or c['_name']), subtitle=esc(c['_name'] + ' · ' + _(c['_kind'])), activatable=True)
+            row.connect('activated', lambda *_a, c=c: (self.open_books(), self.books.open(c)))
+            row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda c=c: self.ask_delete(c.get('Description') or c['_name'], lambda: sword.remove(c))))
+            g.add(row); n += 1
+        return n
+
+    # The Holy Fathers (each Father is one file: all his writings)
+    def father_sub(self, w, extra=''):
+        n = len(w.get('works') or [])
+        return ' · '.join(x for x in (w.get('when') or '', '%d %s' % (n, _('work') if n == 1 else _('works')), extra) if x)
+
+    def here_fathers(self, g, st, flat=False):
+        lp = os.path.join(FILES, 'library'); q = self.q(st); n = 0
+        for w in here_works():
+            if q and q not in (w.get('name') or '').casefold() and not any(q in (x.get('t') or '').casefold() for x in w.get('works') or []):
+                continue
+            fp = os.path.join(lp, w['id'] + '.json.gz')
+            row = Adw.ActionRow(title=esc(_(w.get('name') or w['id'])), subtitle=esc(self.father_sub(w, mb(os.path.getsize(fp)))), activatable=True)
+            row.connect('activated', lambda *_a, w=w: self.read_father(w))
+            row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda fp=fp, w=w: self.ask_delete(w.get('name') or w['id'], lambda: os.remove(fp))))
+            g.add(row); n += 1
+        return n
+
+    def read_father(self, w):
+        self.win.show('fathers')
+        try:
+            self.win.fathers.open_author(w['id'])
+        except Exception:
+            pass
+
+    def get_fathers(self, g, st, add):
+        idx = getattr(self, 'hf_index', None)
+        if idx is None:
+            local = fathers_index()
+            if NET.online() and not getattr(self, 'hf_asking', False):
+                self.hf_asking = True
+                def work():
+                    return json.loads(NET.file('library/index.json').decode('utf-8'))
+                def done(d):
+                    self.hf_asking = False
+                    self.hf_index = d if isinstance(d, list) else local
+                    s = self.subs.get('cat-fathers')
+                    if s and s['st']['mode'] == 'get':
+                        s['fill']()
+                run_bg(work, done)
+            idx = local
+            if not idx:
+                g.add(self.none_row(_('Loading…') if NET.online() else _('The list comes with the internet.'))); return
+        langs = {lang(), 'en'}
+        idx = [w for w in idx if not w.get('lang') or w['lang'] in langs]
+        kept = {w['id'] for w in here_works(idx)}
+        todo = [w for w in idx if w['id'] not in kept]
+        q = self.q(st)
+        if todo and not q:
+            kb = sum(int(w.get('kb') or 0) for w in todo)
+            r = Adw.ActionRow(title=esc(_('All their writings')), subtitle=esc('%d %s · %s' % (len(todo), _('Fathers'), mb(kb * 1000))))
+            r.add_prefix(Gtk.Image(icon_name='kjt-library-symbolic')); r.add_suffix(self.get_btn({'works': todo}, _('Download all')))
+            g.add(r)
+        for w in todo:
+            if q and q not in (w.get('name') or '').casefold() and not any(q in (x.get('t') or '').casefold() for x in w.get('works') or []):
+                continue
+            row = Adw.ActionRow(title=esc(_(w.get('name') or w['id'])), subtitle=esc(self.father_sub(w, mb(int(w.get('kb') or 0) * 1000))))
+            row.add_suffix(self.get_btn({'works': [w]})); g.add(row)
+        if not todo:
+            g.add(self.none_row('✓ ' + _('Everything is on this device')))
+
+    # Study tools
+    def here_study(self, g, st, flat=False):
+        n = 0
+        for key, title, sub, folder, icon in STUDY:
+            if not folder_here(folder):
+                continue
+            p = os.path.join(FILES, folder)
+            row = Adw.ActionRow(title=esc(_(title)), subtitle=esc(_(sub) + ' · ' + mb(size_of(p)))); row.set_subtitle_lines(2)
+            row.add_prefix(Gtk.Image(icon_name=icon))
+            plan = self.study_plan(key)
+            row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), lambda plan=plan: self.get(dict(plan, refresh=True))))
+            row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda p=p, title=title: self.ask_delete(_(title), lambda: shutil.rmtree(p, ignore_errors=True))))
+            g.add(row); n += 1
+        return n
+
+    def study_plan(self, key):
+        return {'dict': {'dict': [lang()]}, 'maps': {'maps': True, 'dict': [lang()]}, 'commentary': {'commentary': True}, 'study': {'study': True}}[key]
+
+    def get_study(self, g, st, add):
+        todo = [s for s in STUDY if not folder_here(s[3])]
+        for key, title, sub, folder, icon in todo:
+            row = Adw.ActionRow(title=esc(_(title)), subtitle=esc(_(sub))); row.set_subtitle_lines(2)
+            row.add_prefix(Gtk.Image(icon_name=icon)); row.add_suffix(self.get_btn(self.study_plan(key))); g.add(row)
+        if not todo:
+            g.add(self.none_row('✓ ' + _('Everything is on this device')))
+
+    # Games (On This Device only)
+    def games_row(self, g):
+        gs = games_size(); here = gs > 2 * 1048576
+        row = Adw.ActionRow(title=esc(_('Good Fun games')), subtitle=esc(_('Every game, exactly as on the website, to play without the internet') + '\n' + ('✓ ' + _('On This Device') + ' · ' + mb(gs) if here else _('Not on this device'))))
+        row.set_subtitle_lines(3); row.add_prefix(Gtk.Image(icon_name='kjt-fun-symbolic'))
+        if here:
+            row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), lambda: self.get({'games': True, 'refresh': True})))
+            from . import sitecache
+            row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda: self.ask_delete(_('Good Fun games'), lambda: shutil.rmtree(sitecache.DIR, ignore_errors=True))))
+        else:
+            row.add_suffix(self.get_btn({'games': True}))
+        g.add(row)
+
+    # ---------- everything here, fetched again
+    def update_here(self):
+        have = set(STORE.bibles()); vers = (STORE.kv('info') or {}).get('versions') or {}
+        plan = {'bibles': sorted(t for t in have if t in vers), 'today': [lang()], 'refresh': True}
+        if folder_here('dictionary'):
+            plan['dict'] = [lang()]
+        if folder_here('maps'):
+            plan['maps'] = True
+        if folder_here('fathers'):
+            plan['commentary'] = True
+        if folder_here('xref'):
+            plan['study'] = True
+        works = here_works()
+        if works:
+            plan['works'] = works
+        if games_size() > 2 * 1048576:
+            plan['games'] = True
+        self.get(plan)

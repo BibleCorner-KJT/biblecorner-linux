@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.26'
+VERSION = '2.27'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -129,7 +129,7 @@ PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy 
          ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
          ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'),
          ('pray', 'Prayer', 'kjt-pray-symbolic'), ('fun', 'Good Fun', 'kjt-fun-symbolic'), ('church', 'Churches near me', 'kjt-church-symbolic'),
-         ('downloads', 'Offline library', 'kjt-download-symbolic'), ('settings', 'Settings', 'kjt-settings-symbolic')]
+         ('settings', 'Settings', 'kjt-settings-symbolic')]   # 2.27: the Offline library is now in the Library ("On This Device")
 
 
 def icon_button(icon, tip, fn=None, flat=True, toggle=False):
@@ -173,7 +173,9 @@ class Window(Adw.ApplicationWindow):
             row = Gtk.ListBoxRow(); row.key = key
             b = Gtk.Box(spacing=12, margin_top=7, margin_bottom=7, margin_start=4)
             im = Gtk.Image(icon_name=icon); im.add_css_class('kjt-nav-icon'); b.append(im)
-            row.lab = Gtk.Label(label=_(title), xalign=0); b.append(row.lab); row.set_child(b); row.title = title; row.n = n
+            row.lab = Gtk.Label(label=_(title), xalign=0, hexpand=True); b.append(row.lab); row.set_child(b); row.title = title; row.n = n
+            if key == 'library':   # 2.27: while something downloads, how far it is
+                self.dl_lab = Gtk.Label(css_classes=['caption', 'kjt-dl-badge'], visible=False, margin_end=6); b.append(self.dl_lab)
             row.set_tooltip_text('%s (Ctrl+%d)' % (_(title), n + 1) if n < 9 else _(title))
             self.nav.append(row)
         self.nav.connect('row-activated', lambda _l, row: self.show(row.key, from_nav=True))
@@ -227,7 +229,7 @@ class Window(Adw.ApplicationWindow):
             elif key == 'study':
                 from .mystudy import StudyPage as P
             elif key == 'library':
-                from .library import LibraryPage as P
+                from .libhub import LibHub as P
             elif key == 'you':
                 from .you import YouPage as P
             elif key == 'pray':
@@ -239,7 +241,7 @@ class Window(Adw.ApplicationWindow):
             elif key == 'settings':
                 from .settings import SettingsPage as P
             else:
-                from .settings import DownloadsPage as P
+                from .libhub import LibHub as P
             p = P(self); self.pages[key] = p; self.stack.add_named(p, key)
             p.fresh = True
             if hasattr(p, 'set_compact'):
@@ -295,10 +297,13 @@ class Window(Adw.ApplicationWindow):
         self.toasts.add_toast(t)
 
     def show(self, key, from_nav=False):
+        if key == 'downloads':   # 2.27: what was the Offline library is the Library's "On This Device"
+            self.show('library', from_nav)
+            L = self.page('library'); L.nav.pop_to_tag('home'); L.open_device(); return
         page = self.page(key)
         self.stack.set_visible_child_name(key)
         SET.set('page', key)
-        if getattr(page, 'fresh', False) or key in ('study', 'downloads', 'settings', 'today', 'you', 'pray', 'fun', 'church'):
+        if getattr(page, 'fresh', False) or key in ('study', 'library', 'settings', 'today', 'you', 'pray', 'fun', 'church'):
             page.fresh = False
             if hasattr(page, 'refresh'):
                 page.refresh()
@@ -478,22 +483,28 @@ class Window(Adw.ApplicationWindow):
             # the app's language stays the computer's own; the other languages are only downloaded
             if not NET.online():
                 self.toast('Downloading needs the internet. Choose Downloads when you are online.'); return
-            DL.start(default_plan(langs, allr.get_active()))
+            DL.start(default_plan(langs, allr.get_active())); self.welcome_dl = True
             self.show('downloads')
         d.connect('response', resp); d.present(self)
         return False
 
     def on_download(self, dl):
+        try:
+            from .libhub import overall
+            self.dl_lab.set_visible(dl.busy); self.dl_lab.set_label('⬇ %d%%' % int(100 * overall(dl)))
+            self.dl_lab.set_tooltip_text(_('Downloading') + ': ' + dl.what)
+        except Exception:
+            pass
         if dl.busy:
             return
         for k, p in self.pages.items():
             p.fresh = True
         cur = self.stack.get_visible_child_name()
-        if cur and cur != 'downloads':
+        if cur and cur != 'library':
             self.show(cur)
         if not dl.stop:
             self.toast('Everything is kept on this computer' if not dl.errors else 'Downloaded, with %d problems: try again later' % dl.errors)
-        if cur == 'downloads' and have_data() and not SET.get('welcomed'):
+        if cur == 'library' and have_data() and getattr(self, 'welcome_dl', False) and not SET.get('welcomed'):
             SET.set('welcomed', 1); self.show('today')
 
     def background(self):

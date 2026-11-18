@@ -1,8 +1,8 @@
 """Fetching what the app keeps on this computer: a queue of downloads, two at a time, each with its own progress."""
-import json, threading, time
+import json, os, threading, time
 from concurrent.futures import ThreadPoolExecutor
 from gi.repository import GLib
-from .core import STORE, NET, LANGS, DEFAULT_BIBLES, info, write_file, read_file, lang, OT, NT
+from .core import STORE, NET, LANGS, DEFAULT_BIBLES, FILES, info, write_file, read_file, lang, file_path, OT, NT
 
 PARALLEL = 4   # files fetched at the same time, within one download
 WORKERS = 2    # downloads running at the same time; the others wait their turn
@@ -17,6 +17,7 @@ class Job:
         self.state = 'waiting'        # waiting · running · done · failed · cancelled
         self.what = ''
         self.cancel = False
+        self.fresh = False            # 2.27: fetch again what is already here (else a stopped download goes on from where it stopped)
         self.lock = threading.Lock()
 
     @property
@@ -96,6 +97,14 @@ class Downloader:
             jobs.append(Job('study', None, 'For the reader: cross-references, Greek and Hebrew'))
         for lg in plan.get('today', []):
             jobs.append(Job('today', lg, 'Today with God · ' + lg))
+        # 2.27: the Library's Audio Bibles (a recording, all or some books), one writing of the Holy Fathers, the games
+        for a in plan.get('audio', []):
+            jobs.append(Job('audio', a, 'Audio Bible · ' + (a.get('name') or a['tr']) + (' · ' + a['label'] if a.get('label') else '')
+                            + (' · ' + a['bname'] if a.get('bname') else '')))
+        for w in plan.get('works', []):
+            jobs.append(Job('work', w['id'], 'The Holy Fathers · ' + (w.get('name') or w['id'])))
+        if plan.get('games'):
+            jobs.append(Job('games', None, 'Good Fun games'))
         for c in plan.get('sword', []):
             jobs.append(Job('sword', {k: v for k, v in c.items() if not k.startswith('_') or k in ('_name', '_source', '_kind')}, 'Library · ' + (c.get('Description') or c['_name'])))
         with self.lock:
@@ -103,6 +112,7 @@ class Downloader:
             # finished downloads leave the list when new ones come
             self.jobs = [j for j in self.jobs if j.state in ('waiting', 'running')]
             for j in jobs:
+                j.fresh = bool(plan.get('refresh'))
                 if j.key not in busy:
                     self.jobs.append(j)
         self.tell(True)
@@ -146,7 +156,7 @@ class Downloader:
 
     def retry(self, job):
         with self.lock:
-            j = Job(job.kind, job.arg, job.title)
+            j = Job(job.kind, job.arg, job.title); j.fresh = job.fresh
             self.jobs.append(j)
         self.tell(True); self.pump()
 
@@ -168,6 +178,8 @@ class Downloader:
         def one(f):
             if job.cancel:
                 return
+            if not job.fresh and os.path.exists(os.path.join(FILES, dest(f))):   # 2.27: kept already: goes on from where it stopped
+                self.step(job, label); return
             try:
                 write_file(dest(f), NET.file(f))
             except Exception:
@@ -189,6 +201,8 @@ class Downloader:
             if job.cancel:
                 return
             code = b['book_code']
+            if not job.fresh and STORE.chapters(tr, code):   # 2.27: kept already
+                self.step(job, b.get('book') or code); return
             try:
                 rr = NET.ajax('kjtb_data', op='offline_book', tr=tr, book=code)
             except Exception:
@@ -249,6 +263,70 @@ class Downloader:
             fn()
 
     sword_listeners = []
+
+    # ---------- 2.27
+    def get_audio(self, job, a):
+        """a recording of a Bible, chapter by chapter (a chapter already here is not fetched again)"""
+        from .audio import atr
+        tr, track = a['tr'], a.get('track') or ''
+        books = a.get('books') or {}
+        folder = tr + ('_' + track if track else '')
+        todo = [(b, int(c)) for b in books for c in books[b]]
+        job.total = len(todo); self.tell()
+        def one(bc):
+            b, c = bc
+            if job.cancel:
+                return
+            dest = os.path.join(FILES, 'audio', folder, b, '%d.mp3' % c)
+            if os.path.exists(dest) and not job.fresh:
+                self.step(job, '%s %d' % (b, c)); return
+            try:
+                r = NET.ajax('kjtb_audio', tr=atr(tr), book=b, ch=c, track=track)
+                d = r.get('data') if r.get('success') else None
+                if not d or not d.get('url'):
+                    raise ValueError('none')
+                data = NET.get(d['url'], timeout=180, strict=True)
+                p = file_path('audio/%s/%s/%d.mp3' % (folder, b, c))
+                with open(p + '.part', 'wb') as f:
+                    f.write(data)
+                os.replace(p + '.part', p)
+                with open(p[:-4] + '.json', 'w') as f:
+                    json.dump({'v': d.get('v') or []}, f)
+            except Exception:
+                job.errors += 1
+            self.step(job, '%s %d' % (a.get('bnames', {}).get(b, b), c))
+        with ThreadPoolExecutor(2) as ex:
+            list(ex.map(one, todo))
+
+    _idx_lock = threading.Lock()
+
+    def get_work(self, job, wid):
+        """one Father (all his writings); his entry is added to the list kept here"""
+        try:
+            srv = json.loads(NET.file('library/index.json').decode('utf-8'))
+            with self._idx_lock:
+                try:
+                    local = json.loads(read_file('library/index.json', as_json=False) or b'[]')
+                except Exception:
+                    local = []
+                have = {x['id'] for x in local}
+                local += [x for x in srv if x['id'] == wid and wid not in have]
+                write_file('library/index.json', json.dumps(local).encode())
+                if not os.path.exists(os.path.join(FILES, 'library', 'topics.json')):
+                    write_file('library/topics.json', NET.file('library/topics.json'))
+        except Exception:
+            pass
+        self.files(job, ['library/%s.json.gz' % wid], 'The Holy Fathers')
+
+    def get_games(self, job, _):
+        from . import sitecache
+        def prog(i, n):
+            job.total = n; job.done = i; self.tell()
+            return False
+        n = sitecache.keep_games(prog, cancel=lambda: job.cancel, fresh=job.fresh)
+        if not n:
+            job.errors += 1
+        job.done = job.total = max(job.total, 1)
 
     def get_today(self, job, lg):
         job.total = 1

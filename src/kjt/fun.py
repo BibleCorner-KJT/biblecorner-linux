@@ -718,17 +718,12 @@ class FunPage(Gtk.Box):
         self.tv.set_content(self.wv)
 
     def keep_all(self):
-        from . import sitecache
+        """2.27: in the downloads of the Library (with its progress)"""
         from .core import NET
+        from .downloads import DL
         if not NET.online():
             self.win.toast(_('This needs the internet. Try again when you are connected.')); return
-        self.keep.set_sensitive(False); self.win.toast(_('Keeping the games on this computer…'))
-        def prog(i, n):
-            self.keep.set_tooltip_text('%d / %d' % (i, n)); return False
-        def done(n):
-            self.keep.set_sensitive(True); self.keep.set_tooltip_text(_('Keep all the games on this computer (for use without the internet)'))
-            self.win.toast(_('The games are kept on this computer: they work without the internet.') if n else _('Could not save now. Please try again.'))
-        run_bg(lambda: sitecache.keep_games(prog), done)
+        DL.start({'games': True, 'refresh': True}); self.win.toast(_('Downloading…'))
 
     def refresh(self):
         d = data()

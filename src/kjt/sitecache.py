@@ -147,8 +147,9 @@ def register(WebKit):
 
 
 # ---------- keep all the games here (for use without the internet) ----------
-def keep_games(progress=None):
-    """fetches the games page and every file the games use; returns how many files are kept"""
+def keep_games(progress=None, cancel=None, fresh=True):
+    """fetches the games page and every file the games use; returns how many files are kept
+    (2.27: progress(i, n) is called from this thread; a file kept already is kept as it is unless fresh)"""
     page = SITE + '/fun-and-games/?kjt_embed=1&kjt_linux=1'
     st, ct, html = fetch(page)
     if st != 200:
@@ -162,8 +163,12 @@ def keep_games(progress=None):
         pass
     n = 0; urls = sorted(urls)
     for i, u in enumerate(urls):
+        if cancel and cancel():
+            break
         if progress:
-            GLib.idle_add(progress, i + 1, len(urls))
+            progress(i + 1, len(urls))
+        if not fresh and _kept(u):
+            n += 1; continue
         if fetch(u)[0] == 200:
             n += 1
     return n

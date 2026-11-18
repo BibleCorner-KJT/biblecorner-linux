@@ -42,19 +42,23 @@ def size_of(c):
 
 
 class LibraryPage(Gtk.Box):
-    def __init__(self, win):
+    def __init__(self, win, back=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.win = win
         self.cat = None
         self.mode = 'here'
         self.nav = Adw.NavigationView(); self.nav.set_vexpand(True); self.append(self.nav)
         tv = Adw.ToolbarView()
-        hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
+        hb = Adw.HeaderBar(); tv.add_top_bar(hb)
+        if back:   # 2.27: Books, one of the libraries of the Library: ← back to it
+            bb = Gtk.Button(icon_name='go-previous-symbolic', tooltip_text=_('Back')); bb.connect('clicked', lambda *_a: back()); hb.pack_start(bb)
+        else:
+            win.sidebar_button(hb)
         self.q = Gtk.SearchEntry(placeholder_text=_('Find in the library'), width_chars=20, max_width_chars=30)
         self.q.connect('search-changed', lambda *_: self.later())
         hb.set_title_widget(self.q)
         tabs = Gtk.Box(halign=Gtk.Align.CENTER, margin_top=8, margin_bottom=4); tabs.add_css_class('linked')
-        self.t_here = Gtk.ToggleButton(label=_('On this computer'), active=True); self.t_get = Gtk.ToggleButton(label=_('Get more'), group=self.t_here)
+        self.t_here = Gtk.ToggleButton(label=_('On This Device'), active=True); self.t_get = Gtk.ToggleButton(label=_('Get more'), group=self.t_here)
         self.t_here.connect('toggled', lambda b: b.get_active() and self.set_mode('here'))
         self.t_get.connect('toggled', lambda b: b.get_active() and self.set_mode('get'))
         tabs.append(self.t_here); tabs.append(self.t_get)
@@ -69,10 +73,20 @@ class LibraryPage(Gtk.Box):
         cl = Adw.Clamp(maximum_size=860); self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin_top=8, margin_bottom=24, margin_start=12, margin_end=12)
         cl.set_child(self.box); sc.set_child(cl); body.append(sc)
         tv.set_content(body)
-        self.nav.add(Adw.NavigationPage(title=_('Library'), child=tv, tag='home'))
+        self.nav.add(Adw.NavigationPage(title=_('Books') if back else _('Library'), child=tv, tag='home'))
         self.timer = 0
         from .downloads import DL
         DL.sword_listeners.append(lambda: self.fill() if self.mode == 'here' or self.cat is not None else None)
+
+    def show_kind(self, kind):
+        """2.27: Get more, only one kind (e.g. the Bibles, from the Library's Bibles)"""
+        self.nav.pop_to_tag('home')
+        i = [k[0] for k in KINDS].index(kind) + 1 if kind in [k[0] for k in KINDS] else 0
+        self.kind_dd.set_selected(i)
+        if self.t_get.get_active():
+            self.fill()
+        else:
+            self.t_get.set_active(True)
 
     # ---------- the two lists ----------
     def refresh(self):
