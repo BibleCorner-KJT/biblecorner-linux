@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.20'
+VERSION = '2.21'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -325,7 +325,7 @@ class Window(Adw.ApplicationWindow):
                     return canon(code)
         return canon(n)
 
-    def open_passage(self, book, ch, v=0, tr=None):
+    def open_passage(self, book, ch, v=0, tr=None, v2=0):
         code = self.code_for(book)
         b = self.bible
         if tr and tr in STORE.bibles() and tr != b.tr:
@@ -335,7 +335,7 @@ class Window(Adw.ApplicationWindow):
             other = next((t for t in STORE.bibles() if STORE.find_book(t, code)), None)
             if other:
                 b.tr = other; SET.set('tr', other)
-        b.open_ref(code, int(ch), int(v or 0))
+        b.open_ref(code, int(ch), int(v or 0), int(v2 or 0))
 
     def open_dict(self, i):
         self.show('dict')

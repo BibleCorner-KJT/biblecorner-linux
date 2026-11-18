@@ -258,7 +258,7 @@ class StudyPage(Gtk.Box):
     def trow(self, r):
         row = Gtk.ListBoxRow(activatable=True); row.set_child(self.cells(r))
         row.set_tooltip_text('Open %s' % self.ref(r))
-        row.go = lambda: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation'))
+        row.go = lambda: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation'), v2=(int(r.get('verse_end') or 0) if int(r.get('chapter_end') or r['chapter']) == int(r['chapter']) else 999))
         return row
 
     def row(self, r):
@@ -279,7 +279,7 @@ class StudyPage(Gtk.Box):
         e.connect('clicked', lambda *_: edit(self.win, r)); row.add_suffix(e)
         d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
         d.connect('clicked', lambda *_: self.remove(r)); row.add_suffix(d)
-        row.connect('activated', lambda *_: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation')))
+        row.connect('activated', lambda *_: self.win.open_passage(r['book'], int(r['chapter']), int(r.get('verse') or 1), tr=r.get('translation'), v2=(int(r.get('verse_end') or 0) if int(r.get('chapter_end') or r['chapter']) == int(r['chapter']) else 999)))
         return row
 
     def pad_card(self, tag, n):
@@ -496,8 +496,9 @@ def pad_dialog(win, tag=None, done=None):
 
 
 def ref_of(r):
-    v2 = r.get('verse_end')
-    return '%s %d:%d%s' % (book_name(r['book'], tr=r.get('translation')), int(r['chapter']), int(r.get('verse') or 1), '–%d' % int(v2) if v2 else '')
+    v2 = r.get('verse_end'); c1 = int(r['chapter']); c2 = int(r.get('chapter_end') or c1)
+    end = ('–%d:%d' % (c2, int(v2)) if c2 != c1 else '–%d' % int(v2)) if v2 and int(v2) else ''
+    return '%s %d:%d%s' % (book_name(r['book'], tr=r.get('translation')), c1, int(r.get('verse') or 1), end)
 
 
 def edit(win, r, focus='note'):

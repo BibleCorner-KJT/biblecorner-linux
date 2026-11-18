@@ -412,19 +412,23 @@ class BiblePage(Gtk.Box):
         else:
             self.cmp_btn.remove_css_class('kjt-cmp-active')
 
-    def go(self, book, ch, verse=0):
+    def go(self, book, ch, verse=0, verse_end=0):
         self.book, self.ch = book, int(ch)
         SET.set('book', book); SET.set('ch', self.ch)
-        self.sel = [verse] if verse else []
+        # 2.21: a bookmark of several verses opens with all of them chosen (its bar shows the whole passage)
+        self.sel = list(range(verse, verse_end + 1)) if verse and verse_end > verse else ([verse] if verse else [])
         self.show(scroll_to=verse)
+        if len(self.sel) > 1:
+            self.sel = [x for x in self.sel if x in self.vnum] or self.sel[:1]
+            GLib.idle_add(lambda: (self.mark_selection(), self.update_bar(), False)[1])
         if STUDY.user():
             STUDY.send({'op': 'position', 'translation': self.tr, 'book': book, 'chapter': self.ch, 'verse': verse or 1})
 
     def code_name(self, code, tr):
         return book_name(code, tr=tr)
 
-    def open_ref(self, book, ch, v=0):
-        self.go(STORE.find_book(self.tr, book) or book, ch, v)
+    def open_ref(self, book, ch, v=0, v2=0):
+        self.go(STORE.find_book(self.tr, book) or book, ch, v, v2)
 
     def step(self, d):
         chs = STORE.chapters(self.tr, self.book)
