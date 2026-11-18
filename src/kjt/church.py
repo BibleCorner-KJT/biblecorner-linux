@@ -5,7 +5,7 @@ elsewhere); "Near me" asks your computer where you are, only when you press it, 
 import json, math, random, re, time
 from urllib.parse import quote
 from gi.repository import Gtk, Adw, Gio, GLib, Pango
-from .core import STORE, SET, NET, SITE, lang, run_bg
+from .core import STORE, SET, NET, SITE, lang, run_bg, log_problem
 from .i18n import _
 from .tilemap import TileMap
 
@@ -163,12 +163,17 @@ class ChurchPage(Gtk.Box):
         ix = STORE.kv('ch_index')
         if ix and time.time() - ix.get('_t', 0) < 86400 or not NET.online():
             return ix or {}
-        try:
-            ix = json.loads(NET.get(urls()[0] + 'index.json', timeout=40, strict=True).decode())
-            ix['_t'] = time.time(); STORE.set_kv('ch_index', ix)
-        except Exception:
-            pass
-        return ix or {}
+        # 2.18: the website's address first, then the other address of the same site; a failure is said, not hidden
+        old = ix
+        for base in dict.fromkeys([urls()[0], SITE + '/wp-content/uploads/kjt-cache/churches/', 'https://biblecorner.com/wp-content/uploads/kjt-cache/churches/']):
+            try:
+                ix = json.loads(NET.get(base + 'index.json', timeout=40, strict=True).decode())
+                ix['_t'] = time.time(); ix['_base'] = base; STORE.set_kv('ch_index', ix); self.problem = None
+                return ix
+            except Exception as e:
+                self.problem = str(e)[:120]
+                log_problem('churches index ' + base + ': ' + self.problem)
+        return old or {}
 
     def cell(self, key, ver):
         c = STORE.kv('ch_c_' + key)
@@ -177,7 +182,7 @@ class ChurchPage(Gtk.Box):
         if not NET.online():
             return (c or {}).get('c') or []
         try:
-            d = json.loads(NET.get(urls()[0] + 'c_%s.json?v=%s' % (key, ver), timeout=40, strict=True).decode())
+            d = json.loads(NET.get(((STORE.kv('ch_index') or {}).get('_base') or urls()[0]) + 'c_%s.json?v=%s' % (key, ver), timeout=40, strict=True).decode())
             STORE.set_kv('ch_c_' + key, {'v': ver, 'c': d.get('c') or []})
             kept = [x for x in (STORE.kv('ch_kept') or []) if x != key] + [key]
             STORE.set_kv('ch_kept', kept[-200:])
@@ -222,10 +227,21 @@ class ChurchPage(Gtk.Box):
                         if ql in rr['name'].casefold() or ql in rr['name_en'].casefold():
                             named.append(rr)
             g = {}
+            # 2.18: through the website's usual address for the apps; its REST address if that one is not there
             try:
-                g = json.loads(NET.get(urls()[1] + '?q=' + quote(q), timeout=30).decode() or '{}')
-            except Exception:
-                pass
+                r = NET.ajax('kjtb_desk', op='church_geo', q=q)
+                if r.get('success') and isinstance(r.get('data'), dict):
+                    g = r['data']
+            except Exception as e:
+                log_problem('church search (app address): ' + str(e)[:120])
+            if not g.get('found') and not g.get('busy'):
+                try:
+                    u = urls()[1]
+                    g2 = json.loads(NET.get(u + ('&' if '?' in u else '?') + 'q=' + quote(q), timeout=30).decode() or '{}')
+                    if isinstance(g2, dict) and (g2.get('found') or g2.get('busy')):
+                        g = g2
+                except Exception as e:
+                    log_problem('church search (REST): ' + str(e)[:120])
             if g.get('found'):
                 return ('place', g['lat'], g['lon'], g.get('label') or q, self.around(g['lat'], g['lon'], ix))
             if named:
@@ -288,7 +304,10 @@ class ChurchPage(Gtk.Box):
         if label is not None:
             self.label = label
         n = len(rows)
-        self.say((_('Churches found') + ': %d' % n + (' · ' + self.label if getattr(self, 'label', '') else '')) if n else _('No churches found here yet. Try a larger town nearby.'))
+        if not n and getattr(self, 'problem', None) and not (STORE.kv('ch_index') or {}).get('cells'):
+            self.say(_('The church directory could not be reached. Check the internet, then try again.') + ' (' + self.problem + ')')
+        else:
+            self.say((_('Churches found') + ': %d' % n + (' · ' + self.label if getattr(self, 'label', '') else '')) if n else _('No churches found here yet. Try a larger town nearby.'))
         for r in rows:
             self.listbox.append(self.row(r))
         marks = [(r['lat'], r['lon'], r['id'], JUR_COL.get(r['jur'], '#7a1f78'), self.name(r)) for r in rows]
@@ -317,7 +336,10 @@ class ChurchPage(Gtk.Box):
         acts = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=4, min_children_per_line=1, column_spacing=6, row_spacing=6)
         def link(label, uri):
             b = Gtk.Button(label=label); b.add_css_class('pill'); b.connect('clicked', lambda *_a: Gtk.UriLauncher.new(uri).launch(self.win, None, None, None)); acts.append(b)
-        link('🧭 ' + _('Directions'), 'https://www.openstreetmap.org/directions?to=%f%%2C%f' % (r['lat'], r['lon']))
+        # 2.18: directions here, as on the website (car, on foot, by bike), drawn on the map, step by step
+        dbtn = Gtk.Button(label='🧭 ' + _('Directions')); dbtn.add_css_class('pill'); dbtn.add_css_class('suggested-action')
+        dbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, visible=False)
+        dbtn.connect('clicked', lambda *_a, r=r: (dbox.set_visible(True), self.directions(r, dbox, 'car') if not dbox.get_first_child() else None)); acts.append(dbtn)
         if r['web']:
             link('🌐 ' + _('Website'), r['web'] if r['web'].startswith('http') else 'https://' + r['web'])
         if r['phone']:
@@ -326,10 +348,60 @@ class ChurchPage(Gtk.Box):
             link('✉ ' + _('Email'), 'mailto:' + r['email'])
         if r['contact'] and r['contact'].startswith('http'):
             link('💬 ' + _('Contact'), r['contact'])
-        box.append(acts)
+        box.append(acts); box.append(dbox)
         ex.add_row(box)
         ex.cid = r['id']
         return ex
+
+    ROUTE = {'car': 'https://routing.openstreetmap.de/routed-car/route/v1/driving/', 'foot': 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/',
+             'bike': 'https://routing.openstreetmap.de/routed-bike/route/v1/bike/'}
+
+    def directions(self, r, box, mode):
+        """the way from where you are (Near me) or the place you searched, to this church"""
+        while box.get_first_child():
+            box.remove(box.get_first_child())
+        start = self.here or ((self.place['lat'], self.place['lon']) if self.place else None)
+        modes = Gtk.Box(spacing=0); modes.add_css_class('linked'); first = None
+        for k, lab in (('car', '🚗 ' + _('By car')), ('foot', '🚶 ' + _('On foot')), ('bike', '🚲 ' + _('By bike'))):
+            b = Gtk.ToggleButton(label=lab, active=k == mode, group=first); first = first or b
+            b.connect('toggled', lambda b, k=k: self.directions(r, box, k) if b.get_active() and k != mode else None); modes.append(b)
+        box.append(modes)
+        msg = Gtk.Label(xalign=0, wrap=True); msg.add_css_class('dim-label'); box.append(msg)
+        osm = Gtk.Button(label=_('Open in OpenStreetMap'), halign=Gtk.Align.START); osm.add_css_class('flat')
+        frm = ('%f%%2C%f' % start) if start else ''
+        osm.connect('clicked', lambda *_a: Gtk.UriLauncher.new('https://www.openstreetmap.org/directions?engine=fossgis_osrm_%s&from=%s&to=%f%%2C%f' % ({'car': 'car', 'foot': 'foot', 'bike': 'bike'}[mode], frm, r['lat'], r['lon'])).launch(self.win, None, None, None))
+        if not start:
+            msg.set_label(_('Press Near me, or search your town, to start from there.')); box.append(osm); return
+        msg.set_label(_('Finding the way…'))
+        url = self.ROUTE[mode] + '%f,%f;%f,%f?overview=full&geometries=geojson&steps=true' % (start[1], start[0], r['lon'], r['lat'])
+        def work():
+            return json.loads(NET.get(url, timeout=40, strict=True).decode())
+        def done(j):
+            if not isinstance(j, dict) or j.get('code') != 'Ok' or not j.get('routes'):
+                msg.set_label(_('No way was found. Try another way of travelling, or open it in OpenStreetMap.')); box.append(osm); return
+            rt = j['routes'][0]
+            pts = [(c[1], c[0]) for c in (rt.get('geometry') or {}).get('coordinates') or []]
+            self.map.set_route(pts); self.map.fit(pts[::max(1, len(pts) // 40)] + [pts[-1]] if pts else [], maxz=16)
+            msg.set_label('%s · %s' % (self.dist(rt.get('distance', 0) / 1000.0), self.dur(rt.get('duration', 0))))
+            msg.remove_css_class('dim-label'); msg.add_css_class('heading')
+            lst = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            for leg in rt.get('legs') or []:
+                for st in leg.get('steps') or []:
+                    t = step_text(st)
+                    if t:
+                        row = Gtk.Box(spacing=8)
+                        row.append(Gtk.Label(label=t, xalign=0, wrap=True, hexpand=True))
+                        if st.get('distance', 0) > 0:
+                            d = st['distance']; l2 = Gtk.Label(label=('%d m' % round(d) if d < 1000 else '%.1f km' % (d / 1000))); l2.add_css_class('dim-label'); row.append(l2)
+                        lst.append(row)
+            box.append(lst)
+            note = Gtk.Label(label=_('The way is worked out by routing.openstreetmap.de, as on the website. Check the road signs as you go.'), xalign=0, wrap=True)
+            note.add_css_class('caption'); note.add_css_class('dim-label'); box.append(note); box.append(osm)
+        run_bg(work, done)
+
+    def dur(self, sec):
+        m = int(round(sec / 60.0))
+        return ('%d min' % m) if m < 60 else ('%d h %02d min' % (m // 60, m % 60))
 
     def opened(self, r):
         self.open_id = r['id']; self.map.select(r['id'])
@@ -349,3 +421,29 @@ class ChurchPage(Gtk.Box):
             elif ch.get_expanded() if hasattr(ch, 'get_expanded') else False:
                 ch.set_expanded(False)
             ch = ch.get_next_sibling()
+
+
+TURN = {'left': 'Turn left', 'right': 'Turn right', 'slight left': 'Turn slightly left', 'slight right': 'Turn slightly right',
+        'sharp left': 'Turn sharp left', 'sharp right': 'Turn sharp right', 'straight': 'Go straight on', 'uturn': 'Make a U-turn'}
+
+
+def step_text(st):
+    """a step of the way, in words (from the routing service's step)"""
+    m = st.get('maneuver') or {}; t = m.get('type', ''); mod = m.get('modifier', ''); name = st.get('name') or ''
+    on = (' ' + _('onto') + ' ' + name) if name else ''
+    if t == 'depart':
+        return _('Head out') + on
+    if t == 'arrive':
+        return '⛪ ' + _('You have arrived')
+    if t in ('roundabout', 'rotary', 'roundabout turn', 'exit roundabout', 'exit rotary'):
+        n = m.get('exit')
+        return (_('At the roundabout, take exit') + ' %d' % n if n else _('At the roundabout')) + on
+    if t in ('fork', 'on ramp', 'off ramp') and mod in ('left', 'slight left', 'sharp left'):
+        return _('Keep left') + on
+    if t in ('fork', 'on ramp', 'off ramp') and mod in ('right', 'slight right', 'sharp right'):
+        return _('Keep right') + on
+    if t == 'new name' or (t == 'continue' and mod in ('straight', '')):
+        return (_('Go straight on') + on) if name else ''
+    if mod in TURN:
+        return _(TURN[mod]) + on
+    return (_('Go straight on') + on) if name else ''

@@ -35,7 +35,7 @@ class TileMap(Gtk.Overlay):
         super().__init__(hexpand=True, vexpand=True)
         self.lat, self.lon, self.z = 30.0, 10.0, 2
         self.marks = []          # (lat, lon, key, '#hex', label)
-        self.sel = None; self.here = None; self.on_pick = on_pick
+        self.sel = None; self.here = None; self.on_pick = on_pick; self.route = []
         self.area = Gtk.DrawingArea(hexpand=True, vexpand=True); self.area.set_draw_func(self.draw); self.set_child(self.area)
         self.area.set_cursor(Gdk.Cursor.new_from_name('grab'))
         d = Gtk.GestureDrag(); d.connect('drag-begin', self.drag_begin); d.connect('drag-update', self.drag_update); self.area.add_controller(d)
@@ -75,6 +75,9 @@ class TileMap(Gtk.Overlay):
 
     def set_marks(self, marks, sel=None, here=None):
         self.marks, self.sel, self.here = marks, sel, here; self.area.queue_draw()
+
+    def set_route(self, pts):
+        self.route = pts or []; self.area.queue_draw()
 
     def select(self, key):
         self.sel = key; self.area.queue_draw()
@@ -168,6 +171,14 @@ class TileMap(Gtk.Overlay):
                 if t is not None:
                     px, py = tx * TILE - x0, ty * TILE - y0
                     cr.set_source_surface(t, px, py); cr.paint()
+        # 2.18: a route (directions), under the places
+        if len(self.route) > 1:
+            cr.set_line_join(1); cr.set_line_cap(1)
+            for width, rgba in ((9, (1, 1, 1, 0.95)), (5.5, (0.12, 0.47, 0.9, 0.95))):
+                for i, (la, lo) in enumerate(self.route):
+                    px, py = to_px(la, lo, z); sx, sy = px - x0, py - y0
+                    (cr.move_to if i == 0 else cr.line_to)(sx, sy)
+                cr.set_source_rgba(*rgba); cr.set_line_width(width); cr.stroke()
         # the places
         for m in sorted(self.marks, key=lambda m: m[2] == self.sel):
             mx, my = to_px(m[0], m[1], z); sx, sy = mx - x0, my - y0

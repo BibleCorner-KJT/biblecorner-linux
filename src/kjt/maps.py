@@ -52,6 +52,10 @@ def parse_path(d):
     return out
 
 
+# the soft colours of today's countries (each country differs from its neighbours: Natural Earth's MAPCOLOR7)
+WORLD_COLS = ['#f1dfb8', '#e2cfe6', '#cfe3c3', '#f3cdbd', '#c9dbef', '#ece3a9', '#dcc6ae']
+
+
 class Map:
     """the map data, read once"""
     def __init__(self):
@@ -78,6 +82,13 @@ class Map:
         w = read_file('maps/world.json') or {}
         self.wland = parse_path(w.get('land')); self.wborders = parse_path(w.get('borders'))
         self.countries = w.get('countries') or []; self.capitals = w.get('capitals') or []
+        # 2.18: each country of today's world in its own soft colour (Natural Earth, public domain)
+        cj = read_file('maps/countries.json') or {}
+        self.cpoly = []
+        for c in cj.get('c') or []:
+            parts = parse_path(c[3]); xs = [x for pts, _c in parts for x, _y in pts]; ys = [y for pts, _c in parts for _x, y in pts]
+            if xs:
+                self.cpoly.append((int(c[0]), parts, (min(xs), min(ys), max(xs), max(ys))))
         self.ok = True
         if (pl.get('v') or 1) < 2 and not getattr(self, 'fixing', False):
             self.fix_data()
@@ -291,15 +302,24 @@ class MapView(Gtk.DrawingArea):
         W, H = vw + 2 * mw, vh + 2 * mh
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, W, H)
         b = cairo.Context(surf)
-        b.set_source_rgba(*rgb('#dbe7ee')); b.paint()
+        b.set_source_rgba(*rgb('#bcd8ea')); b.paint()                       # the sea
         b.translate(W / 2, H / 2); b.scale(self.s, self.s); b.translate(-self.cx, -self.cy)
         lw = 1 / self.s
-        if M.wland:   # the rest of the world, plain: only outside the Bible map's own frame
+        if M.wland or getattr(M, 'cpoly', None):   # the rest of the world: only outside the Bible map's own frame
             b.save(); b.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
             b.rectangle(-1e6, -1e6, 2e6, 2e6); b.rectangle(0, 0, M.w, M.h); b.clip()
             b.set_fill_rule(cairo.FILL_RULE_WINDING)
-            self.poly(b, M.wland, True); b.set_source_rgba(*rgb('#ece5d3')); b.fill()
-            self.poly(b, M.wborders); b.set_source_rgba(*rgb('#b3a588', 0.75)); b.set_line_width(0.8 * lw); b.stroke()
+            if getattr(M, 'cpoly', None):
+                # 2.18: a political map: each country in its own soft colour, white borders between them
+                x0, y0 = self.cx - W / 2 / self.s, self.cy - H / 2 / self.s; x1, y1 = self.cx + W / 2 / self.s, self.cy + H / 2 / self.s
+                for col, parts, bb in M.cpoly:
+                    if bb[2] < x0 or bb[0] > x1 or bb[3] < y0 or bb[1] > y1:
+                        continue
+                    self.poly(b, parts, True); b.set_source_rgba(*rgb(WORLD_COLS[(col - 1) % len(WORLD_COLS)])); b.fill_preserve()
+                    b.set_source_rgba(1, 1, 1, 0.9); b.set_line_width(1.1 * lw); b.stroke()
+            else:
+                self.poly(b, M.wland, True); b.set_source_rgba(*rgb('#ece5d3')); b.fill()
+                self.poly(b, M.wborders); b.set_source_rgba(*rgb('#b3a588', 0.75)); b.set_line_width(0.8 * lw); b.stroke()
             b.restore()
             b.rectangle(0, 0, M.w, M.h); b.set_source_rgba(*rgb('#cdbf9f', 0.5)); b.set_line_width(lw); b.stroke()
         self.poly(b, M.land, True)
@@ -416,7 +436,8 @@ class MapView(Gtk.DrawingArea):
                     seen.add(key); self.text(cr, str(p['i'] + 1), sx, sy, 9.5, '#ffffff', mid=True, bold=True, halo=False)
         if not st and M.capitals and self.s > 0.06:
             for x, y, rk, names in M.capitals:
-                if M.inside(x, y) or not self.in_view(x, y) or rk > self.world_rank():
+                # 2.18: today's capitals everywhere (also in the Bible lands: Jerusalem, Damascus, Cairo, Amman…), small and grey
+                if not self.in_view(x, y) or rk > self.world_rank() + (2 if M.inside(x, y) else 0):
                     continue
                 sx, sy = self.to_screen(x, y)
                 cr.rectangle(sx - 2.5, sy - 2.5, 5, 5); cr.set_source_rgba(1, 1, 1, .9); cr.fill_preserve()
@@ -503,8 +524,8 @@ class MapView(Gtk.DrawingArea):
                     cand.append((300 - r * 10, x, y, M.wn(names), 'country'))
             if s > 0.06:
                 for x, y, r, names in M.capitals:
-                    if r <= rk and not M.inside(x, y) and self.in_view(x, y):
-                        cand.append((100 - r, x, y, M.wn(names), 'capital'))
+                    if self.in_view(x, y) and (r <= rk if not M.inside(x, y) else r <= rk + 2):
+                        cand.append(((100 if not M.inside(x, y) else 5) - r, x, y, M.wn(names), 'capital'))
         else:
             for p in self.stops:
                 cand.append((1e8 - p['i'], p['x'], p['y'], p['label'], 'stop'))

@@ -36,6 +36,19 @@ def icon_btn(icon, tip, fn, *cls):
     return b
 
 
+
+# 2.18: the recordings belong to the website's Bibles. The same Bible kept here from CrossWire (the KJV, the Arabic
+# Van Dyck) plays the website's recordings of it, with music and reading only.
+SHARE = {'eng-kjv2006': 'eng-kjv', 'kjv': 'eng-kjv', 'eng-kjva': 'eng-kjv', 'sw-AraSVD': 'arb-vd', 'sw-ArSVD': 'arb-vd', 'sw-Arasvd': 'arb-vd'}
+
+
+def atr(tr):
+    if tr in SHARE:
+        return SHARE[tr]
+    if re.match(r'^sw-KJVA?(1769|2006|PCE)?$', tr or '', re.I):
+        return 'eng-kjv'
+    return tr
+
 class Audio(Gtk.Revealer):
     def __init__(self, win):
         super().__init__(transition_type=Gtk.RevealerTransitionType.SLIDE_UP)
@@ -150,7 +163,7 @@ class Audio(Gtk.Revealer):
             return
         self.asking = tr
         def work():
-            r = NET.ajax('kjtb_audio', tr=tr)
+            r = NET.ajax('kjtb_audio', tr=atr(tr))
             return ((r.get('data') or {}).get('tracks') or []) if r.get('success') else []
         def done(ts):
             self.asking = None
@@ -199,7 +212,7 @@ class Audio(Gtk.Revealer):
 
         def find():
             if tr not in self.tracks:
-                r = NET.ajax('kjtb_audio', tr=tr)
+                r = NET.ajax('kjtb_audio', tr=atr(tr))
                 self.tracks[tr] = ((r.get('data') or {}).get('tracks') or []) if r.get('success') else []
             return True
 
@@ -221,7 +234,7 @@ class Audio(Gtk.Revealer):
             track = self.track
 
             def ask():
-                r = NET.ajax('kjtb_audio', tr=tr, book=book, ch=int(ch), track=track)
+                r = NET.ajax('kjtb_audio', tr=atr(tr), book=book, ch=int(ch), track=track)
                 return r.get('data') if r.get('success') else None
 
             def got(d):
@@ -549,7 +562,7 @@ class Audio(Gtk.Revealer):
                 dest = self.local(tr, book, ch, track=track)
                 if os.path.exists(dest):
                     continue
-                r = NET.ajax('kjtb_audio', tr=tr, book=book, ch=ch, track=track)
+                r = NET.ajax('kjtb_audio', tr=atr(tr), book=book, ch=ch, track=track)
                 d = r.get('data') if r.get('success') else None
                 if d and d.get('url'):
                     os.makedirs(os.path.dirname(dest), exist_ok=True)

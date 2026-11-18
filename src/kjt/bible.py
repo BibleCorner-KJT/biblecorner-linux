@@ -107,7 +107,7 @@ class BiblePage(Gtk.Box):
         self.press = (0, 0, 0)
         rclick = Gtk.GestureClick(button=3); rclick.connect('pressed', self.on_menu); self.view.add_controller(rclick)
         lp = Gtk.GestureLongPress(); lp.connect('pressed', lambda g, x, y: self.on_menu(g, 1, x, y)); self.view.add_controller(lp)
-        self.scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
+        self.scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True); self.scroll.add_css_class('kjt-paper-scroll')
         self.scroll.get_vadjustment().connect('value-changed', self.remember_place)
         inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=22, margin_end=22, margin_top=12)
@@ -451,11 +451,18 @@ class BiblePage(Gtk.Box):
         self.win.map_chapter(self.book, self.ch)
 
     # ---------- the chapter ----------
+    def repaint(self):
+        """2.18: the reading page's colours changed"""
+        try:
+            self.show(keep=True)
+        except Exception:
+            pass
+
     def show(self, keep=False, scroll_to=0):
         buf = self.view.get_buffer()
         adj = self.scroll.get_vadjustment(); y = adj.get_value()
         buf.set_text('')
-        setup_tags(buf, self.size)
+        setup_tags(buf, self.size, True)
         t = buf.get_tag_table()
         def tag(name, **p):
             o = t.lookup(name)
@@ -463,18 +470,19 @@ class BiblePage(Gtk.Box):
                 t.remove(o)
             return buf.create_tag(name, **p)
         fs = 1.15 * self.size
-        dark = Adw.StyleManager.get_default().get_dark()
-        tag('title', family='Serif', weight=Pango.Weight.BOLD, scale=1.7 * self.size, pixels_below_lines=16, foreground='#e9c8f0' if dark else '#3e093f')
-        tag('vn', rise=5 * Pango.SCALE, scale=0.62 * fs, foreground='#5fc4b5' if dark else '#2b8a7e', weight=Pango.Weight.BOLD)
+        from . import paper
+        dark = paper.is_dark()
+        tag('title', family='Serif', weight=Pango.Weight.BOLD, scale=1.7 * self.size, pixels_below_lines=16, foreground=paper.colour('title', '#e9c8f0', '#3e093f'))
+        tag('vn', rise=5 * Pango.SCALE, scale=0.62 * fs, foreground=paper.colour('vn', '#5fc4b5', '#2b8a7e'), weight=Pango.Weight.BOLD)
         tag('vt', family='Serif', scale=fs)
-        tag('cmp', family='Serif', scale=0.95 * fs, foreground='#b9a9c2' if dark else '#6d5f74', style=Pango.Style.ITALIC)
+        tag('cmp', family='Serif', scale=0.95 * fs, foreground=paper.colour('soft', '#b9a9c2', '#6d5f74'), style=Pango.Style.ITALIC)
         tag('note', scale=0.8 * fs, foreground='#e0b040' if dark else '#9c6b00')
         for c, hx in COLORS.items():
             tag('hl-' + c, background=hx, background_full_height=False, **({'foreground': '#1d1a1f'} if dark else {}))
         tag('sel', background='#6b4d78' if dark else '#e9d8f3')
-        tag('red', foreground='#ff8a80' if dark else '#b3261e')
+        tag('red', foreground=paper.colour('red', '#ff8a80', '#b3261e'))
         tag('notetext', scale=0.82 * fs, style=Pango.Style.ITALIC, foreground='#e0b040' if dark else '#8a5a00', left_margin=36, pixels_above_lines=2, pixels_below_lines=6)
-        tag('names', scale=0.85 * fs, foreground='#b9a9c2' if dark else '#6d5f74', pixels_above_lines=18)
+        tag('names', scale=0.85 * fs, foreground=paper.colour('soft', '#b9a9c2', '#6d5f74'), pixels_above_lines=18)
         red = self.red_letters()
         rtl = bible_dir(self.tr)
         self.view.set_direction(Gtk.TextDirection.RTL if rtl else Gtk.TextDirection.LTR)
@@ -496,8 +504,8 @@ class BiblePage(Gtk.Box):
                 rows2 = dict(STORE.chapter(t2, b2, self.ch)) if b2 else {}
                 others.append((self.short_name(t2), rows2))
         other = any(o for _n, o in others)
-        if not t.lookup('cmpname'):
-            buf.create_tag('cmpname', weight=700, scale=0.72 * fs, foreground='#c9a227' if dark else '#7a1f78', style=Pango.Style.NORMAL)
+        if True:
+            tag('cmpname', weight=700, scale=0.72 * fs, foreground=paper.colour('title', '#c9a227', '#7a1f78'), style=Pango.Style.NORMAL)
         self.cmp_shown()
         marks = STUDY.in_chapter(self.tr, self.book, self.ch)
         self.vpos, self.vnum, self.vend = [], [], []
@@ -584,7 +592,8 @@ class BiblePage(Gtk.Box):
         """2.13: the verse being read glows, and the page follows it (as on the website and the phone)"""
         buf = self.view.get_buffer(); t = buf.get_tag_table()
         if not t.lookup('now'):
-            dark = Adw.StyleManager.get_default().get_dark()
+            from .paper import is_dark
+            dark = is_dark()
             buf.create_tag('now', background='rgba(243,197,72,%s)' % ('0.30' if dark else '0.38'))
         buf.remove_tag_by_name('now', buf.get_start_iter(), buf.get_end_iter())
         if not v or v not in self.vnum:
@@ -968,10 +977,11 @@ class BiblePage(Gtk.Box):
             self.info.append(fb)
         names = self.chapter_names()
         if names:
-            self.info.append(Gtk.Label(label=_('People and places in this chapter'), xalign=0, css_classes=['dim-label', 'caption']))
-            fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=4, row_spacing=4)
+            # 2.18: easier to read: a real heading, and larger names on a soft background
+            self.info.append(Gtk.Label(label=_('People and places in this chapter'), xalign=0, css_classes=['kjt-pp-head']))
+            fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=6, row_spacing=6)
             for i, n, kind in names[:60]:
-                b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-chip')
+                b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-pp')
                 b.connect('clicked', lambda _b, i=i: self.win.open_dict(i)); fb.append(b)
             self.info.append(fb)
         d = read_file('fathers/%s.json.gz' % canon(self.book))

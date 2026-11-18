@@ -6,7 +6,7 @@ from gi.repository import Gtk, Pango, Gdk
 BLOCK = {'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'li', 'blockquote', 'tr', 'ul', 'ol', 'section', 'article', 'figure'}
 
 
-def setup_tags(buf, size=1.0):
+def setup_tags(buf, size=1.0, paper=False):
     t = buf.get_tag_table()
     def tag(name, **props):
         old = t.lookup(name)
@@ -24,8 +24,11 @@ def setup_tags(buf, size=1.0):
     tag('small', scale=0.85)
     tag('quote', left_margin=24, style=Pango.Style.ITALIC, pixels_below_lines=8, scale=size, paragraph_background='rgba(243,197,72,0.12)')
     tag('li', left_margin=22, pixels_below_lines=4, scale=size)
-    tag('a', foreground='#3d5aa8', underline=Pango.Underline.SINGLE)
-    tag('dim', foreground='#7a6c82')
+    from .paper import is_dark, theme
+    from gi.repository import Adw
+    th = theme() if paper else None; dk = is_dark() if paper else Adw.StyleManager.get_default().get_dark()
+    tag('a', foreground=(th[3] if th else ('#9db8ff' if dk else '#3d5aa8')), underline=Pango.Underline.SINGLE)
+    tag('dim', foreground='#b5a790' if dk else '#6e5f52')
     tag('verse', scale=size, family='Serif', pixels_below_lines=6)
 
 
@@ -129,7 +132,7 @@ def html_into(view, s, on_link=None, size=1.0, clear=True):
     buf = view.get_buffer()
     if clear:
         buf.set_text('')
-    setup_tags(buf, size)
+    setup_tags(buf, size, view.has_css_class('kjt-book') or view.has_css_class('kjt-bible'))
     r = Render(view, on_link, size)
     r.feed(s or '')
     r.close()

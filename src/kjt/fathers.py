@@ -10,6 +10,15 @@ META = json.load(open(os.path.join(os.path.dirname(__file__), 'fathers_meta.json
 
 
 class FathersPage(Gtk.Box):
+    def repaint(self):
+        """2.18: the reading page's colours changed"""
+        f = getattr(self, '_redraw', None)
+        if f:
+            try:
+                f()
+            except Exception:
+                pass
+
     def __init__(self, win):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.win = win
@@ -259,13 +268,14 @@ class FathersPage(Gtk.Box):
         def draw():
             html_into(view, '<h1>%s</h1><p><i>%s</i></p>%s' % (esc(title), esc(name), p.get('h', '')), self.win.open_link, self.size)
         draw()
+        self._redraw = draw
         for lab, f in (('A+', 1.1), ('A−', 1 / 1.1)):
             b = Gtk.Button(label=lab, tooltip_text=_('Text size')); b.add_css_class('flat')
             def zoom(_b, f=f):
                 self.size = max(0.7, min(2.2, self.size * f)); SET.set('lib_size', self.size); draw()
             b.connect('clicked', zoom); hb.pack_end(b)
         c = Adw.Clamp(maximum_size=820); c.set_child(view)
-        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc)
+        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); sc.set_child(c); __import__("kjt.ui", fromlist=["steady"]).steady(sc); sc.add_css_class('kjt-paper-scroll')
         tv.set_content(sc)
         if len(parts) > 1:
             bar = Gtk.ActionBar()

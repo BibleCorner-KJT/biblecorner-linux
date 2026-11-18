@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.17'
+VERSION = '2.18'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -38,33 +38,34 @@ button.kjt-you-comfort { background: alpha(#1f6f78, 0.14); }
 .kjt-pray-poem { font-family: Serif; font-size: 1.1em; font-style: italic; }
 .kjt-pray-lab { font-weight: 800; font-size: 0.8em; letter-spacing: 1.5px; color: #7a1f78; }
 .kjt-ch-ic { font-size: 1.5em; }
-.kjt-fun-info { font-size: 1.05em; }
-.kjt-fun-clock { font-weight: 800; font-variant-numeric: tabular-nums; }
+.kjt-fun-info { font-size: 1.25em; }
+.kjt-fun-clock { font-weight: 800; font-size: 1.3em; font-variant-numeric: tabular-nums; }
 button.kjt-fun-lvl { padding: 10px 20px; font-weight: 700; }
-button.kjt-sdk-cell { min-width: 42px; min-height: 42px; padding: 0; border-radius: 0; font-size: 1.25em; font-weight: 600; box-shadow: inset 0 0 0 1px alpha(currentColor, 0.18); background: alpha(#f3c548, 0.05); }
+button.kjt-sdk-cell { min-width: 58px; min-height: 58px; padding: 0; border-radius: 0; font-size: 1.6em; font-weight: 600; box-shadow: inset 0 0 0 1px alpha(currentColor, 0.18); background: alpha(#f3c548, 0.05); }
 button.kjt-sdk-given { font-weight: 900; color: #3e093f; background: alpha(#7a1f78, 0.08); }
 button.kjt-sdk-r { margin-right: 3px; }
 button.kjt-sdk-b { margin-bottom: 3px; }
 button.kjt-sdk-on { background: alpha(#c9a227, 0.45); }
 button.kjt-sdk-same { background: alpha(#c9a227, 0.22); }
 button.kjt-sdk-bad { color: #c62828; background: alpha(#c62828, 0.12); }
-button.kjt-sdk-pad { min-width: 40px; min-height: 40px; font-size: 1.15em; font-weight: 700; }
-.kjt-seek-w { font-weight: 700; letter-spacing: 1px; }
+button.kjt-sdk-pad { min-width: 54px; min-height: 52px; font-size: 1.4em; font-weight: 700; }
+.kjt-seek-w { font-weight: 700; letter-spacing: 1px; font-size: 1.25em; }
 .kjt-seek-done { text-decoration: line-through; opacity: 0.45; }
-entry.kjt-xw-cell { min-width: 30px; min-height: 30px; padding: 0; font-weight: 800; font-size: 1.1em; }
+entry.kjt-xw-cell { min-width: 42px; min-height: 42px; padding: 0; font-weight: 800; font-size: 1.4em; }
 entry.kjt-xw-bad { color: #c62828; background: alpha(#c62828, 0.12); }
 entry.kjt-xw-shown { color: #7a1f78; }
 .kjt-xw-n { font-size: 0.6em; font-weight: 700; opacity: 0.7; }
-.kjt-xw-clue { font-size: 0.95em; }
-button.kjt-mem { font-size: 1.05em; font-weight: 700; background: linear-gradient(135deg, #3e093f, #5b1a5c); color: #f3c548; border-radius: 14px; }
+.kjt-xw-clue { font-size: 1.1em; }
+button.kjt-mem { font-size: 1.25em; font-weight: 700; background: linear-gradient(135deg, #3e093f, #5b1a5c); color: #f3c548; border-radius: 14px; }
+button.kjt-mem:not(.kjt-mem-up) { font-size: 2.6em; }
 button.kjt-mem-up { background: alpha(#f3c548, 0.18); color: inherit; }
 button.kjt-mem-ok { background: alpha(#2e7d32, 0.22); color: inherit; }
-button.kjt-tap { padding: 10px 14px; font-weight: 600; border-radius: 12px; }
+button.kjt-tap { padding: 14px 20px; font-weight: 600; font-size: 1.2em; border-radius: 14px; }
 button.kjt-tap-ok { background: alpha(#2e7d32, 0.25); }
 button.kjt-tap-bad { background: alpha(#c62828, 0.3); }
 .kjt-tap-done { font-size: 0.9em; padding: 2px 8px; border-radius: 8px; background: alpha(#2e7d32, 0.14); }
-.kjt-vb-built { font-family: Serif; font-size: 1.25em; font-style: italic; min-height: 2em; }
-.kjt-who-clue { font-family: Serif; font-size: 1.2em; }
+.kjt-vb-built { font-family: Serif; font-size: 1.6em; font-style: italic; min-height: 2em; }
+.kjt-who-clue { font-family: Serif; font-size: 1.5em; }
 .kjt-map-att { background: alpha(white, 0.85); color: #333; font-size: 0.75em; padding: 1px 5px; border-radius: 4px; }
 .kjt-pray-reply { border-left: 3px solid alpha(#1f6f78, 0.5); padding: 4px 0 4px 10px; }
 .kjt-card-title { font-family: Serif; font-weight: 700; font-size: 1.2em; color: #3e093f; }
@@ -86,6 +87,9 @@ button.kjt-tap-bad { background: alpha(#c62828, 0.3); }
 .kjt-swatch { min-width: 26px; min-height: 26px; padding: 0; border-radius: 999px; }
 .kjt-swatch.kjt-dot-on { box-shadow: 0 0 0 3px @accent_color; }
 button.kjt-chip { min-height: 26px; padding: 2px 10px; border-radius: 999px; font-size: 0.92em; }
+.kjt-pp-head { font-weight: 700; font-size: 1.05em; opacity: 0.85; margin-top: 4px; }
+button.kjt-pp { min-height: 34px; padding: 4px 14px; border-radius: 999px; font-size: 1.08em; font-weight: 600; background: alpha(#7a1f78, 0.10); border: 1px solid alpha(#7a1f78, 0.22); }
+button.kjt-pp:hover { background: alpha(#7a1f78, 0.2); }
 button.kjt-chip-yellow { background: #f6d365; color: #1d1a1f; } button.kjt-chip-green { background: #9be3a4; color: #1d1a1f; }
 button.kjt-chip-blue { background: #9cc9f5; color: #1d1a1f; } button.kjt-chip-pink { background: #f7a8c4; color: #1d1a1f; }
 button.kjt-chip-purple { background: #c9a7f0; color: #1d1a1f; }
@@ -122,7 +126,7 @@ PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy 
          ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
          ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'),
          ('pray', 'Prayer', 'kjt-pray-symbolic'), ('fun', 'Good Fun', 'kjt-fun-symbolic'), ('church', 'Churches near me', 'kjt-church-symbolic'),
-         ('downloads', 'Downloads', 'kjt-download-symbolic')]
+         ('downloads', 'Offline library', 'kjt-download-symbolic'), ('settings', 'Settings', 'kjt-settings-symbolic')]
 
 
 def icon_button(icon, tip, fn=None, flat=True, toggle=False):
@@ -229,6 +233,8 @@ class Window(Adw.ApplicationWindow):
                 from .church import ChurchPage as P
             elif key == 'fun':
                 from .fun import FunPage as P
+            elif key == 'settings':
+                from .settings import SettingsPage as P
             else:
                 from .settings import DownloadsPage as P
             p = P(self); self.pages[key] = p; self.stack.add_named(p, key)
@@ -289,7 +295,7 @@ class Window(Adw.ApplicationWindow):
         page = self.page(key)
         self.stack.set_visible_child_name(key)
         SET.set('page', key)
-        if getattr(page, 'fresh', False) or key in ('study', 'downloads', 'today', 'you', 'pray', 'fun', 'church'):
+        if getattr(page, 'fresh', False) or key in ('study', 'downloads', 'settings', 'today', 'you', 'pray', 'fun', 'church'):
             page.fresh = False
             if hasattr(page, 'refresh'):
                 page.refresh()
@@ -422,7 +428,7 @@ class Window(Adw.ApplicationWindow):
         b = self.bible
         if p['book'] == b.book and p['ch'] == b.ch and p.get('v', 1) <= 2:
             return False
-        t = Adw.Toast(title=GLib.markup_escape_text('Continue reading where you left off: %s %d:%d' % (b.code_name(p['book'], p['tr']), p['ch'], p.get('v', 1))), timeout=10, button_label=_('Continue'))
+        t = Adw.Toast(title=GLib.markup_escape_text(_('Continue reading where you left off') + ': %s %d:%d' % (b.code_name(p['book'], p['tr']), p['ch'], p.get('v', 1))), timeout=10, button_label=_('Continue'))
         def go(*_):
             if p['tr'] != b.tr:
                 b.tr = p['tr']; SET.set('tr', p['tr'])
@@ -571,6 +577,7 @@ class App(Adw.Application):
             else:
                 Gtk.StyleContext.remove_provider_for_display(disp, dark)
         sm.connect('notify::dark', scheme); scheme()
+        from . import paper; paper.apply()   # 2.18: the reading page
         # 2.10: Appearance: follow the computer, light or dark (kept)
         st = SET.get('style') or 'auto'
         a = Gio.SimpleAction.new_stateful('style', GLib.VariantType.new('s'), GLib.Variant('s', st))

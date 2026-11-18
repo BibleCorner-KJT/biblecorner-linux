@@ -7,6 +7,7 @@ import json, random, re, time
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, NET, SITE, lang, run_bg
 from .i18n import _
+from . import sfx
 
 LEVELS = (('easy', 'Easy', '🥉'), ('medium', 'Medium', '🥈'), ('hard', 'Hard', '🥇'))
 RANK = {'easy': 1, 'medium': 2, 'hard': 3}
@@ -62,7 +63,7 @@ class Game(Gtk.Box):
     def won(self, score, line):
         if self.over:
             return
-        self.over = True
+        self.over = True; sfx.play('success')
         b, new = best(self.gid, self.level, score, self.lower)
         self.page.finished(self, line, (('🏅 ' + _('New personal best!') + ' ') if new else '') + _('Your best on this level:') + ' ' + (fmt(b) if self.lower else str(b)))
 
@@ -169,7 +170,7 @@ class Sudoku(Game):
         r, c = self.cur
         if self.puz[r][c]:
             return
-        self.vals[r][c] = v; b = self.btn[(r, c)]; b.set_label(str(v) if v else ''); b.remove_css_class('kjt-sdk-bad')
+        self.vals[r][c] = v; b = self.btn[(r, c)]; b.set_label(str(v) if v else ''); b.remove_css_class('kjt-sdk-bad'); sfx.play('tap')
         self.choose(r, c)
         if all(self.vals[i][j] == self.sol[i][j] for i in range(9) for j in range(9)):
             self.won(self.secs(), '🎉 ' + _('Solved!') + ' ⏱ ' + fmt(self.secs()))
@@ -177,7 +178,8 @@ class Sudoku(Game):
     def check(self, show):
         for (r, c), b in self.btn.items():
             if self.vals[r][c] and self.vals[r][c] != self.sol[r][c]:
-                b.add_css_class('kjt-sdk-bad')
+                b.add_css_class('kjt-sdk-bad'); self.wrong = True
+        sfx.play('miss' if getattr(self, 'wrong', False) else 'good'); self.wrong = False
 
 
 # ---------------- Word Seek ----------------
@@ -217,7 +219,7 @@ class WordSeek(Game):
         self.N, self.grid, self.placed, self.found, self.drag = N, grid, placed, set(), None
         self.info.set_label(_('Find the hidden Bible words in the grid.') + '  ' + self.theme)
         body = Gtk.Box(spacing=16, halign=Gtk.Align.CENTER)
-        self.area = Gtk.DrawingArea(content_width=N * 38, content_height=N * 38); self.area.set_draw_func(self.draw); body.append(self.area)
+        self.area = Gtk.DrawingArea(content_width=N * 50, content_height=N * 50); self.area.set_draw_func(self.draw); body.append(self.area)
         d = Gtk.GestureDrag(); d.connect('drag-begin', self.d0); d.connect('drag-update', self.d1); d.connect('drag-end', self.d2); self.area.add_controller(d)
         self.list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, valign=Gtk.Align.START); body.append(self.list)
         self.labels = {}
@@ -254,7 +256,7 @@ class WordSeek(Game):
         cells = self.line(*self.drag); self.drag = None
         for w, cs in self.placed:
             if w not in self.found and (cs == cells or cs == cells[::-1]):
-                self.found.add(w); self.labels[w].add_css_class('kjt-seek-done')
+                self.found.add(w); self.labels[w].add_css_class('kjt-seek-done'); sfx.play('good')
         self.area.queue_draw()
         if len(self.found) == len(self.placed) and self.placed:
             self.won(self.secs(), '🎉 ' + _('All words found!') + ' ⏱ ' + fmt(self.secs()))
@@ -331,7 +333,7 @@ class Crossword(Game):
                     fc = Gtk.EventControllerFocus(); fc.connect('enter', lambda *_a, k=(r, c): self.focus(k)); e.add_controller(fc)
                     grid.attach(ov, c, r, 1, 1); self.ent[(r, c)] = e
                 else:
-                    sp = Gtk.Box(); sp.set_size_request(30, 30); grid.attach(sp, c, r, 1, 1)
+                    sp = Gtk.Box(); sp.set_size_request(42, 42); grid.attach(sp, c, r, 1, 1)
         body.append(grid)
         cl = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, valign=Gtk.Align.START); cl.set_size_request(260, -1)
         self.clue_lab = {}
@@ -431,7 +433,8 @@ class Crossword(Game):
     def check(self):
         for k, e in self.ent.items():
             if e.get_text() and e.get_text() != self.ch[k]:
-                e.add_css_class('kjt-xw-bad'); self.lost += 1
+                e.add_css_class('kjt-xw-bad'); self.lost += 1; self.wrong = True
+        sfx.play('miss' if getattr(self, 'wrong', False) else 'good'); self.wrong = False
 
     def hint(self):
         empty = [k for k, e in self.ent.items() if e.get_text() != self.ch[k]]
@@ -454,7 +457,7 @@ class Memory(Game):
         self.moves = 0; self.open = []; self.done = set(); self.cards = cards; self.btns = []
         fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=4, max_children_per_line=6, column_spacing=8, row_spacing=8)
         for j, (i, t) in enumerate(cards):
-            b = Gtk.Button(label='☦'); b.add_css_class('kjt-mem'); b.set_size_request(130, 84)
+            b = Gtk.Button(label='☦'); b.add_css_class('kjt-mem'); b.set_size_request(180, 116)
             b.get_child().set_wrap(True); b.get_child().set_justify(Gtk.Justification.CENTER)
             b.connect('clicked', lambda _b, j=j: self.flip(j)); fb.append(b); self.btns.append(b)
         self.append(fb)
@@ -462,10 +465,11 @@ class Memory(Game):
     def flip(self, j):
         if j in self.done or j in self.open or len(self.open) == 2 or self.over:
             return
-        self.btns[j].set_label(self.cards[j][1]); self.btns[j].add_css_class('kjt-mem-up'); self.open.append(j)
+        self.btns[j].set_label(self.cards[j][1]); self.btns[j].add_css_class('kjt-mem-up'); self.open.append(j); sfx.play('flip')
         if len(self.open) == 2:
             self.moves += 1; a, b = self.open
             if self.cards[a][0] == self.cards[b][0]:
+                sfx.play('match')
                 for x in (a, b):
                     self.done.add(x); self.btns[x].add_css_class('kjt-mem-ok')
                 self.open = []
@@ -500,13 +504,13 @@ class TapOrder(Game):
         if self.over:
             return
         if i == self.next:
-            b.set_sensitive(False); b.add_css_class('kjt-tap-ok'); self.next += 1
+            b.set_sensitive(False); b.add_css_class('kjt-tap-ok'); self.next += 1; sfx.play('step')
             self.done_box.append(lbl('%d. %s' % (self.next, self.items[i]), 'kjt-tap-done', wrap=False))
             if self.next == len(self.items):
                 s = self.secs() + 5 * self.miss
                 self.won(s, '🎉 ' + _('Well done!') + ' ⏱ ' + fmt(self.secs()) + ('  (+%ds)' % (5 * self.miss) if self.miss else ''))
         else:
-            self.miss += 1; b.add_css_class('kjt-tap-bad'); GLib.timeout_add(500, lambda: (b.remove_css_class('kjt-tap-bad'), False)[1])
+            self.miss += 1; b.add_css_class('kjt-tap-bad'); sfx.play('miss'); GLib.timeout_add(500, lambda: (b.remove_css_class('kjt-tap-bad'), False)[1])
 
 
 class Books(TapOrder):
@@ -564,7 +568,7 @@ class VerseBuilder(Game):
         if self.over:
             return
         if self.words[j] == self.words[self.next]:
-            b.set_sensitive(False); b.add_css_class('kjt-tap-ok'); self.next += 1
+            b.set_sensitive(False); b.add_css_class('kjt-tap-ok'); self.next += 1; sfx.play('step')
             self.built.set_label(' '.join(self.words[:self.next]))
             if self.next == len(self.words):
                 self.i += 1
@@ -574,7 +578,7 @@ class VerseBuilder(Game):
                 else:
                     GLib.timeout_add(700, lambda: (self.round(), False)[1])
         else:
-            self.miss += 1; b.add_css_class('kjt-tap-bad'); GLib.timeout_add(450, lambda: (b.remove_css_class('kjt-tap-bad'), False)[1])
+            self.miss += 1; b.add_css_class('kjt-tap-bad'); sfx.play('miss'); GLib.timeout_add(450, lambda: (b.remove_css_class('kjt-tap-bad'), False)[1])
 
 
 # ---------------- Who Am I? ----------------
@@ -608,12 +612,12 @@ class WhoAmI(Game):
 
     def another(self):
         if self.shown < len(self.r['clues']):
-            self.clues.append(lbl('❓ ' + self.r['clues'][self.shown], 'kjt-who-clue')); self.shown += 1
+            self.clues.append(lbl('❓ ' + self.r['clues'][self.shown], 'kjt-who-clue')); self.shown += 1; sfx.play('tap')
         self.more.set_sensitive(self.shown < len(self.r['clues']))
 
     def answer(self, b, name, row):
         ok = name == self.r['answer']
-        b.add_css_class('kjt-tap-ok' if ok else 'kjt-tap-bad')
+        b.add_css_class('kjt-tap-ok' if ok else 'kjt-tap-bad'); sfx.play('good' if ok else 'miss')
         for x in list(row):
             x.set_sensitive(False)
             if x.get_label() == self.r['answer']:
@@ -649,10 +653,17 @@ class FunPage(Gtk.Box):
         self.back = Gtk.Button(icon_name='kjt-prev-symbolic', tooltip_text=_('All games'), visible=False); self.back.connect('clicked', lambda *_a: self.hub())
         hb.pack_start(self.back)
         self.title = Gtk.Label(label=_('Good Fun')); self.title.add_css_class('heading'); hb.set_title_widget(self.title)
+        # 2.18: sound on or off, and the whole screen for the game
+        self.snd = Gtk.ToggleButton(icon_name='audio-volume-high-symbolic' if sfx.on() else 'audio-volume-muted-symbolic', active=sfx.on(), tooltip_text=_('Sounds'))
+        self.snd.add_css_class('flat'); self.snd.connect('toggled', self.sound); hb.pack_end(self.snd)
+        self.fs = Gtk.ToggleButton(icon_name='view-fullscreen-symbolic', tooltip_text=_('Full screen')); self.fs.add_css_class('flat')
+        self.fs.connect('toggled', lambda b: win.fullscreen() if b.get_active() else win.unfullscreen()); hb.pack_end(self.fs)
+        win.connect('notify::fullscreened', lambda w, _p: self.fs.set_active(w.is_fullscreen()))
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, margin_top=16, margin_bottom=30, margin_start=16, margin_end=16)
-        c = Adw.Clamp(maximum_size=900); c.set_child(self.box)
+        c = Adw.Clamp(maximum_size=900); c.set_child(self.box); self.clamp = c
         self.sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.sc.set_child(c); tv.set_content(self.sc)
         self.hub()
+        self.connect('unmap', lambda *_a: self.unmap_do())
 
     def refresh(self):
         d = data()
@@ -672,6 +683,29 @@ class FunPage(Gtk.Box):
             STORE.set_kv('fun_data', out); return True
         run_bg(work, lambda r: self.hub() if r is True and self.game is None else None)
 
+    def sound(self, b):
+        from .core import SET
+        SET.set('fun_sound', b.get_active()); b.set_icon_name('audio-volume-high-symbolic' if b.get_active() else 'audio-volume-muted-symbolic')
+        if b.get_active():
+            sfx.play('tap')
+
+    def playing(self, on):
+        """while a game is played it has the room: the menu at the side goes away (and comes back after)"""
+        split = getattr(self.win, 'split', None)
+        if on:
+            if split is not None and split.get_show_sidebar() and not split.get_collapsed():
+                self.hid_menu = True; split.set_show_sidebar(False)
+            self.clamp.set_maximum_size(1400)
+        else:
+            if getattr(self, 'hid_menu', False) and split is not None:
+                split.set_show_sidebar(True)
+            self.hid_menu = False; self.clamp.set_maximum_size(900)
+
+    def unmap_do(self):
+        self.playing(False)
+        if self.win.is_fullscreen():
+            self.win.unfullscreen()
+
     def themes(self):
         d = data(); lw = (d.get('lang') or {}).get('themes')
         return [t for t in (lw if lw and lang() != 'en' else d.get('words') or []) if t.get('words')]
@@ -684,7 +718,7 @@ class FunPage(Gtk.Box):
         GLib.idle_add(lambda: (self.sc.get_vadjustment().set_value(0), False)[1])
 
     def hub(self):
-        self.game = None; self.back.set_visible(False); self.title.set_label(_('Good Fun')); self.clear(); self.top()
+        self.game = None; self.back.set_visible(False); self.title.set_label(_('Good Fun')); self.clear(); self.top(); self.playing(False)
         hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); hero.add_css_class('kjt-you-hero')
         inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=16, margin_bottom=16, margin_start=20, margin_end=20); hero.append(inner)
         inner.append(lbl('🎲 ' + _('For the whole family').upper(), 'kjt-you-kick'))
@@ -722,7 +756,7 @@ class FunPage(Gtk.Box):
         self.box.append(row)
 
     def play(self, g, level):
-        self.clear(); self.top()
+        self.clear(); self.top(); self.playing(True); sfx.play('tap')
         try:
             w = g[4](self, level)
         except Exception as e:

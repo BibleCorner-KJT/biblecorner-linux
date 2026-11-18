@@ -191,7 +191,7 @@ class Store:
 
     def bible_size(self):
         with self.lock:
-            return self.db.execute('SELECT tr, COUNT(DISTINCT book) FROM book GROUP BY tr').fetchall()
+            return self.db.execute('SELECT tr, COUNT(DISTINCT code) FROM book GROUP BY tr').fetchall()
 
     def delete_bible(self, tr):
         with self.lock:
@@ -420,3 +420,12 @@ def run_bg(fn, done=None, *a):
         if done:
             GLib.idle_add(lambda: (done(r), False)[1])
     threading.Thread(target=work, daemon=True).start()
+
+
+def log_problem(text):
+    """2.18: a line in problems.log (sent with "Report a problem"), so a failure can be found later"""
+    try:
+        with open(os.path.join(DATA, 'problems.log'), 'a') as f:
+            f.write(time.strftime('%Y-%m-%d %H:%M ') + str(text).replace('\n', ' ')[:300] + '\n')
+    except Exception:
+        pass

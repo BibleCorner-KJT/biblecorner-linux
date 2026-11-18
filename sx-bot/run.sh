@@ -32,8 +32,15 @@ call() {   # tell the website, and get what to do
   gj=$(printf '%s\n' "${GRPS[@]}" | jq -R . | jq -sc 'map(select(length>0))')
   sj=$(jq -R . < "$DATA/sent_ids" | jq -sc 'map(select(length>0))')
   jj=$(jq -R . < "$DATA/joined_links" | jq -sc 'map(select(length>0))')
-  curl -fsS -m 90 -X POST "$API" --data-urlencode "key=$KEY" --data-urlencode "groups=$gj" \
-       --data-urlencode "sent=$sj" --data-urlencode "joined=$jj" --data-urlencode "log=$(tail -c 2500 "$LOG")" -o reply.json
+  # a pass from GitHub that says this is the website's own bot (short-lived; nothing is kept)
+  local tok=""
+  if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+    tok=$(curl -fsS -m 30 -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=kjt-simplex-bot" | jq -r '.value // empty')
+  fi
+  local code
+  code=$(curl -sS -m 90 -X POST "$API" --data-urlencode "key=$KEY" --data-urlencode "oidc=$tok" --data-urlencode "groups=$gj" \
+       --data-urlencode "sent=$sj" --data-urlencode "joined=$jj" --data-urlencode "log=$(tail -c 2500 "$LOG")" -o reply.json -w '%{http_code}')
+  [ "$code" = 200 ] || { echo "the website answered $code: $(head -c 200 reply.json)"; return 1; }
 }
 
 echo "== the bot's groups"; GRPS=(); groups
