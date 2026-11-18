@@ -7,7 +7,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 concurrency:
@@ -73,6 +73,15 @@ jobs:
           cp site/knowing-jesus-today.flatpakref site/bible-corner-kjt-linux.flatpakref
           printf '{"version":"%s","ref":"Bible Corner - KJT %s (Linux).flatpakref"}\n' "$VER" "$VER" > site/linux.json
           sed -i "s|href=\"knowing-jesus-today.flatpakref\"|href=\"Bible Corner - KJT $VER (Linux).flatpakref\" download|" site/index.html
+          # one file that installs the app with a double click (or flatpak install), and keeps it updated from this channel
+          flatpak build-bundle --repo-url=$URL/repo/ --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo --gpg-keys=channel/kjt-channel.gpg \
+            repo "site/Bible Corner - KJT $VER (Linux).flatpak" today.knowingjesus.KJT stable
+          cp "site/Bible Corner - KJT $VER (Linux).flatpak" site/bible-corner-kjt-linux.flatpak
+          # the same file kept in the branch "bundle" (only the newest), for sending it directly
+          mkdir -p bundle-tmp && cp "site/Bible Corner - KJT $VER (Linux).flatpak" bundle-tmp/
+          ( cd bundle-tmp && git init -q -b bundle && git add -A && git -c user.email=ci@local -c user.name=CI commit -qm "Linux $VER bundle" \
+            && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" bundle ) || echo "bundle branch not updated"
+          rm -rf bundle-tmp
           touch site/.nojekyll
           du -sh site
       - uses: actions/upload-pages-artifact@v3
