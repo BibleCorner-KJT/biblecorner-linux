@@ -585,6 +585,13 @@ class App(Adw.Application):
         Adw.Application.do_startup(self)
         if SET.get('bg_keep'):
             GLib.idle_add(lambda: (self.start_tray(), False)[1])
+        # 2.25: an icon that is no longer offered goes back to the usual one
+        try:
+            from .settings import current_icon, set_icon, ICONS
+            if current_icon() not in [k for k, _l in ICONS]:
+                set_icon('purple')
+        except Exception:
+            pass
         # 2.18: Arabic reads from right to left: the whole app is laid out that way
         from .i18n import rtl
         Gtk.Widget.set_default_direction(Gtk.TextDirection.RTL if rtl() else Gtk.TextDirection.LTR)
