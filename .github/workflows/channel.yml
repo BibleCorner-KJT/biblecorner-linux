@@ -66,6 +66,13 @@ jobs:
           GPGKey=$KEY
           REF
           sed -i 's/^ *//' site/knowing-jesus-today.flatpakrepo site/knowing-jesus-today.flatpakref
+          # the file people download is named after the app and its version: "Bible Corner - KJT 2.27 (Linux).flatpakref"
+          # (knowing-jesus-today.flatpakref stays for old links); linux.json tells the website the version and the name
+          VER=$(sed -n "s/^VERSION = '\(.*\)'/\1/p" src/kjt/main.py)
+          cp site/knowing-jesus-today.flatpakref "site/Bible Corner - KJT $VER (Linux).flatpakref"
+          cp site/knowing-jesus-today.flatpakref site/bible-corner-kjt-linux.flatpakref
+          printf '{"version":"%s","ref":"Bible Corner - KJT %s (Linux).flatpakref"}\n' "$VER" "$VER" > site/linux.json
+          sed -i "s|href=\"knowing-jesus-today.flatpakref\"|href=\"Bible Corner - KJT $VER (Linux).flatpakref\" download|" site/index.html
           touch site/.nojekyll
           du -sh site
       - uses: actions/upload-pages-artifact@v3
