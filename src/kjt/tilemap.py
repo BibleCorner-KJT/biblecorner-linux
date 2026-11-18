@@ -126,7 +126,18 @@ class TileMap(Gtk.Overlay):
         self.lat, self.lon = to_ll(x % n, y, self.z); self.area.queue_draw()
 
     def scroll(self, c, dx, dy):
-        self.zoom_by(-1 if dy > 0 else 1, self.pointer); return True
+        # 2.25: gentler: a touchpad's many small steps add up to one level, and at most one level each 0.3 s
+        import time as _t
+        self._acc = getattr(self, '_acc', 0.0) + dy
+        if abs(self._acc) < 1.0 and c.get_unit() == Gdk.ScrollUnit.SURFACE:
+            return True
+        if c.get_unit() == Gdk.ScrollUnit.SURFACE and abs(self._acc) < 40:
+            return True
+        now = _t.monotonic()
+        if now - getattr(self, '_last_zoom', 0) < 0.3:
+            self._acc = 0.0; return True
+        self._last_zoom = now; d = -1 if self._acc > 0 else 1; self._acc = 0.0
+        self.zoom_by(d, self.pointer); return True
 
     def click(self, g, n, x, y):
         if getattr(self, 'moved', False):
@@ -145,6 +156,11 @@ class TileMap(Gtk.Overlay):
                 best, bd = m, d
         if best and self.on_pick:
             self.sel = best[2]; self.area.queue_draw(); self.on_pick(best[2])
+        elif not best and self.sel is not None:
+            # 2.25: a click on the map itself lets the chosen place go
+            self.sel = None; self.area.queue_draw()
+            if getattr(self, 'on_unpick', None):
+                self.on_unpick()
 
     # the pictures
     def tile(self, z, x, y):

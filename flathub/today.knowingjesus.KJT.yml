@@ -17,8 +17,10 @@ modules:
     subdir: src
     build-commands:
       - mkdir -p /app/share/kjt/kjt
-      - install -Dm644 kjt/*.py kjt/*.json -t /app/share/kjt/kjt/
+      - install -Dm644 kjt/*.py kjt/*.json kjt/*.sqlite3 -t /app/share/kjt/kjt/
       - install -Dm644 kjt/icons/hicolor/scalable/actions/*.svg -t /app/share/kjt/kjt/icons/hicolor/scalable/actions/
+      - install -Dm644 kjt/appicons/*.png -t /app/share/kjt/kjt/appicons/
+      - install -Dm644 kjt/gameart/*.svg -t /app/share/kjt/kjt/gameart/
       - install -Dm755 kjt-app /app/bin/kjt
       - install -Dm644 today.knowingjesus.KJT.desktop /app/share/applications/today.knowingjesus.KJT.desktop
       - install -Dm644 today.knowingjesus.KJT.metainfo.xml /app/share/metainfo/today.knowingjesus.KJT.metainfo.xml

@@ -4,7 +4,7 @@ listed by distance and shown on a map. The town you type is looked up through th
 elsewhere); "Near me" asks your computer where you are, only when you press it, and it stays here."""
 import json, math, random, re, time
 from urllib.parse import quote
-from gi.repository import Gtk, Adw, Gio, GLib, Pango
+from gi.repository import Gtk, Adw, Gio, GLib, Pango, Gdk
 from .core import STORE, SET, NET, SITE, lang, run_bg, log_problem
 from .i18n import _
 from .tilemap import TileMap
@@ -133,7 +133,9 @@ class ChurchPage(Gtk.Box):
         credit = Gtk.Label(label=_('Church data © OpenStreetMap contributors (ODbL), checked on the website.'), xalign=0, wrap=True); credit.add_css_class('dim-label'); credit.add_css_class('caption')
         lb.append(credit)
         self.lsc = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True); self.lsc.set_child(lb)
-        self.map = TileMap(on_pick=self.pick); self.map.on_move = self.moved_map
+        self.map = TileMap(on_pick=self.pick); self.map.on_move = self.moved_map; self.map.on_unpick = self.unpick
+        # 2.25: Esc lets the chosen church go
+        k = Gtk.EventControllerKey(); k.connect('key-pressed', lambda _c, kv, _k, _s: (self.unpick(), True)[1] if kv == Gdk.KEY_Escape and self.open_id is not None else False); self.add_controller(k)
         self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, wide_handle=True, shrink_start_child=False, shrink_end_child=False)
         self.lsc.set_size_request(340, -1); self.paned.set_start_child(self.lsc); self.paned.set_end_child(self.map); self.paned.set_position(440)
         tv.set_content(self.paned)
@@ -537,6 +539,15 @@ class ChurchPage(Gtk.Box):
             self.map.center(r['lat'], r['lon'], 14)
         else:
             self.map.center(r['lat'], r['lon'])
+
+    def unpick(self):
+        self.open_id = None; self.map.select(None); self.map.set_route([])
+        for box in (self.favlist, self.listbox):
+            ch = box.get_first_child()
+            while ch is not None:
+                if hasattr(ch, 'get_expanded') and ch.get_expanded():
+                    ch.set_expanded(False)
+                ch = ch.get_next_sibling()
 
     def pick(self, cid):
         """a mark chosen on the map: its church opened in the list"""

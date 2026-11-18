@@ -3,7 +3,7 @@ riddles come from the website's games (kept on this computer), so they are the s
 Easy wins a bronze trophy, Medium silver, Hard gold; your best scores are kept on this computer.
 This first set: Sudoku, Word Seek, Bible Crossword, Memory Match, Books of the Bible, Bible Timeline,
 Verse Builder and Who Am I?"""
-import json, random, re, time
+import json, os, random, re, time
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, NET, SITE, lang, run_bg
 from .i18n import _
@@ -644,6 +644,45 @@ GAMES = [('sudoku', '🔢', 'Sudoku', 'Fill every row, column and square with th
          ('verse', '🧩', 'Verse Builder', 'Put the words of the verse in order.', VerseBuilder)]
 
 
+# 2.25: the website's drawing of each game (assets/kids-games/games.js), and its other games
+ART_DIR = os.path.join(os.path.dirname(__file__), 'gameart')
+
+
+def art(gid, icon, size=56):
+    p = os.path.join(ART_DIR, gid + '.svg')
+    if os.path.exists(p):
+        try:
+            pic = Gtk.Picture.new_for_filename(p); pic.set_size_request(size, size); pic.set_can_shrink(True)
+            pic.set_content_fit(Gtk.ContentFit.CONTAIN); pic.set_valign(Gtk.Align.CENTER)
+            return pic
+        except Exception:
+            pass
+    return lbl(icon, 'kjt-you-emo', wrap=False)
+
+
+RACE = {'sudoku': 'sudokurace', 'crossword': 'xwrace', 'seek': 'seekrace', 'verse': 'verserace', 'whoami': 'whoami2'}
+RACE_NAMES = {'sudokurace': 'Sudoku Race', 'xwrace': 'Crossword Race', 'seekrace': 'Word Seek Race', 'verserace': 'Verse Race', 'whoami2': 'Who Am I? for two'}
+WEB_GAMES = [('chess', 'Holy War (Chess)', 'Chess: the side of good against the side of evil', True),
+             ('words', 'Word Builder', 'Build English words on the board: against the computer, or 2 to 4 players', True),
+             ('journey', 'Journey to Jerusalem', 'Board game for 1–4 players: climb the ladders of good deeds, beware the serpents, and reach the Temple', True),
+             ('c4', 'Loaves and Fishes', 'Four in a row: the computer, a friend, or online', True),
+             ('checkers', 'Checkers', 'Jump, take and be crowned king', True),
+             ('tavli', 'Tavli (backgammon)', 'Race your checkers home: the game of Greek and Arab homes', True),
+             ('morris', 'Nine Men’s Morris', 'Make rows of three: one of the oldest games in the world', True),
+             ('mancala', 'Mancala', 'Sow the seeds and fill your store: an old game of Bible lands', True),
+             ('ttt', 'Fish & Dove', 'Three in a row: play the computer or a friend', True),
+             ('duel', 'Quiz Duel', 'Who knows the Bible best? Play the computer or a friend', True),
+             ('hunt', 'Word Hunt', 'Find words in a grid of letters, alone or against a friend', True),
+             ('solitaire', 'Solitaire', 'Bible Tiles (Mahjong) or Bible Cards: you choose', False),
+             ('puzzle', 'Picture Puzzle', 'Put the picture back together', False),
+             ('diff', 'Spot the Difference', 'Find what has changed between two pictures', False),
+             ('paul', 'Paul’s Journeys', 'Read the verses from Acts and follow Saint Paul across the Great Sea', False),
+             ('icons', 'Icon Detective', 'Recognise saints in icons by their symbols', False),
+             ('manna', 'Manna from Heaven', 'Gather God’s bread in the desert, but only what you need', False),
+             ('jonah', 'Jonah’s Voyage', 'Sail through the storm and out of the great fish', False),
+             ('twobytwo', 'Two by Two', 'Send the animals into the ark in pairs', False)]
+
+
 class FunPage(Gtk.Box):
     def __init__(self, win):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -734,13 +773,38 @@ class FunPage(Gtk.Box):
         for gid, icon, name, blurb, cls in GAMES:
             b = Gtk.Button(); b.add_css_class('kjt-you-feel')
             row = Gtk.Box(spacing=12, margin_top=8, margin_bottom=8, margin_start=6, margin_end=6)
-            e = lbl(icon, 'kjt-you-emo', wrap=False); row.append(e)
+            row.append(art(gid, icon))
             col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True)
             t = lbl(_(name) + ('  ' + dict((k, i) for k, _l, i in LEVELS)[tr[gid]] if gid in tr else ''), 'kjt-you-ft'); t.set_max_width_chars(20); col.append(t)
             s = lbl(_(blurb), 'kjt-you-fs'); s.set_lines(2); s.set_ellipsize(Pango.EllipsizeMode.END); s.set_max_width_chars(24); col.append(s)
             row.append(col); b.set_child(row); b.connect('clicked', lambda _b, g=(gid, icon, name, blurb, cls): self.levels(g)); fb.append(b)
         self.box.append(fb)
-        self.box.append(lbl(_('More games are coming to this app.'), 'dim-label'))
+        # 2.25: the website's other games, in the app (their own engine), with playing online
+        self.box.append(lbl(_('More games'), 'kjt-you-big2'))
+        self.box.append(lbl(_('Board games, action games and more: against the computer, two on one computer, or with a friend online. They need the internet.'), 'dim-label'))
+        fb2 = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=1, max_children_per_line=3, column_spacing=10, row_spacing=10)
+        for gid, name, blurb, online in WEB_GAMES:
+            b = Gtk.Button(); b.add_css_class('kjt-you-feel')
+            row = Gtk.Box(spacing=12, margin_top=8, margin_bottom=8, margin_start=6, margin_end=6); row.append(art(gid, '🎲'))
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True)
+            t = lbl(_(name) + ('  🌐' if online else ''), 'kjt-you-ft'); t.set_max_width_chars(20); col.append(t)
+            s2 = lbl(_(blurb), 'kjt-you-fs'); s2.set_lines(2); s2.set_ellipsize(Pango.EllipsizeMode.END); s2.set_max_width_chars(24); col.append(s2)
+            row.append(col); b.set_child(row); b.connect('clicked', lambda _b, g=gid, n=name: self.web(g, n)); fb2.append(b)
+        self.box.append(fb2)
+        self.box.append(lbl('🌐 ' + _('can be played with a friend online, by a game code.'), 'dim-label'))
+
+    def web(self, gid, name):
+        """a game of the website's engine, in the app"""
+        from . import webgame
+        self.game = (gid, '', name, '', None); self.back.set_visible(True); self.title.set_label(_(name)); self.clear(); self.playing(True)
+        if not NET.online():
+            self.box.append(lbl(_('This game needs the internet. Try again when you are connected.'), 'dim-label')); return
+        v = webgame.view(gid)
+        if v is None:
+            self.box.append(lbl(_('This computer cannot show the game here. It opens in your browser.'), 'dim-label'))
+            Gtk.UriLauncher.new(webgame.url(gid)).launch(self.win, None, None, None); return
+        v.set_size_request(-1, max(560, (self.win.get_height() or 800) - 140))
+        self.box.append(v)
 
     def levels(self, g):
         gid, icon, name, blurb, cls = g
@@ -754,6 +818,11 @@ class FunPage(Gtk.Box):
             b.set_label('%s %s%s' % (medal, _(l), ('  · ' + (fmt(v) if cls.lower else str(v))) if v is not None else ''))
             b.connect('clicked', lambda _b, k=k: self.play(g, k)); row.append(b)
         self.box.append(row)
+        # 2.25: with a friend online (the same board for two, from the website's engine)
+        if gid in RACE:
+            ob = Gtk.Button(halign=Gtk.Align.START); ob.add_css_class('pill'); ob.add_css_class('suggested-action')
+            ob.set_label('🌐 ' + _('With a friend online')); ob.connect('clicked', lambda *_a: self.web(RACE[gid], RACE_NAMES[RACE[gid]])); self.box.append(ob)
+            self.box.append(lbl(_('The same board for both of you, timed: send your friend the game code.'), 'dim-label'))
 
     def play(self, g, level):
         self.clear(); self.top(); self.playing(True); sfx.play('tap')
