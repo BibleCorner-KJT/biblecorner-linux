@@ -383,7 +383,8 @@ class SettingsPage(Gtk.Box):
         self.add(g)
 
 
-ICONS = [('purple', 'Purple'), ('navy', 'Navy blue'), ('black', 'Black'), ('green', 'Green'), ('wine', 'Wine red')]
+ICONS = [('purple', 'Purple'), ('navy', 'Navy blue'), ('black', 'Black'), ('green', 'Green'), ('wine', 'Wine red'),
+         ('golden', 'Gold'), ('royalblue', 'Royal blue'), ('royalpurple', 'Royal purple'), ('bluecross', 'Blue'), ('teal', 'Teal and gold'), ('violet', 'Violet')]
 APP_ID = 'today.knowingjesus.KJT'
 
 
@@ -442,7 +443,7 @@ def set_icon(name):
 
 def icon_group():
     g = Adw.PreferencesGroup(title=_('App icon'), description=_('The icon of the app in your list of apps and on the dock.'))
-    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=5, min_children_per_line=3, column_spacing=8, row_spacing=8, homogeneous=True)
+    flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=6, min_children_per_line=3, column_spacing=8, row_spacing=8, homogeneous=True)
     note = Gtk.Label(xalign=0, wrap=True, css_classes=['caption', 'dim-label'], margin_top=6)
     cur = current_icon(); btns = []
     for key, label in ICONS:
