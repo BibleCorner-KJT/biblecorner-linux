@@ -312,7 +312,10 @@ class Net:
     def online(self):
         """2.29: the computer's own network report is not trusted alone. On some computers (a VPN, a network
         NetworkManager does not know, an older portal) it says "no network" while the internet works: then the
-        website itself is asked (a small, quick request, remembered for a minute)."""
+        website itself is asked.
+        2.31: that question is asked in the background, never while the window waits (it froze the window, for
+        example when Churches near me opened). Until the answer comes, the app tries: a request that fails marks
+        the website as unreachable for a moment by itself."""
         if time.time() < self.down_until:
             return False
         try:
@@ -321,11 +324,15 @@ class Net:
         except Exception:
             return True
         now = time.time()
-        if now - getattr(self, 'probe_at', 0) < 60:
-            return getattr(self, 'probe_ok', False)
-        self.probe_at = now
-        self.probe_ok = self.reach()
-        return self.probe_ok
+        if now - getattr(self, 'probe_at', 0) > 60 and not getattr(self, 'probing', False):
+            self.probe_at = now; self.probing = True
+            def ask():
+                try:
+                    self.probe_ok = self.reach()
+                finally:
+                    self.probing = False
+            threading.Thread(target=ask, daemon=True).start()
+        return getattr(self, 'probe_ok', True)
 
     def reach(self, timeout=6):
         """is the website really reachable? (the reason is kept in self.why when it is not)"""
