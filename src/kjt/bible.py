@@ -577,7 +577,7 @@ class BiblePage(Gtk.Box):
             p = p[1:] if p[0] else None
         return (p[1] if p else wy), r.height
 
-    def scroll_to_verse(self, v, tries=12):
+    def scroll_to_verse(self, v, tries=12, at=70):
         if v not in self.vnum:
             return
         def go():
@@ -586,7 +586,7 @@ class BiblePage(Gtk.Box):
             adj = self.scroll.get_vadjustment()
             if adj.get_upper() - adj.get_page_size() < y - 60 and go.n > 0:
                 go.n -= 1; return True          # not laid out yet: try again in a moment
-            adj.set_value(max(0, min(y - 70, adj.get_upper() - adj.get_page_size())))
+            adj.set_value(max(0, min(y - at, adj.get_upper() - adj.get_page_size())))
             self.view.get_buffer().place_cursor(it)      # the hidden cursor stays where you read
             return False
         go.n = tries

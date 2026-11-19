@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.32'
+VERSION = '2.33'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -489,6 +489,10 @@ class Window(Adw.ApplicationWindow):
             return False
         b = self.bible
         if p['book'] == b.book and p['ch'] == b.ch and p.get('v', 1) <= 2:
+            return False
+        # 2.33: the same chapter (the usual case): go straight back to the verse where you stopped, no question
+        if p['book'] == b.book and p['ch'] == b.ch and p['tr'] == b.tr:
+            b.scroll_to_verse(p.get('v', 1), tries=40, at=30)   # (where it is measured: it stays the same verse each time)
             return False
         t = Adw.Toast(title=GLib.markup_escape_text(_('Continue reading where you left off') + ': %s %d:%d' % (b.code_name(p['book'], p['tr']), p['ch'], p.get('v', 1))), timeout=10, button_label=_('Continue'))
         def go(*_):
