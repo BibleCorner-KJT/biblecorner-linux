@@ -39,14 +39,37 @@ def km(a, b, c, d):
     return 12742 * math.asin(math.sqrt(min(1, x)))
 
 
+def _num(x):
+    try:
+        return float(x or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def row_of(r):
     """[id,name,kind,jur,addr,city,region,postcode,country,lat,lon,web,phone,times,name_en,email,contact] -> dict"""
     r = list(r) + [''] * 17
     k = r[2] if isinstance(r[2], int) else 0
-    return {'id': r[0], 'name': r[1] or '', 'kind': KINDS[k] if 0 <= k < len(KINDS) else 'church', 'jur': r[3] or 'other', 'addr': r[4] or '',
-            'city': r[5] or '', 'region': r[6] or '', 'postcode': r[7] or '', 'country': r[8] or '', 'lat': float(r[9] or 0), 'lon': float(r[10] or 0),
-            'web': r[11] or '', 'phone': r[12] or '', 'times': r[13] or '', 'name_en': r[14] or '', 'email': r[15] or '', 'contact': r[16] or ''}
+    t = lambda x: x if isinstance(x, str) else ('' if x is None else str(x))
+    return {'id': r[0], 'name': t(r[1]), 'kind': KINDS[k] if 0 <= k < len(KINDS) else 'church', 'jur': t(r[3]) or 'other', 'addr': t(r[4]),
+            'city': t(r[5]), 'region': t(r[6]), 'postcode': t(r[7]), 'country': t(r[8]), 'lat': _num(r[9]), 'lon': _num(r[10]),
+            'web': t(r[11]), 'phone': t(r[12]), 'times': t(r[13]), 'name_en': t(r[14]), 'email': t(r[15]), 'contact': t(r[16])}
 
+
+def fav_row(cid, v):
+    """2.32: one of My churches, whatever shape it was kept in (a row of the website, or one saved by an older version
+    of the app with fewer details): always complete, or None when it cannot be read"""
+    try:
+        if isinstance(v, (list, tuple)):
+            d = row_of(v)
+        elif isinstance(v, dict):
+            d = row_of(raw_of(v))
+        else:
+            return None
+        d['id'] = d.get('id') or cid
+        return d if d['name'] or d['lat'] else None
+    except Exception:
+        return None
 
 
 def raw_of(d):
@@ -118,7 +141,7 @@ def _signed():
 
 def _wait():
     w = SET.get('ch_fav_wait')
-    return w if isinstance(w, list) else []
+    return [x for x in w if isinstance(x, (list, tuple)) and len(x) == 2 and isinstance(x[0], str)] if isinstance(w, list) else []
 
 
 def fav_change(cid, row):
@@ -154,13 +177,14 @@ def fav_sync(page=None):
         acc = {str(k): v for k, v in ((r.get('data') or {}).get('fav') or {}).items() if isinstance(v, list)}
         loc = SET.get('ch_fav') if isinstance(SET.get('ch_fav'), dict) else {}
         if not SET.get('ch_fav_joined'):        # the first time: join this computer's churches with the account's
-            extra = {k: raw_of(v) for k, v in loc.items() if k not in acc}
+            extra = {k: raw_of(fav_row(k, v)) for k, v in loc.items() if k not in acc and fav_row(k, v)}
             if extra:
                 acc = {str(k): v for k, v in (_post({'fav': json.dumps(dict(acc, **extra))}).get('fav') or {}).items()}
         sent = []
         for cid, row in list(_wait()):
             if row:
-                acc = {str(k): v for k, v in (_post({'op': 'add', 'id': cid, 'row': json.dumps(raw_of(row))}).get('fav') or {}).items()}
+                if fav_row(cid, row):
+                    acc = {str(k): v for k, v in (_post({'op': 'add', 'id': cid, 'row': json.dumps(raw_of(fav_row(cid, row)))}).get('fav') or {}).items()}
             else:
                 acc = {str(k): v for k, v in (_post({'op': 'del', 'id': cid}).get('fav') or {}).items()}
             sent.append([cid, row])
@@ -171,10 +195,15 @@ def fav_sync(page=None):
             return
         acc, sent = res
         w = [x for x in _wait() if x not in sent]   # anything changed while this was being sent goes next
-        out = {k: row_of(v) for k, v in acc.items() if isinstance(v, list)}
+        out = {}
+        for k, v in acc.items():
+            d = fav_row(str(k), v)
+            if d:
+                out[str(k)] = d
         for cid, row in w:
-            if row:
-                out[cid] = row
+            d = fav_row(cid, row) if row else None
+            if d:
+                out[cid] = d
             else:
                 out.pop(cid, None)
         SET.set('ch_fav', out); SET.set('ch_fav_joined', 1); SET.set('ch_fav_wait', w)
@@ -237,7 +266,12 @@ class ChurchPage(Gtk.Box):
     # 2.20: My churches
     def favs(self):
         f = SET.get('ch_fav')
-        return f if isinstance(f, dict) else {}
+        out = {}
+        for k, v in (f.items() if isinstance(f, dict) else []):
+            d = fav_row(str(k), v)
+            if d:
+                out[str(k)] = d
+        return out
 
     def is_fav(self, cid):
         return str(cid) in self.favs()

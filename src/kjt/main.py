@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.31'
+VERSION = '2.32'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -301,21 +301,41 @@ class Window(Adw.ApplicationWindow):
         if key == 'downloads':   # 2.27: what was the Offline library is the Library's "On This Device"
             self.show('library', from_nav)
             L = self.page('library'); L.nav.pop_to_tag('home'); L.open_device(); return
-        page = self.page(key)
-        self.stack.set_visible_child_name(key)
-        SET.set('page', key)
-        if getattr(page, 'fresh', False) or key in ('study', 'library', 'settings', 'today', 'you', 'pray', 'fun', 'church'):
-            page.fresh = False
-            if hasattr(page, 'refresh'):
-                page.refresh()
-            if key in ('today', 'bible'):
-                page.show()
+        # 2.32: a page that cannot open says why (before, nothing happened); the details go to Report a problem
+        try:
+            page = self.page(key)
+            self.stack.set_visible_child_name(key)
+            SET.set('page', key)
+            if getattr(page, 'fresh', False) or key in ('study', 'library', 'settings', 'today', 'you', 'pray', 'fun', 'church'):
+                page.fresh = False
+                if hasattr(page, 'refresh'):
+                    page.refresh()
+                if key in ('today', 'bible'):
+                    page.show()
+        except Exception as e:
+            import traceback
+            from .core import log_problem
+            log_problem('page %s: %s' % (key, traceback.format_exc()[-280:]))
+            self.page_failed(key, e)
         if not from_nav:
             for row in self.nav:
                 if getattr(row, 'key', None) == key:
                     self.nav.select_row(row); break
         if self.split.get_collapsed():
             self.split.set_show_sidebar(False)
+
+    def page_failed(self, key, e):
+        sp = self.stack.get_child_by_name('failed')
+        if sp is None:
+            sp = Adw.StatusPage(icon_name='dialog-warning-symbolic'); self.stack.add_named(sp, 'failed')
+            bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, halign=Gtk.Align.CENTER)
+            b = Gtk.Button(label=_('Report a problem')); b.add_css_class('pill'); b.add_css_class('suggested-action')
+            b.connect('clicked', lambda *_a: self.get_application().activate_action('report', None)); bx.append(b)
+            sp.set_child(bx)
+        sp.set_title(_('This page could not open'))
+        sp.set_description(GLib.markup_escape_text('%s: %s' % (type(e).__name__, e))[:400])
+        self.stack.set_visible_child_name('failed')
+        self.pages.pop(key, None) if key in self.pages and self.stack.get_child_by_name(key) is None else None
 
     def code_for(self, name):
         """'Exodus', '1 Chronicles', 'JHN' or a name in any language -> book code"""
