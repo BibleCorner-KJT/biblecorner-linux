@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.29'
+VERSION = '2.30'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -537,6 +537,8 @@ class Window(Adw.ApplicationWindow):
                         STUDY.sync()
                         from .journey import JOURNEY   # 2.28: the reading journey too (it was only when the Study Journey page opened)
                         JOURNEY.sync()
+                        from .church import fav_sync   # 2.29: My churches too (it was only when Churches near me first opened)
+                        fav_sync()
                     if 'today' in self.pages:
                         self.today.refresh()
                 run_bg(lambda: info(refresh=True), fin)

@@ -108,6 +108,90 @@ def locate(done, timeout=25):
 
 
 # ---------- the page ----------
+# 2.29: My churches and the account. The account's list is asked for when the app starts, every 10 minutes, and each
+# time Churches near me opens (before, only the first time the page opened: if the website could not be reached just
+# then, the list never came). A change is sent one church at a time, and kept until the website has it (no internet:
+# it waits); so a computer with an old list can no longer bring back a church taken away on the phone.
+def _signed():
+    return bool((STORE.kv('info') or {}).get('user'))
+
+
+def _wait():
+    w = SET.get('ch_fav_wait')
+    return w if isinstance(w, list) else []
+
+
+def fav_change(cid, row):
+    w = [x for x in _wait() if x[0] != cid] + [[cid, row]]
+    SET.set('ch_fav_wait', w)
+    if _signed() and NET.online():
+        fav_sync(None)
+
+
+def _post(data):
+    import urllib.parse
+    from .core import AJAX
+    b = NET.get(AJAX, urllib.parse.urlencode(dict({'action': 'kjt_ch_fav'}, **data)).encode(), timeout=40,
+                headers={'X-KJT-App': '1', 'Content-Type': 'application/x-www-form-urlencoded'})
+    j = json.loads(b.decode('utf-8'))
+    if not j.get('success'):
+        raise RuntimeError('not saved')
+    return j['data']
+
+
+_busy = [False]
+
+
+def fav_sync(page=None):
+    """the account's list, with what is waiting here applied to it (in order) and sent; the result shown here"""
+    if _busy[0] or not _signed() or not NET.online():
+        return
+    _busy[0] = True
+    def work():
+        r = NET.ajax('kjt_ch_fav')
+        if not r.get('success'):
+            return None
+        acc = {str(k): v for k, v in ((r.get('data') or {}).get('fav') or {}).items() if isinstance(v, list)}
+        loc = SET.get('ch_fav') if isinstance(SET.get('ch_fav'), dict) else {}
+        if not SET.get('ch_fav_joined'):        # the first time: join this computer's churches with the account's
+            extra = {k: raw_of(v) for k, v in loc.items() if k not in acc}
+            if extra:
+                acc = {str(k): v for k, v in (_post({'fav': json.dumps(dict(acc, **extra))}).get('fav') or {}).items()}
+        sent = []
+        for cid, row in list(_wait()):
+            if row:
+                acc = {str(k): v for k, v in (_post({'op': 'add', 'id': cid, 'row': json.dumps(raw_of(row))}).get('fav') or {}).items()}
+            else:
+                acc = {str(k): v for k, v in (_post({'op': 'del', 'id': cid}).get('fav') or {}).items()}
+            sent.append([cid, row])
+        return acc, sent
+    def done(res):
+        _busy[0] = False
+        if not isinstance(res, tuple):
+            return
+        acc, sent = res
+        w = [x for x in _wait() if x not in sent]   # anything changed while this was being sent goes next
+        out = {k: row_of(v) for k, v in acc.items() if isinstance(v, list)}
+        for cid, row in w:
+            if row:
+                out[cid] = row
+            else:
+                out.pop(cid, None)
+        SET.set('ch_fav', out); SET.set('ch_fav_joined', 1); SET.set('ch_fav_wait', w)
+        if w:
+            GLib.timeout_add_seconds(2, lambda: (fav_sync(page), False)[1])
+        pg = page or _PAGE[0]
+        if pg is not None:
+            try:
+                pg.draw_favs(); pg.draw()
+            except Exception:
+                pass
+    run_bg(work, done)
+
+
+_PAGE = [None]
+
+
 class ChurchPage(Gtk.Box):
     def __init__(self, win):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -159,44 +243,17 @@ class ChurchPage(Gtk.Box):
         return str(cid) in self.favs()
 
     def set_fav(self, r, on):
-        f = dict(self.favs())
+        f = dict(self.favs()); cid = str(r['id'])
         if on:
-            f[str(r['id'])] = {k: v for k, v in r.items() if k != 'd'}
+            f[cid] = {k: v for k, v in r.items() if k != 'd'}
         else:
-            f.pop(str(r['id']), None)
+            f.pop(cid, None)
         SET.set('ch_fav', f)
         self.draw_favs(); self.draw()
-        self.fav_put(f)
-
-    # 2.26: signed in, My churches are kept in the account (the same list as on the phone and the website)
-    def fav_put(self, f):
-        if not (STORE.kv('info') or {}).get('user'):
-            return
-        def work():
-            from . import accounts as A
-            import urllib.parse
-            from .core import AJAX
-            body = urllib.parse.urlencode({'action': 'kjt_ch_fav', 'fav': json.dumps({k: raw_of(v) for k, v in f.items()})}).encode()
-            NET.get(AJAX, body, timeout=40, headers={'X-KJT-App': '1', 'Content-Type': 'application/x-www-form-urlencoded'})
-        run_bg(work, lambda _r: None)
+        fav_change(cid, f.get(cid))
 
     def fav_get(self):
-        if not (STORE.kv('info') or {}).get('user') or not NET.online():
-            return
-        def work():
-            r = NET.ajax('kjt_ch_fav')
-            return r.get('data') if r.get('success') else None
-        def done(d):
-            if not isinstance(d, dict):
-                return
-            acc = {str(k): row_of(v) for k, v in (d.get('fav') or {}).items() if isinstance(v, list)}
-            loc = self.favs(); first = not SET.get('ch_fav_joined')
-            out = dict(loc, **acc) if first else acc
-            SET.set('ch_fav', out); SET.set('ch_fav_joined', 1)
-            if first and any(k not in acc for k in loc):
-                self.fav_put(out)
-            self.draw_favs(); self.draw()
-        run_bg(work, done)
+        fav_sync(self)
 
     def star(self, r):
         b = Gtk.ToggleButton(active=self.is_fav(r['id']), valign=Gtk.Align.CENTER); b.add_css_class('flat'); b.add_css_class('kjt-ch-star')
@@ -289,11 +346,12 @@ class ChurchPage(Gtk.Box):
         run_bg(work, done)
 
     def refresh(self):
+        _PAGE[0] = self
+        self.fav_get()
         if self.loaded:
             return
         self.loaded = True
         self.load_index()
-        self.fav_get()
         if self.place:
             self.entry.set_text(self.place.get('label', '')); self.at(self.place['lat'], self.place['lon'], self.place.get('label', ''))
         else:
