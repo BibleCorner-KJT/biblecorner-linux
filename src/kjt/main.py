@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.27'
+VERSION = '2.28'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -212,6 +212,7 @@ class Window(Adw.ApplicationWindow):
         self.show('bible')
         GLib.idle_add(self.first_run)
         GLib.timeout_add(600, self.offer_continue)
+        GLib.timeout_add(3000, self.check_copy)
 
     # the pages
     def page(self, key):
@@ -441,6 +442,26 @@ class Window(Adw.ApplicationWindow):
             pass
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
+    def check_copy(self):
+        """2.28: a copy of the app that is not the one kept up to date (an old test build, branch "master") says so,
+        with the one line that removes it (the data stays: it belongs to the app, not to the copy)"""
+        try:
+            br = ''
+            for line in open('/.flatpak-info'):
+                if line.startswith('branch='):
+                    br = line.strip().split('=', 1)[1]
+            if not br or br == 'stable':
+                return False
+        except Exception:
+            return False
+        cmd = 'flatpak uninstall --user -y today.knowingjesus.KJT//%s; flatpak make-current --user today.knowingjesus.KJT stable' % br
+        d = Adw.AlertDialog(heading=_('This is an old copy of the app'),
+                            body=_('This copy does not receive updates. Your bookmarks, notes and reading stay: they belong to the app, not to this copy. Close the app, paste this line in a terminal, then restart the computer:') + '\n\n' + cmd)
+        d.add_response('copy', _('Copy the line')); d.add_response('ok', _('Later'))
+        d.connect('response', lambda _d, r: r == 'copy' and self.get_clipboard().set(cmd))
+        d.present(self)
+        return False
+
     def offer_continue(self):
         """a small bubble: back to the very verse where you stopped reading"""
         p = SET.get('place')
@@ -514,6 +535,8 @@ class Window(Adw.ApplicationWindow):
                 def fin(_):
                     if (STORE.kv('info') or {}).get('user'):
                         STUDY.sync()
+                        from .journey import JOURNEY   # 2.28: the reading journey too (it was only when the Study Journey page opened)
+                        JOURNEY.sync()
                     if 'today' in self.pages:
                         self.today.refresh()
                 run_bg(lambda: info(refresh=True), fin)

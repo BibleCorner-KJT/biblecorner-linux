@@ -330,24 +330,53 @@ class Journey:
         run_bg(work, done)
         return False
 
+    # 2.28: each account keeps its own reading journey on this computer (switching accounts swaps them; signing in
+    # takes along what was read before signing in; signing out keeps the account's record for the next time)
+    def _file(self, uid):
+        return os.path.join(CONF, 'journey-%s.json' % ''.join(ch for ch in str(uid) if ch.isalnum()))
+
+    def owner_check(self):
+        u = self.user(); uid = str(u['id']) if u and u.get('id') else 'guest'
+        own = SET.get('journey_owner')
+        if own is None:
+            SET.set('journey_owner', uid); return
+        if own == uid:
+            return
+        try:
+            with open(self._file(own) + '.tmp', 'w') as f:
+                json.dump(self.S, f)
+            os.replace(self._file(own) + '.tmp', self._file(own))
+        except Exception:
+            pass
+        try:
+            nxt = json.load(open(self._file(uid)))
+        except Exception:
+            nxt = None
+        if own == 'guest':
+            nxt = merge(nxt, self.S)
+        self.S = promote(merge(nxt, None), today())
+        SET.set('journey_owner', uid); self.save(send=False); self.changed()
+
     def sync(self, done=None):
         """send what waits, and bring in what was read on the other devices"""
+        self.owner_check()
         if not self.user():
             if done:
                 done()
             return
         def work():
-            if self.pending:
-                return self._post('save', json.loads(json.dumps(self.S)))
-            return self._post('get')
+            # 2.28: always the whole record, both ways: the website keeps what both have (nothing read is ever lost),
+            # so chapters marked here while signed out, or before an update, reach the account too
+            return self._post('save', json.loads(json.dumps(self.S)))
         def fin(r):
-            if isinstance(r, dict) and r.get('success'):
+            ok = isinstance(r, dict) and r.get('success')
+            if ok:
                 d = (r.get('data') or {}).get('data')
-                if self.pending:
-                    self.pending = False; SET.set('journey_unsent', False)
+                self.pending = False; SET.set('journey_unsent', False)
                 if d:
                     self.S = promote(merge(self.S, d), today()); self.save(send=False)
                 self.check(quiet=True); self.changed()
+            self.last_sync = (time.time(), bool(ok))
             if done:
                 done()
         run_bg(work, fin)
