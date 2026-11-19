@@ -131,6 +131,19 @@ class SettingsPage(Gtk.Box):
         g = Adw.PreferencesGroup(title=_('Help'))
         r = Adw.ActionRow(title=_('Report a problem'), activatable=True); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
         r.connect('activated', lambda *_a: self.win.get_application().activate_action('report', None)); g.add(r)
+        # 2.29: when the app says it is offline but the internet works, this shows why
+        cr = Adw.ActionRow(title=_('Check the connection to the website'), subtitle=_('If the app says you are offline while the internet works'), activatable=True)
+        cr.add_suffix(Gtk.Image(icon_name='network-wireless-symbolic'))
+        def check(*_a):
+            cr.set_subtitle(_('Checking…'))
+            def work():
+                NET.retry(); return NET.reach(timeout=15), getattr(NET, 'why', '')
+            def done(res):
+                ok, why = res if isinstance(res, tuple) else (False, str(res))
+                cr.set_subtitle(_('The website can be reached. Everything that needs the internet works again.') if ok
+                                else _('The website could not be reached:') + ' ' + (why or '?'))
+            run_bg(work, done)
+        cr.connect('activated', check); g.add(cr)
         r = Adw.ActionRow(title=_('On This Device'), subtitle=_('Everything downloaded, in the Library'), activatable=True); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
         r.connect('activated', lambda *_a: self.win.show('downloads')); g.add(r)
         self.add(g)

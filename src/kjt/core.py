@@ -6,7 +6,15 @@ Everything the app shows lives in one folder of your own (~/.var/app/today.knowi
 The website is asked only to fetch these (once, and for updates), to sign in, and to keep your study in step
 with My KJT.
 """
-import gzip, hashlib, http.cookiejar, json, os, sqlite3, threading, time, urllib.parse, urllib.request
+import gzip, hashlib, http.cookiejar, json, os, socket, sqlite3, sys, threading, time, urllib.error, urllib.parse, urllib.request
+
+# 2.29: try the website's IPv4 address first. On a computer whose IPv6 is broken (it has an address, but nothing
+# gets through), every request waited on IPv6 first and the app said it was offline; other computers were fine.
+_gai = socket.getaddrinfo
+def _gai4(*a, **k):
+    r = _gai(*a, **k)
+    return sorted(r, key=lambda x: 0 if x[0] == socket.AF_INET else 1)
+socket.getaddrinfo = _gai4
 from gi.repository import GLib, Gio
 
 SITE = os.environ.get('KJT_SITE', 'https://knowingjesus.today').rstrip('/')
@@ -302,12 +310,38 @@ class Net:
         self.down_until = 0
 
     def online(self):
+        """2.29: the computer's own network report is not trusted alone. On some computers (a VPN, a network
+        NetworkManager does not know, an older portal) it says "no network" while the internet works: then the
+        website itself is asked (a small, quick request, remembered for a minute)."""
         if time.time() < self.down_until:
             return False
         try:
-            return Gio.NetworkMonitor.get_default().get_network_available()
+            if Gio.NetworkMonitor.get_default().get_network_available():
+                return True
         except Exception:
             return True
+        now = time.time()
+        if now - getattr(self, 'probe_at', 0) < 60:
+            return getattr(self, 'probe_ok', False)
+        self.probe_at = now
+        self.probe_ok = self.reach()
+        return self.probe_ok
+
+    def reach(self, timeout=6):
+        """is the website really reachable? (the reason is kept in self.why when it is not)"""
+        try:
+            req = urllib.request.Request(SITE + '/wp-includes/images/blank.gif', headers={'User-Agent': UA}, method='HEAD')
+            self.op.open(req, timeout=timeout).read()
+            self.why = ''; return True
+        except urllib.error.HTTPError:
+            self.why = ''; return True          # the website answered: we are online
+        except Exception as e:
+            self.why = str(getattr(e, 'reason', e) or e)[:200]
+            return False
+
+    def retry(self):
+        """"Try again": forget that the website failed a moment ago"""
+        self.down_until = 0; self.probe_at = 0
 
     def get(self, url, data=None, timeout=40, strict=False, headers=None):
         if not url.startswith('http'):
@@ -326,6 +360,10 @@ class Net:
             # fails must not stop the rest, such as the church directory)
             if url.startswith(SITE) or url.startswith(AJAX):
                 self.down_until = time.time() + 15
+                try:
+                    self.why = str(sys.exc_info()[1])[:200]
+                except Exception:
+                    pass
             raise
         with self.lock:
             try:

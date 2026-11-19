@@ -18,6 +18,7 @@ CATS = [('bibles', 'Bibles', 'kjt-bible-symbolic', 'Read and search without the 
         ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic', 'Their writings, to read like books'),
         ('study', 'Study tools', 'kjt-dict-symbolic', 'Bible Dictionary, Bible Maps, the Fathers on each chapter, Greek and Hebrew')]
 NAMES = dict((c[0], c[1]) for c in CATS)
+KINDS = {'commentary': 'Commentary', 'dictionary': 'Dictionary', 'glossary': 'Glossary', 'daily': 'Daily readings', 'book': 'Book', 'map': 'Map', 'bible': 'Bible'}
 STUDY = [('dict', 'Bible Dictionary', 'Every entry, and every place of the maps', 'dictionary', 'kjt-dict-symbolic'),
          ('maps', 'Bible Maps', 'The land in its real colours, the places and the story maps', 'maps', 'kjt-map-symbolic'),
          ('commentary', 'The Holy Fathers on the Bible', 'Their commentary beside each chapter', 'fathers', 'kjt-cross-symbolic'),
@@ -115,6 +116,15 @@ def book_title(code, tr):
         return book_name(code, tr=tr)
     except Exception:
         return code
+
+
+class _Rows:
+    """collects the rows of one kind, to show 5 of a long list first"""
+    def __init__(self):
+        self.rows = []
+
+    def add(self, r):
+        self.rows.append(r)
 
 
 # ---------------------------------------------------------------- the downloads, at the bottom
@@ -277,10 +287,7 @@ class LibHub(Gtk.Box):
         return st
 
     def open_device(self):
-        tot, free = used_space()
-        up = Gtk.Button(icon_name='view-refresh-symbolic', tooltip_text=_('Update what is here') + ': ' + _('Fetches the newest corrections of the Bibles and books already on this computer. Nothing new is added.'))
-        up.connect('clicked', lambda *_a: self.update_here())
-        self.push('device', 'On This Device', _('Space used') + ': ' + mb(tot) + ((' · ' + _('free') + ': ' + mb(free)) if free else ''), self.fill_device, end=up)
+        self.push('device', 'On This Device', '', self.fill_device)
 
     def open_cat(self, key, mode='here'):
         if key == 'books':
@@ -338,17 +345,55 @@ class LibHub(Gtk.Box):
 
     # ---------- On This Device: everything, by kind
     def fill_device(self, add, st):
-        any_here = False
-        for key, title, icon, _sub in CATS:
-            g = Adw.PreferencesGroup(title=_(title))
-            n = getattr(self, 'here_' + key)(g, st, flat=True)
-            any_here = any_here or n
+        """2.29: tidier. At the top: the space and "Update everything here". Then only what is here, each kind with its
+        count and "Get more"; a long list shows 5 and "Show all". What is not here yet: one short list at the end."""
+        tot, free = used_space(); have = 0; empty = []; groups = []
+        for key, title, icon, _sub in CATS + [('games', 'Games', 'kjt-fun-symbolic', '')]:
+            c = _Rows()
+            n = self.games_row(c, device=True) if key == 'games' else getattr(self, 'here_' + key)(c, st, flat=True)
             if not n:
-                g.add(self.none_row(_('Nothing on this device yet')))
-            g.add(self.more_row(key))
+                empty.append(key); continue
+            have += n
+            g = Adw.PreferencesGroup(title='%s  ·  %d' % (_(title), n))
+            if key != 'games':
+                gm = Gtk.Button(label=_('Get more') + ' ›', valign=Gtk.Align.CENTER); gm.add_css_class('flat')
+                gm.connect('clicked', lambda *_a, key=key: self.open_cat(key, 'get')); g.set_header_suffix(gm)
+            rows = c.rows
+            for r in rows[:5] if len(rows) > 6 else rows:
+                g.add(r)
+            if len(rows) > 6:
+                more = Adw.ButtonRow(title=_('Show all') + ' (%d)' % len(rows)) if hasattr(Adw, 'ButtonRow') else Adw.ActionRow(title=_('Show all') + ' (%d)' % len(rows), activatable=True)
+                def show_all(*_a, g=g, rows=rows, more=more):
+                    g.remove(more)
+                    for r in rows[5:]:
+                        g.add(r)
+                more.connect('activated', show_all); g.add(more)
+            groups.append(g)
+        # the summary
+        g = Adw.PreferencesGroup()
+        row = Adw.ActionRow(title='<b>%s</b>' % esc('%d %s' % (have, _('items'))), use_markup=True,
+                            subtitle=esc(_('Space used') + ': ' + mb(tot) + ((' · ' + _('free') + ': ' + mb(free)) if free else '')))
+        row.add_prefix(Gtk.Image(icon_name='drive-harddisk-symbolic', pixel_size=32))
+        if have:
+            up = Gtk.Button(label=_('Update everything here'), valign=Gtk.Align.CENTER, tooltip_text=_('Fetches the newest corrections of the Bibles and books already on this computer. Nothing new is added.'))
+            up.add_css_class('pill'); up.connect('clicked', lambda *_a: self.update_here()); row.add_suffix(up)
+        g.add(row)
+        if free:
+            lb = Gtk.LevelBar(min_value=0, max_value=1, value=min(1.0, tot / float(tot + free)), margin_top=6, margin_bottom=2)
+            lb.remove_offset_value('low'); lb.remove_offset_value('high'); lb.remove_offset_value('full'); g.add(lb)
+        add(g)
+        for g in groups:
             add(g)
-        g = Adw.PreferencesGroup(title=_('Games'))
-        self.games_row(g); add(g)
+        if empty:
+            g = Adw.PreferencesGroup(title=_('Not on this device yet'))
+            for key in empty:
+                if key == 'games':
+                    self.games_row(g); continue
+                t, icon, sub = next((c[1], c[2], c[3]) for c in CATS if c[0] == key)
+                r = Adw.ActionRow(title=esc(_(t)), subtitle=esc(_(sub)), activatable=True); r.set_subtitle_lines(2)
+                r.add_prefix(Gtk.Image(icon_name=icon)); r.add_suffix(Gtk.Label(label=_('Get') + ' ›', css_classes=['dim-label']))
+                r.connect('activated', lambda *_a, key=key: self.open_cat(key, 'get')); g.add(r)
+            add(g)
 
     # ---------- a library: On This Device | Get more
     def fill_cat(self, key, add, st):
@@ -374,12 +419,10 @@ class LibHub(Gtk.Box):
         for tr in here_bibles():
             if q and q not in bible_name(tr).casefold():
                 continue
-            row = Adw.ActionRow(title=esc(bible_name(tr)), subtitle=esc('✓ %d %s' % (books_of.get(tr, 0), _('books'))))
-            rb = Gtk.Button(label=_('Read'), valign=Gtk.Align.CENTER); rb.add_css_class('flat')
-            rb.connect('clicked', lambda *_a, tr=tr: self.read_bible(tr)); row.add_suffix(rb)
-            if tr in vers:
-                row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), lambda tr=tr: self.get({'bibles': [tr], 'refresh': True})))
+            row = Adw.ActionRow(title=esc(bible_name(tr)), subtitle=esc('✓ %d %s' % (books_of.get(tr, 0), _('books'))), activatable=True, tooltip_text=_('Read'))
+            row.connect('activated', lambda *_a, tr=tr: self.read_bible(tr))
             row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda tr=tr: self.ask_delete(bible_name(tr), lambda: self.remove_bible(tr))))
+            row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
             g.add(row); n += 1
         return n
 
@@ -499,9 +542,10 @@ class LibHub(Gtk.Box):
         except Exception:
             return 0
         for c in here_books():
-            row = Adw.ActionRow(title=esc(c.get('Description') or c['_name']), subtitle=esc(c['_name'] + ' · ' + _(c['_kind'])), activatable=True)
+            row = Adw.ActionRow(title=esc(c.get('Description') or c['_name']), subtitle=esc(_(KINDS.get(c['_kind'], 'Book'))), activatable=True)
             row.connect('activated', lambda *_a, c=c: (self.open_books(), self.books.open(c)))
             row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda c=c: self.ask_delete(c.get('Description') or c['_name'], lambda: sword.remove(c))))
+            row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
             g.add(row); n += 1
         return n
 
@@ -519,6 +563,7 @@ class LibHub(Gtk.Box):
             row = Adw.ActionRow(title=esc(_(w.get('name') or w['id'])), subtitle=esc(self.father_sub(w, mb(os.path.getsize(fp)))), activatable=True)
             row.connect('activated', lambda *_a, w=w: self.read_father(w))
             row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda fp=fp, w=w: self.ask_delete(w.get('name') or w['id'], lambda: os.remove(fp))))
+            row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
             g.add(row); n += 1
         return n
 
@@ -574,8 +619,6 @@ class LibHub(Gtk.Box):
             p = os.path.join(FILES, folder)
             row = Adw.ActionRow(title=esc(_(title)), subtitle=esc(_(sub) + ' · ' + mb(size_of(p)))); row.set_subtitle_lines(2)
             row.add_prefix(Gtk.Image(icon_name=icon))
-            plan = self.study_plan(key)
-            row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), lambda plan=plan: self.get(dict(plan, refresh=True))))
             row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda p=p, title=title: self.ask_delete(_(title), lambda: shutil.rmtree(p, ignore_errors=True))))
             g.add(row); n += 1
         return n
@@ -592,17 +635,20 @@ class LibHub(Gtk.Box):
             g.add(self.none_row('✓ ' + _('Everything is on this device')))
 
     # Games (On This Device only)
-    def games_row(self, g):
+    def games_row(self, g, device=False):
+        """device=True: only when the games are here (returns 1), for the list of what is here"""
         gs = games_size(); here = gs > 2 * 1048576
-        row = Adw.ActionRow(title=esc(_('Good Fun games')), subtitle=esc(_('Every game, exactly as on the website, to play without the internet') + '\n' + ('✓ ' + _('On This Device') + ' · ' + mb(gs) if here else _('Not on this device'))))
-        row.set_subtitle_lines(3); row.add_prefix(Gtk.Image(icon_name='kjt-fun-symbolic'))
+        if device and not here:
+            return 0
+        row = Adw.ActionRow(title=esc(_('Good Fun games')), subtitle=esc(('✓ ' + _('On This Device') + ' · ' + mb(gs)) if here else _('Every game, exactly as on the website, to play without the internet')))
+        row.set_subtitle_lines(2); row.add_prefix(Gtk.Image(icon_name='kjt-fun-symbolic'))
         if here:
-            row.add_suffix(self.btn('view-refresh-symbolic', _('Fetch again (for corrections)'), lambda: self.get({'games': True, 'refresh': True})))
             from . import sitecache
             row.add_suffix(self.btn('user-trash-symbolic', _('Delete from this computer'), lambda: self.ask_delete(_('Good Fun games'), lambda: shutil.rmtree(sitecache.DIR, ignore_errors=True))))
         else:
             row.add_suffix(self.get_btn({'games': True}))
         g.add(row)
+        return 1
 
     # ---------- everything here, fetched again
     def update_here(self):
