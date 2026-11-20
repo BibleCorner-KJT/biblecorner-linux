@@ -141,6 +141,7 @@ class Audio(Gtk.Revealer):
         self.time.set_visible(not c)
         for b in (self.b_prev_v, self.b_next_v):
             b.set_visible(not c)
+        self.title.set_width_chars(5 if c else 12)   # 2.34: fits a phone's screen
 
     # ---------- where the recordings are
     def folder(self, tr, track=None):

@@ -165,12 +165,41 @@ class PrayPage(Gtk.Box):
         self.title = Gtk.Label(label=_('Prayer'), ellipsize=Pango.EllipsizeMode.END); self.title.add_css_class('heading')
         self.titlestack = Gtk.Stack(); self.titlestack.add_named(self.seg, 'seg'); self.titlestack.add_named(self.title, 'title')
         hb.set_title_widget(self.titlestack)
+        # 2.34: on a phone (narrow window) the three tabs get a row of their own under the top bar, full width
+        self.segrow = Gtk.Box(margin_start=8, margin_end=8, margin_top=6, margin_bottom=6, visible=False)
+        tv.add_top_bar(self.segrow)
+        for b in self.segs.values():
+            b.get_child().set_ellipsize(Pango.EllipsizeMode.END) if isinstance(b.get_child(), Gtk.Label) else None
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         c = Adw.Clamp(maximum_size=760); c.set_child(self.box)
         self.sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.sc.set_child(c); tv.set_content(self.sc)
         k = Gtk.EventControllerKey(); k.connect('key-pressed', lambda c, kv, *_a: (self.draw(), True)[1] if kv == Gdk.KEY_Escape and self.view else False)
         self.add_controller(k)
         self.segs['pray'].set_active(True)
+
+    def set_compact(self, c):
+        here = self.seg.get_parent()
+        want = self.segrow if c else self.titlestack
+        if here is not want:
+            if here is self.titlestack:
+                self.titlestack.remove(self.seg)
+            elif here is not None:
+                here.remove(self.seg)
+            if c:
+                self.segrow.append(self.seg); self.seg.set_hexpand(True); self.seg.set_homogeneous(True)
+            else:
+                self.seg.set_hexpand(False); self.seg.set_homogeneous(False); self.titlestack.add_named(self.seg, 'seg')
+        self.compact = c
+        self.sync_title()
+
+    def sync_title(self):
+        # the tabs show in the title (wide) or in their own row (narrow); a single prayer shows its title
+        c = getattr(self, 'compact', False)
+        self.segrow.set_visible(c and not self.view)
+        if c or self.view:
+            self.titlestack.set_visible_child_name('title')
+        elif self.titlestack.get_child_by_name('seg'):
+            self.titlestack.set_visible_child_name('seg')
 
     # data
     def key(self):
@@ -233,7 +262,7 @@ class PrayPage(Gtk.Box):
 
     # the three parts
     def draw(self):
-        self.view = None; self.back.set_visible(False); self.titlestack.set_visible_child_name('seg'); self.clear(); self.top()
+        self.view = None; self.back.set_visible(False); self.title.set_label(_('Prayer')); self.sync_title(); self.clear(); self.top()
         if self.tab == 'ask':
             return self.ask()
         d = self.data()
@@ -261,7 +290,7 @@ class PrayPage(Gtk.Box):
 
     def read(self, p):
         self.view = p.get('id') or p['title']; self.back.set_visible(True)
-        self.title.set_label(p['title']); self.titlestack.set_visible_child_name('title'); self.clear(); self.top()
+        self.title.set_label(p['title']); self.sync_title(); self.clear(); self.top()
         inner = self.card()
         head = Gtk.Box(spacing=12); e = Gtk.Label(label=p.get('icon') or '📿'); e.add_css_class('kjt-you-emo-big'); head.append(e)
         head.append(self.label(p['title'], 'kjt-you-big2')); inner.append(head)

@@ -55,6 +55,8 @@ class FathersPage(Gtk.Box):
         page = Adw.NavigationPage(title=_('The Holy Fathers'), tag='home')
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb); self.win.sidebar_button(hb)
         self.q = Gtk.SearchEntry(placeholder_text=_('Find a Father or a writing'), width_chars=22); hb.set_title_widget(self.q)
+        self.set_compact = lambda c: self.q.set_width_chars(10 if c else 22)   # 2.34: fits a phone
+        self.set_compact(getattr(self.win, 'compact', False))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin_top=18, margin_bottom=30, margin_start=16, margin_end=16)
         self.home_box = box
         self.q.connect('search-changed', lambda *_: self.fill_home())
@@ -72,6 +74,7 @@ class FathersPage(Gtk.Box):
         last = SET.get('lib_last')
         if last and last.get('a') in self.idx and not q:
             b = Gtk.Button(label=_('Continue reading: %s') % last.get('title', ''), halign=Gtk.Align.START); b.add_css_class('suggested-action'); b.add_css_class('pill')
+            b.get_child().set_ellipsize(Pango.EllipsizeMode.END)   # 2.34: a long title no longer pushes past a phone's screen
             b.connect('clicked', lambda *_: self.open_part(last['a'], last['w'], last['p'])); box.append(b)
         if not self.idx:
             box.append(Gtk.Label(label=_('The writings of the Holy Fathers are not on this computer yet. Choose Downloads in the sidebar.'), wrap=True, xalign=0))
@@ -128,7 +131,7 @@ class FathersPage(Gtk.Box):
                 v.append(Gtk.Label(label=x['name'], xalign=0, wrap=True, max_width_chars=24, css_classes=['heading']))
                 life = x.get('when') or META['life'].get(a, '')
                 n = len(x['works'])
-                v.append(Gtk.Label(label='%s%s%d writing%s' % (life, ' · ' if life else '', n, '' if n == 1 else 's'), xalign=0, css_classes=['dim-label', 'caption']))
+                v.append(Gtk.Label(label='%s%s%d writing%s' % (life, ' · ' if life else '', n, '' if n == 1 else 's'), xalign=0, wrap=True, css_classes=['dim-label', 'caption']))
                 tops = self.top_topics(a)
                 if tops:
                     v.append(Gtk.Label(label='  '.join(self.TOPIC[t][1] + ' ' + self.TOPIC[t][2] for t in tops[:3]), xalign=0, wrap=True, lines=2, max_width_chars=30, ellipsize=Pango.EllipsizeMode.END, css_classes=['caption']))

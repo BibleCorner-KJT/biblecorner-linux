@@ -49,6 +49,10 @@ class StudyPage(Gtk.Box):
             self.q.set_visible(t == 'study')
         self.vs.connect('notify::visible-child-name', tab); tab()
         tv.set_content(self.vs)
+        # 2.34: on a phone (narrow window) Journey and My Study move to a bar at the bottom, as phone apps do,
+        # so the search keeps room at the top
+        self.hb, self.sw = hb, sw
+        self.swbar = Adw.ViewSwitcherBar(stack=self.vs); tv.add_bottom_bar(self.swbar)
         self.wide = None
         self.box = self.right
         STUDY.listen(self.refresh)
@@ -61,6 +65,11 @@ class StudyPage(Gtk.Box):
         self.add_tick_callback(tick)
 
     WIDE = 700
+
+    def set_compact(self, c):
+        self.hb.set_title_widget(None if c else self.sw)
+        self.swbar.set_reveal(c)
+        self.q.set_hexpand(c)
 
     def save_dialog(self, name, write, done_text):
         fd = Gtk.FileDialog(initial_name=name)

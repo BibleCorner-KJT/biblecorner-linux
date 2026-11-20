@@ -618,7 +618,9 @@ class MapsPage(Gtk.Box):
         self.tab_a.connect('toggled', lambda b: b.get_active() and self.mode != 'atlas' and self.set_mode('atlas'))
         self.tab_p.connect('toggled', lambda b: b.get_active() and self.mode != 'places' and self.set_mode('places'))
         self.tab_s.connect('toggled', lambda b: b.get_active() and self.mode != 'stories' and self.set_mode('stories'))
-        tabs.append(self.tab_p); tabs.append(self.tab_s); tabs.append(self.tab_a)
+        tabs.append(self.tab_p); tabs.append(self.tab_s); tabs.append(self.tab_a); self.tabs = tabs
+        for b in (self.tab_p, self.tab_s, self.tab_a):
+            b.get_child().set_ellipsize(Pango.EllipsizeMode.END)   # 2.34: the three tabs fit a phone
         sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); sidebox.append(tabs); sidebox.append(ss)
         self.mode = ''
         self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, min_sidebar_width=300, max_sidebar_width=380, sidebar_width_fraction=0.3, show_sidebar=True)
@@ -634,6 +636,9 @@ class MapsPage(Gtk.Box):
         self.osv.set_collapsed(c)
         self.osv.set_show_sidebar(not c)
         self.credit.set_visible(not c)
+        # 2.34: on a phone the search and the three tabs take less room
+        self.q.set_width_chars(8 if c else 18)
+        self.tabs.set_homogeneous(c); self.tabs.set_halign(Gtk.Align.FILL if c else Gtk.Align.CENTER)
 
     def reveal(self):
         """on a small screen the panel slides over the map when there is something to read"""
@@ -698,6 +703,8 @@ class MapsPage(Gtk.Box):
     def set_mode(self, m):
         self.mode = m
         self.tab_p.set_label('📍 ' + M.T('tab_places')); self.tab_s.set_label('🧭 ' + M.T('tab_stories')); self.tab_a.set_label('🗺 ' + M.T('tab_atlas'))
+        for b in (self.tab_p, self.tab_s, self.tab_a):
+            if isinstance(b.get_child(), Gtk.Label): b.get_child().set_ellipsize(Pango.EllipsizeMode.END)
         {'places': self.tab_p, 'stories': self.tab_s, 'atlas': self.tab_a}.get(m, self.tab_p).set_active(True)
         self.stage.set_visible_child_name('atlas' if m == 'atlas' else 'map')
         self.clear_side(); self.mv.story = None; self.mv.stops = []; self.mv.sel = None; self.snav.set_visible(False)
