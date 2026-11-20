@@ -141,7 +141,7 @@ class DictPage(Gtk.Box):
         self.win = win
         self.kind = ''
         self.cur = None
-        self.split = Adw.NavigationSplitView(); self.split.set_vexpand(True); self.append(self.split)
+        self.split = Adw.NavigationSplitView(sidebar_width_unit=Adw.LengthUnit.PX); self.split.set_vexpand(True); self.append(self.split)
         # the list
         lt = Adw.ToolbarView(); lh = Adw.HeaderBar(); lt.add_top_bar(lh); win.sidebar_button(lh)
         lh.set_title_widget(Adw.WindowTitle(title=_('Bible Dictionary')))

@@ -152,7 +152,7 @@ class StudyPage(Gtk.Box):
         b = Gtk.Button(hexpand=True); b.add_css_class('flat')
         hb = Gtk.Box(spacing=8)
         arrow = Gtk.Image(icon_name='pan-down-symbolic' if open_ else 'pan-end-symbolic'); hb.append(arrow)
-        hb.append(Gtk.Label(label=title, xalign=0, css_classes=['heading']))
+        hb.append(Gtk.Label(label=title, xalign=0, css_classes=['heading'], ellipsize=Pango.EllipsizeMode.END))   # 2.36: fits a phone
         hb.append(Gtk.Label(label=str(count), css_classes=['dim-label']))
         b.set_child(hb); b.set_tooltip_text(_('Fold away or show')); head.append(b)
         if extra:

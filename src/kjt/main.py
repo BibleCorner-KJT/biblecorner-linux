@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.35'
+VERSION = '2.36'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -151,7 +151,7 @@ class Window(Adw.ApplicationWindow):
         self.compact = False
         self.pages = {}
         self.toasts = Adw.ToastOverlay()
-        self.split = Adw.OverlaySplitView(min_sidebar_width=220, max_sidebar_width=260)
+        self.split = Adw.OverlaySplitView(min_sidebar_width=220, max_sidebar_width=260, sidebar_width_unit=Adw.LengthUnit.PX)
         self.toasts.set_child(self.split)
         from .audio import Audio
         self.audio = Audio(self)

@@ -238,7 +238,9 @@ class TodayPage(Gtk.Box):
         title = '%s%s — %s %d:%d%s' % (r.get('src', ''), ' (%s)' % r['desc'] if r.get('desc') else '', book_name(book, tr=tr), c1, v1,
                                       ('–%d' % v2 if c2 == c1 else '–%d:%d' % (c2, v2)) if (c2, v2) != (c1, v1) else '')
         ex = Gtk.Expander(label=title, expanded=bool(r.get('main')) and SET.get('readings_open', True))
-        ex.get_label_widget().add_css_class('heading') if ex.get_label_widget() else None
+        lw = ex.get_label_widget()
+        if lw:
+            lw.add_css_class('heading'); lw.set_wrap(True); lw.set_xalign(0)   # 2.36: a long heading wraps on a phone
         inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=6, margin_start=6)
         rows = STORE.passage(tr, book, c1, v1, c2, v2) if tr else []
         if rows:

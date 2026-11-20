@@ -95,7 +95,7 @@ class BiblePage(Gtk.Box):
         self.hf_btn.connect('toggled', lambda b: self.toggle_fathers(b.get_active()))
 
         # the chapter, and beside it (or over it, on a small screen) the Holy Fathers or what was found
-        self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, show_sidebar=False, min_sidebar_width=300, max_sidebar_width=440, sidebar_width_fraction=0.36)
+        self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, show_sidebar=False, min_sidebar_width=300, max_sidebar_width=440, sidebar_width_fraction=0.36, sidebar_width_unit=Adw.LengthUnit.PX)   # 2.36: px, so larger text on a phone does not widen the window
         self.view = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD_CHAR, left_margin=28, right_margin=28,
                                  top_margin=18, bottom_margin=40, pixels_below_lines=6, pixels_inside_wrap=5)
         self.view.add_css_class('kjt-bible')
@@ -992,6 +992,7 @@ class BiblePage(Gtk.Box):
         n = len((d or {}).get('e', {}).get(str(self.ch), [])) if d else 0
         if n:
             b = Gtk.Button(label='☦ ' + _('The Holy Fathers on this chapter: %d') % n, halign=Gtk.Align.START); b.add_css_class('flat')
+            b.get_child().set_wrap(True); b.get_child().set_xalign(0)   # 2.36: wraps on a phone instead of widening the page
             b.connect('clicked', lambda *_: (setattr(self, 'sel', []), self.mark_selection(), self.hf_btn.set_active(True), self.side_show('hf')))
             self.info.append(b)
         self.info.set_visible(bool(self.info.get_first_child()))

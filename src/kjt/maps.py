@@ -623,7 +623,7 @@ class MapsPage(Gtk.Box):
             b.get_child().set_ellipsize(Pango.EllipsizeMode.END)   # 2.34: the three tabs fit a phone
         sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); sidebox.append(tabs); sidebox.append(ss)
         self.mode = ''
-        self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, min_sidebar_width=300, max_sidebar_width=380, sidebar_width_fraction=0.3, show_sidebar=True)
+        self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, min_sidebar_width=300, max_sidebar_width=380, sidebar_width_fraction=0.3, show_sidebar=True, sidebar_width_unit=Adw.LengthUnit.PX)
         # 2.8: the old atlases take the map's place while that tab is open
         self.stage = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE); self.stage.add_named(ov, 'map')
         self.atlas = AtlasView(); self.stage.add_named(self.atlas, 'atlas')
