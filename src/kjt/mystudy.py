@@ -506,24 +506,28 @@ class StudyPage(Gtk.Box):
         how = how or SET.get('signin_how', 'key')
         d = Adw.AlertDialog(heading=_('Sign in to My KJT'), body=_('Open your study with your study key, or with the name (or e-mail) and password of your account on knowingjesus.today.'))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        tabs = Gtk.Box(halign=Gtk.Align.CENTER); tabs.add_css_class('linked')
+        tabs = Gtk.Box(halign=Gtk.Align.FILL, homogeneous=True); tabs.add_css_class('linked')
         t_key = Gtk.ToggleButton(label=_('🔑 Study key'), active=how == 'key'); t_pw = Gtk.ToggleButton(label=_('Name and password'), group=t_key, active=how != 'key')
         tabs.append(t_key); tabs.append(t_pw); box.append(tabs)
-        stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, vhomogeneous=False)
+        for t in (t_key, t_pw):
+            t.get_child().set_ellipsize(Pango.EllipsizeMode.END)   # 2.38: the window fits a phone
+        # 2.38: two parts shown one at a time (a Stack kept the wider size and pushed the window past a phone's screen)
+        stack = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         # the study key
         kb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         key = Adw.PasswordEntryRow(title=_('Your study key  (KJT-XXXX-XXXX-XXXX-XXXX)'))
+        lbl_shorten(key)
         kl = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); kl.add_css_class('boxed-list'); kl.append(key); kb.append(kl)
-        kb.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label=_('Lost your study key? Get a new one on the website')))
-        stack.add_named(kb, 'key')
+        kb.append(wlink(NET_SITE() + '/my-kjt/', _('Lost your study key? Get a new one on the website')))
+        stack.append(kb)
         # name and password
         pb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         lg = Adw.EntryRow(title=_('Name or e-mail')); pw = Adw.PasswordEntryRow(title=_('Password'))
         lb = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); lb.add_css_class('boxed-list'); lb.append(lg); lb.append(pw); pb.append(lb)
-        pb.append(Gtk.LinkButton(uri=NET_SITE() + '/wp-login.php?action=lostpassword', label=_('Forgot your password?')))
-        stack.add_named(pb, 'pw')
+        pb.append(wlink(NET_SITE() + '/wp-login.php?action=lostpassword', _('Forgot your password?')))
+        stack.append(pb)
         box.append(stack)
-        box.append(Gtk.LinkButton(uri=NET_SITE() + '/my-kjt/', label=_('No study yet? Make one on the website (a study key needs no e-mail)')))
+        box.append(wlink(NET_SITE() + '/my-kjt/', _('No study yet? Make one on the website (a study key needs no e-mail)')))
         d.set_extra_child(box)
         d.add_response('cancel', 'Cancel'); d.add_response('go', 'Sign in'); d.set_response_appearance('go', Adw.ResponseAppearance.SUGGESTED)
         d.set_default_response('go'); d.set_close_response('cancel')
@@ -537,7 +541,7 @@ class StudyPage(Gtk.Box):
                 ok = bool(lg.get_text().strip() and pw.get_text())
             d.set_response_enabled('go', ok)
         def switch(*_):
-            stack.set_visible_child_name(mode()); SET.set('signin_how', mode()); check()
+            kb.set_visible(mode() == 'key'); pb.set_visible(mode() == 'pw'); SET.set('signin_how', mode()); check()
             GLib.idle_add(lambda: ((key if mode() == 'key' else lg).grab_focus(), False)[1])
         t_key.connect('toggled', switch); t_pw.connect('toggled', switch)
         for e in (key, lg, pw):
@@ -679,7 +683,7 @@ def edit(win, r, focus='note'):
     box.append(Gtk.Label(label=_('Note'), xalign=0, css_classes=['heading']))
     tvw = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, top_margin=8, bottom_margin=8, left_margin=8, right_margin=8)
     tvw.get_buffer().set_text(r.get('note') or '')
-    sc = Gtk.ScrolledWindow(min_content_height=130, min_content_width=300); sc.set_child(tvw); sc.add_css_class('card'); box.append(sc)
+    sc = Gtk.ScrolledWindow(min_content_height=130, min_content_width=240); sc.set_child(tvw); sc.add_css_class('card'); box.append(sc)
     # Study Pads
     box.append(Gtk.Label(label=_('Study Pads'), xalign=0, css_classes=['heading'], margin_top=4))
     fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=2, min_children_per_line=1, column_spacing=6)
@@ -723,3 +727,23 @@ def edit(win, r, focus='note'):
 def NET_SITE():
     from .core import SITE
     return SITE
+
+
+def wlink(uri, text):
+    """2.38: a link whose text goes onto more lines when there is no room (the sign-in window on a phone)"""
+    b = Gtk.LinkButton(uri=uri, label=text)
+    ch = b.get_child()
+    if isinstance(ch, Gtk.Label):
+        ch.set_wrap(True); ch.set_justify(Gtk.Justification.CENTER); ch.set_max_width_chars(40)
+    return b
+
+
+def lbl_shorten(row):
+    """2.38: the title of an entry row shortens with … instead of widening its window"""
+    def walk(w):
+        if isinstance(w, Gtk.Label):
+            w.set_ellipsize(Pango.EllipsizeMode.END)
+        k = w.get_first_child()
+        while k:
+            walk(k); k = k.get_next_sibling()
+    walk(row)

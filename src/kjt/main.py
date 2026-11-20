@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.37'
+VERSION = '2.38'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -516,7 +516,7 @@ class Window(Adw.ApplicationWindow):
         for l in LANGS:
             cb = Gtk.CheckButton(label=LANG_NAMES[l], active=(l == 'en')); checks[l] = cb; flow.append(cb)
         box.append(flow)
-        allr = Gtk.CheckButton(label=_('Also the Holy Fathers\' writings and commentary (about 60 MB)'), active=True, margin_top=8)
+        allr = Gtk.CheckButton(active=True, margin_top=8); allr.set_child(Gtk.Label(label=_('Also the Holy Fathers\' writings and commentary (about 60 MB)'), wrap=True, xalign=0))   # 2.38: wraps on a phone
         allr.get_last_child().set_wrap(True) if isinstance(allr.get_last_child(), Gtk.Label) else None
         box.append(allr)
         d.set_extra_child(box)
