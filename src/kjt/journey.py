@@ -559,6 +559,14 @@ def lab(text, *cls, wrap=True, x=0, sel=False):
     return l
 
 
+def wrap_row():
+    """2.37: a row of buttons that goes onto two lines when there is no room (a phone) instead of widening the page"""
+    fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, min_children_per_line=1, max_children_per_line=4,
+                     column_spacing=8, row_spacing=8, homogeneous=False, hexpand=True, halign=Gtk.Align.FILL)
+    fb.append_btn = lambda b: (b.set_halign(Gtk.Align.START), fb.append(b))
+    return fb
+
+
 def btn(text, fn, *cls):
     b = Gtk.Button(label=text)
     for c in cls:
@@ -678,11 +686,11 @@ class JourneyView(Gtk.Box):
         else:
             c.append(lab(T('Read the whole Bible, one chapter at a time'), 'kjj-card-title'))
             c.append(lab(T('Choose a reading plan, or simply continue from where you are. Tap “Mark as read” under each chapter.'), 'dim-label'))
-            row = Gtk.Box(spacing=8)
+            row = wrap_row()
             nu = J.next_unread()
             if nu:
-                row.append(btn(T('Continue with') + ' ' + label(nu) + ' →', lambda: self.open_chapter(nu), 'kjj-btn'))
-            row.append(btn(T('Choose a reading plan'), lambda: self.go_tab('plans'), 'kjj-ghost'))
+                row.append_btn(btn(T('Continue with') + ' ' + label(nu) + ' →', lambda: self.open_chapter(nu), 'kjj-btn'))
+            row.append_btn(btn(T('Choose a reading plan'), lambda: self.go_tab('plans'), 'kjj-ghost'))
             c.append(row)
         # the Church readings marked as read (Today with God)
         ch = S.get('church') or {}
@@ -824,10 +832,10 @@ class JourneyView(Gtk.Box):
         self.box.append(grp)
         self.box.append(lab(T('Your reading journey is saved privately to your account and follows you to any device where you sign in. It is never shown publicly.') if J.user()
                             else T('Your reading journey is saved privately on this computer. To keep it on all your devices, sign in (My study): your progress will be moved into it.'), 'dim-label'))
-        row = Gtk.Box(spacing=8)
-        row.append(btn('⬇️ ' + T('Download my reading record'), self.export, 'kjj-ghost'))
-        row.append(btn('⬆️ ' + T('Bring in a reading record'), self.import_, 'kjj-ghost'))
-        dl = btn(T('Delete my reading history'), self.delete, 'flat'); dl.add_css_class('error'); row.append(dl)
+        row = wrap_row()
+        row.append_btn(btn('⬇️ ' + T('Download my reading record'), self.export, 'kjj-ghost'))
+        row.append_btn(btn('⬆️ ' + T('Bring in a reading record'), self.import_, 'kjj-ghost'))
+        dl = btn(T('Delete my reading history'), self.delete, 'flat'); dl.add_css_class('error'); row.append_btn(dl)
         self.box.append(row)
 
     def export(self):
