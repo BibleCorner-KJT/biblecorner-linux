@@ -1,4 +1,6 @@
 """2.27: the Library, in one place.
+2.35: its first page is two columns, "On This Device" and "More Online" (two tabs on a phone): what is downloaded
+moves from More Online to On This Device, what is deleted goes back. The pages of each library stay for links.
 
 At the top, "On This Device": one page with everything kept on this computer (Bibles, Audio Bibles, Books,
 The Holy Fathers, Study tools, Games), its size, Delete, and "Update what is here".
@@ -197,16 +199,48 @@ class LibHub(Gtk.Box):
         self.books = None
         self.subs = {}          # tag -> {'fill': fn}
         self.was_busy = False
-        # the first page
+        # 2.35: the first page is two columns, "On This Device" and "More Online": what you download moves from
+        # the right column to the left one; what you delete goes back. On a phone: the same two lists as two tabs.
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
         hb.set_title_widget(Adw.WindowTitle(title=_('Library'), subtitle=_('Everything here is free')))
-        sc = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        cl = Adw.Clamp(maximum_size=760); self.home = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18, margin_top=12, margin_bottom=24, margin_start=12, margin_end=12)
-        cl.set_child(self.home); sc.set_child(cl); tv.set_content(sc)
+        self.search = Gtk.SearchEntry(placeholder_text=_('Find'), width_chars=12); hb.pack_end(self.search)
+        self.search.connect('search-changed', lambda *_a: self.refresh_home())
+        self.hst = {'mode': 'home', 'q': self.search}
+        self.tab = 'here'
+        self.tabrow = Gtk.Box(margin_start=10, margin_end=10, margin_top=6, margin_bottom=2, homogeneous=True, visible=False); self.tabrow.add_css_class('linked')
+        self.t_here = Gtk.ToggleButton(active=True); self.t_more = Gtk.ToggleButton(group=self.t_here)
+        self.t_here.connect('toggled', lambda b: b.get_active() and self.set_tab('here'))
+        self.t_more.connect('toggled', lambda b: b.get_active() and self.set_tab('more'))
+        self.tabrow.append(self.t_here); self.tabrow.append(self.t_more); tv.add_top_bar(self.tabrow)
+        self.cols = Gtk.Box(homogeneous=True, vexpand=True)
+        self.left = Adw.PreferencesPage(); self.right = Adw.PreferencesPage(); self.left_groups = []; self.right_groups = []
+        self.lcol = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self.rcol = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.lhead = Gtk.Label(xalign=0, margin_start=24, margin_top=14, css_classes=['title-3']); self.rhead = Gtk.Label(xalign=0, margin_start=24, margin_top=14, css_classes=['title-3'])
+        self.lcol.append(self.lhead); self.lcol.append(self.left); self.rcol.append(self.rhead); self.rcol.append(self.right)
+        self.left.set_vexpand(True); self.right.set_vexpand(True)
+        self.cols.append(self.lcol); self.cols.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)); self.cols.append(self.rcol)
+        self.cols.set_homogeneous(False); self.lcol.set_hexpand(True); self.rcol.set_hexpand(True)
+        tv.set_content(self.cols)
         self.nav.add(Adw.NavigationPage(title=_('Library'), child=tv, tag='home'))
         self.nav.connect('popped', lambda *_a: GLib.idle_add(self.refresh_home))
+        self.compact = False
+        self.dl_sig = None; self.dl_bars = {}
         DL.listen(self.on_dl)
         self.dev_row = None
+
+    def set_compact(self, c):
+        self.compact = c
+        self.tabrow.set_visible(c)
+        self.search.set_width_chars(5 if c else 12)
+        self.lhead.set_visible(not c); self.rhead.set_visible(not c)
+        self.cols.get_first_child().get_next_sibling().set_visible(not c)
+        self.set_tab(self.tab)
+
+    def set_tab(self, t):
+        self.tab = t
+        self.lcol.set_visible(not self.compact or t == 'here')
+        self.rcol.set_visible(not self.compact or t == 'more')
+        (self.t_here if t == 'here' else self.t_more).set_active(True)
 
     # ---------- the first page
     def refresh(self):
@@ -217,39 +251,43 @@ class LibHub(Gtk.Box):
             self.subs[tag]['fill']()
 
     def refresh_home(self):
-        while self.home.get_first_child():
-            self.home.remove(self.home.get_first_child())
-        n = here_counts(); tot, free = used_space()
-        g = Adw.PreferencesGroup()
-        row = Adw.ActionRow(title='<b>' + esc(_('On This Device')) + '</b>', activatable=True, use_markup=True)
-        row.set_subtitle(esc(_('%d items') % sum(n.values()) + ' · ' + _('Space used') + ': ' + mb(tot) + ((' · ' + _('free') + ': ' + mb(free)) if free else '')))
-        row.add_prefix(Gtk.Image(icon_name='drive-harddisk-symbolic', pixel_size=32))
-        self.dev_bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, visible=False); self.dev_bar.set_size_request(120, -1); row.add_suffix(self.dev_bar)
-        row.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
-        row.add_css_class('kjt-ondevice-row')
-        row.connect('activated', lambda *_a: self.open_device())
-        self.dev_row = row
-        g.add(row); self.home.append(g)
-        g = Adw.PreferencesGroup(title=_('Libraries'))
-        for key, title, icon, sub in CATS:
-            r = Adw.ActionRow(title=esc(_(title)), activatable=True)
-            have = n.get(key, 0)
-            r.set_subtitle(esc(_(sub) + '\n' + ('✓ %d %s' % (have, _('on this device')) if have else _('Nothing on this device yet'))))
-            r.set_subtitle_lines(3)
-            r.add_prefix(Gtk.Image(icon_name=icon, pixel_size=24)); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
-            r.connect('activated', lambda _r, key=key: self.open_cat(key))
-            g.add(r)
-        self.home.append(g)
-        self.on_dl(DL)
+        for g in self.left_groups:
+            self.left.remove(g)
+        for g in self.right_groups:
+            self.right.remove(g)
+        self.left_groups = []; self.right_groups = []; self.dl_bars = {}
+        def addl(g):
+            self.left.add(g); self.left_groups.append(g)
+        def addr(g):
+            self.right.add(g); self.right_groups.append(g)
+        have = self.fill_device(addl, self.hst)
+        self.fill_online(addr, self.hst)
+        self.lhead.set_label(_('On This Device')); self.rhead.set_label(_('More Online'))
+        self.t_here.set_label(_('On This Device') + (' · %d' % have if have else '')); self.t_more.set_label(_('More Online'))
+        for b in (self.t_here, self.t_more):
+            if isinstance(b.get_child(), Gtk.Label):
+                b.get_child().set_ellipsize(3)
+        self.dl_sig = self.sig(DL)
+        return False
+
+    def sig(self, dl):
+        return tuple((id(j), j.state) for j in dl.jobs)
 
     def on_dl(self, dl):
         busy = dl.busy
-        if self.dev_row is not None:
-            try:
-                self.dev_bar.set_visible(busy); self.dev_bar.set_fraction(overall(dl))
-                self.dev_bar.set_show_text(busy); self.dev_bar.set_text(_('Downloading') + ' %d%%' % int(100 * overall(dl)))
-            except Exception:
-                pass
+        # something started, finished or stopped: both columns again (what finished moves to On This Device)
+        s = self.sig(dl)
+        if s != self.dl_sig:
+            self.dl_sig = s
+            GLib.idle_add(self.refresh_home)
+        else:
+            for j in dl.jobs:
+                b = self.dl_bars.get(id(j))
+                if b:
+                    try:
+                        b[0].set_fraction(j.fraction()); b[1].set_subtitle(esc(('%d%%' % int(100 * j.fraction())) if j.total else _('Starting…')))
+                    except Exception:
+                        pass
         if self.was_busy and not busy:
             GLib.idle_add(lambda: (self.refresh(), False)[1])
         self.was_busy = busy
@@ -341,33 +379,33 @@ class LibHub(Gtk.Box):
         r.connect('activated', lambda *_a: self.open_cat(key, 'get')); return r
 
     def none_row(self, text):
-        r = Adw.ActionRow(title=esc(text)); r.add_css_class('dim-label'); return r
+        r = Adw.ActionRow(title=esc(text)); r.add_css_class('dim-label'); r.add_css_class('kjt-lib-none'); return r
 
-    # ---------- On This Device: everything, by kind
+    # ---------- the two columns
+    def short(self, g, rows, first=5):
+        """a long list shows 5 and "Show all (N)" """
+        for r in rows[:first] if len(rows) > first + 1 else rows:
+            g.add(r)
+        if len(rows) > first + 1:
+            more = Adw.ButtonRow(title=_('Show all') + ' (%d)' % len(rows)) if hasattr(Adw, 'ButtonRow') else Adw.ActionRow(title=_('Show all') + ' (%d)' % len(rows), activatable=True)
+            def show_all(*_a, g=g, rows=rows, more=more):
+                g.remove(more)
+                for r in rows[first:]:
+                    g.add(r)
+            more.connect('activated', show_all); g.add(more)
+
     def fill_device(self, add, st):
-        """2.29: tidier. At the top: the space and "Update everything here". Then only what is here, each kind with its
-        count and "Get more"; a long list shows 5 and "Show all". What is not here yet: one short list at the end."""
-        tot, free = used_space(); have = 0; empty = []; groups = []
+        """On This Device: the space and "Update everything here", what is downloading now, then what is here, by kind.
+        Returns how many things are here."""
+        tot, free = used_space(); have = 0; groups = []
         for key, title, icon, _sub in CATS + [('games', 'Games', 'kjt-fun-symbolic', '')]:
             c = _Rows()
             n = self.games_row(c, device=True) if key == 'games' else getattr(self, 'here_' + key)(c, st, flat=True)
             if not n:
-                empty.append(key); continue
+                continue
             have += n
             g = Adw.PreferencesGroup(title='%s  ·  %d' % (_(title), n))
-            if key != 'games':
-                gm = Gtk.Button(label=_('Get more') + ' ›', valign=Gtk.Align.CENTER); gm.add_css_class('flat')
-                gm.connect('clicked', lambda *_a, key=key: self.open_cat(key, 'get')); g.set_header_suffix(gm)
-            rows = c.rows
-            for r in rows[:5] if len(rows) > 6 else rows:
-                g.add(r)
-            if len(rows) > 6:
-                more = Adw.ButtonRow(title=_('Show all') + ' (%d)' % len(rows)) if hasattr(Adw, 'ButtonRow') else Adw.ActionRow(title=_('Show all') + ' (%d)' % len(rows), activatable=True)
-                def show_all(*_a, g=g, rows=rows, more=more):
-                    g.remove(more)
-                    for r in rows[5:]:
-                        g.add(r)
-                more.connect('activated', show_all); g.add(more)
+            self.short(g, c.rows)
             groups.append(g)
         # the summary
         g = Adw.PreferencesGroup()
@@ -375,25 +413,74 @@ class LibHub(Gtk.Box):
                             subtitle=esc(_('Space used') + ': ' + mb(tot) + ((' · ' + _('free') + ': ' + mb(free)) if free else '')))
         row.add_prefix(Gtk.Image(icon_name='drive-harddisk-symbolic', pixel_size=32))
         if have:
-            up = Gtk.Button(label=_('Update everything here'), valign=Gtk.Align.CENTER, tooltip_text=_('Fetches the newest corrections of the Bibles and books already on this computer. Nothing new is added.'))
-            up.add_css_class('pill'); up.connect('clicked', lambda *_a: self.update_here()); row.add_suffix(up)
+            up = Gtk.Button(icon_name='kjt-refresh-symbolic', valign=Gtk.Align.CENTER, tooltip_text=_('Update everything here') + '\n' + _('Fetches the newest corrections of the Bibles and books already on this computer. Nothing new is added.'))
+            up.add_css_class('flat'); up.connect('clicked', lambda *_a: self.update_here()); row.add_suffix(up)
         g.add(row)
         if free:
             lb = Gtk.LevelBar(min_value=0, max_value=1, value=min(1.0, tot / float(tot + free)), margin_top=6, margin_bottom=2)
             lb.remove_offset_value('low'); lb.remove_offset_value('high'); lb.remove_offset_value('full'); g.add(lb)
         add(g)
+        # what is coming now: it shows here at once, with its progress
+        jobs = [j for j in DL.jobs if j.state in ('waiting', 'running')]
+        if jobs:
+            g = Adw.PreferencesGroup(title=_('Downloading'))
+            for j in jobs:
+                r = Adw.ActionRow(title=esc(translate_title(j.title)), subtitle=esc(_('Waiting its turn') if j.state == 'waiting' else ('%d%%' % int(100 * j.fraction())) if j.total else _('Starting…')))
+                bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER, fraction=j.fraction()); bar.set_size_request(80, -1); r.add_suffix(bar)
+                stop = self.btn('kjt-close-symbolic', _('Stop'), lambda j=j: DL.cancel(j)); r.add_suffix(stop)
+                g.add(r); self.dl_bars[id(j)] = (bar, r)
+            add(g)
         for g in groups:
             add(g)
-        if empty:
-            g = Adw.PreferencesGroup(title=_('Not on this device yet'))
-            for key in empty:
-                if key == 'games':
-                    self.games_row(g); continue
-                t, icon, sub = next((c[1], c[2], c[3]) for c in CATS if c[0] == key)
-                r = Adw.ActionRow(title=esc(_(t)), subtitle=esc(_(sub)), activatable=True); r.set_subtitle_lines(2)
-                r.add_prefix(Gtk.Image(icon_name=icon)); r.add_suffix(Gtk.Label(label=_('Get') + ' ›', css_classes=['dim-label']))
-                r.connect('activated', lambda *_a, key=key: self.open_cat(key, 'get')); g.add(r)
-            add(g)
+        if not have and not jobs:
+            g = Adw.PreferencesGroup(); g.add(self.none_row(_('Nothing on this device yet'))); add(g)
+        return have
+
+    def fill_online(self, add, st):
+        """More Online: everything not on this device yet, by kind; Download moves it to On This Device"""
+        shown = 0
+        if not NET.online():
+            g = Adw.PreferencesGroup(); g.add(self.none_row(_('The list comes with the internet.'))); add(g)
+        for key, title, icon, _sub in CATS + [('games', 'Games', 'kjt-fun-symbolic', '')]:
+            c = _Rows(); extra = []
+            if key == 'games':
+                if games_size() > 2 * 1048576:
+                    continue
+                self.games_row(c)
+            elif key == 'books':
+                r = Adw.ActionRow(title=esc(_('Books')), subtitle=esc(_(_sub)), activatable=True); r.set_subtitle_lines(2)
+                r.add_prefix(Gtk.Image(icon_name=icon)); r.add_suffix(Gtk.Image(icon_name='go-next-symbolic'))
+                r.connect('activated', lambda *_a: self.open_books('get')); c.add(r)
+            else:
+                getattr(self, 'get_' + key)(c, st, extra.append)
+            rows = [r for r in c.rows if 'kjt-lib-none' not in r.get_css_classes()]
+            if not rows and not extra:
+                continue
+            g = Adw.PreferencesGroup(title=_(title))
+            self.short(g, rows)
+            for x in extra:          # e.g. "More Bibles from CrossWire and AndBible"
+                r = x.get_row(0) if hasattr(x, 'get_row') else None
+                ch = x
+                rr = []
+                # move the rows of that small group into this one
+                lb = None
+                def walk(w):
+                    nonlocal lb
+                    if isinstance(w, Gtk.ListBox):
+                        lb = w; return
+                    k = w.get_first_child()
+                    while k and lb is None:
+                        walk(k); k = k.get_next_sibling()
+                walk(ch)
+                if lb is not None:
+                    k = lb.get_first_child()
+                    while k:
+                        nx = k.get_next_sibling(); rr.append(k); k = nx
+                    for r in rr:
+                        ch.remove(r); g.add(r)
+            add(g); shown += 1
+        if not shown:
+            g = Adw.PreferencesGroup(); g.add(self.none_row('✓ ' + _('Everything is on this device'))); add(g)
 
     # ---------- a library: On This Device | Get more
     def fill_cat(self, key, add, st):
@@ -503,6 +590,7 @@ class LibHub(Gtk.Box):
                     s = self.subs.get('cat-audio')
                     if s and s['st']['mode'] == 'get':
                         s['fill']()
+                    self.refresh_home()
                 run_bg(work, done)
             return
         if not al:
@@ -588,6 +676,7 @@ class LibHub(Gtk.Box):
                     s = self.subs.get('cat-fathers')
                     if s and s['st']['mode'] == 'get':
                         s['fill']()
+                    self.refresh_home()
                 run_bg(work, done)
             idx = local
             if not idx:

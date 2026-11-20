@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.35" date="2026-11-20"><description><p>The Library is two columns: On This Device and More Online (two tabs on a phone). What you download moves from More Online to On This Device, and shows there at once with its progress; what you delete goes back. One search box finds in both.</p></description></release>
     <release version="2.34" date="2026-11-20"><description><p>The app now also runs on Linux phones and other ARM devices (such as the Fairphone 5 with postmarketOS), from the same channel. Every page fits a phone's screen: the Prayer tabs get their own row, Journey and My Study move to a bar at the bottom, and the Maps, Fathers and Settings pages take less room.</p></description></release>
     <release version="2.33" date="2026-11-19"><description><p>The Bible opens at the very verse where you stopped reading, not only at the chapter, every time the app starts.</p></description></release>
     <release version="2.32" date="2026-11-19"><description><p>Churches near me opens again: a church in My churches kept with fewer details (by an older version, or from another device) stopped the page from opening; now every one is completed or left out. A page that cannot open now says why, with Report a problem, instead of doing nothing.</p></description></release>
