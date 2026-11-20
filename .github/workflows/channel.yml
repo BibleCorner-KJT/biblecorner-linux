@@ -14,13 +14,42 @@ concurrency:
   group: channel
   cancel-in-progress: true
 jobs:
+  # 2.34: the same app for ARM (Linux phones such as the Fairphone 5 with postmarketOS, Raspberry Pi, ARM laptops).
+  # Built on GitHub's ARM machine; the channel then holds both, and each device installs the one that fits it.
+  # If this part fails, the PC version is still published as before.
+  arm:
+    runs-on: ubuntu-24.04-arm
+    continue-on-error: true
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for ARM
+        run: |
+          set -e
+          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --disable-rofiles-fuse --force-clean --default-branch=stable --arch=aarch64 \
+            --install-deps-from=flathub --repo=repo-arm build today.knowingjesus.KJT.yml
+          tar -cf repo-arm.tar repo-arm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repo-arm
+          path: repo-arm.tar
+          retention-days: 1
   build:
+    needs: arm
+    if: always()
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
       options: --privileged
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: repo-arm
       - name: Build and sign
         env:
           GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
@@ -33,6 +62,15 @@ jobs:
           flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak-builder --disable-rofiles-fuse --force-clean --default-branch=stable \
             --gpg-sign="$FPR" --gpg-homedir="$GNUPGHOME" --repo=repo build today.knowingjesus.KJT.yml
+          # the ARM version (when its build worked) joins the same channel, signed with the same key
+          HAVE_ARM=0
+          if [ -f repo-arm.tar ] && tar -xf repo-arm.tar; then
+            for R in $(ostree refs --repo=repo-arm | grep '/aarch64/'); do
+              flatpak build-commit-from --src-repo=repo-arm --gpg-sign="$FPR" --gpg-homedir="$GNUPGHOME" --no-update-summary repo "$R"
+            done
+            ostree refs --repo=repo | grep -q '^app/today.knowingjesus.KJT/aarch64/' && HAVE_ARM=1
+          fi
+          echo "ARM version in the channel: $HAVE_ARM"
           flatpak build-update-repo --generate-static-deltas --prune --title="Bible Corner - KJT" --default-branch=stable \
             --gpg-sign="$FPR" --gpg-homedir="$GNUPGHOME" repo
           KEY=$(base64 -w0 channel/kjt-channel.gpg)
@@ -77,8 +115,16 @@ jobs:
           flatpak build-bundle --repo-url=$URL/repo/ --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo --gpg-keys=channel/kjt-channel.gpg \
             repo "site/Bible Corner - KJT $VER (Linux).flatpak" today.knowingjesus.KJT stable
           cp "site/Bible Corner - KJT $VER (Linux).flatpak" site/bible-corner-kjt-linux.flatpak
+          # 2.34: the one-file install for ARM devices (Linux phones), when the ARM version was built
+          if [ "$HAVE_ARM" = 1 ]; then
+            flatpak build-bundle --arch=aarch64 --repo-url=$URL/repo/ --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo --gpg-keys=channel/kjt-channel.gpg \
+              repo "site/Bible Corner - KJT $VER (Linux ARM).flatpak" today.knowingjesus.KJT stable
+            cp "site/Bible Corner - KJT $VER (Linux ARM).flatpak" site/bible-corner-kjt-linux-arm.flatpak
+            printf '{"version":"%s","ref":"Bible Corner - KJT %s (Linux).flatpakref","arm":"Bible Corner - KJT %s (Linux ARM).flatpak"}\n' "$VER" "$VER" "$VER" > site/linux.json
+          fi
           # the same file kept in the branch "bundle" (only the newest), for sending it directly
           mkdir -p bundle-tmp && cp "site/Bible Corner - KJT $VER (Linux).flatpak" bundle-tmp/
+          [ "$HAVE_ARM" = 1 ] && cp "site/Bible Corner - KJT $VER (Linux ARM).flatpak" bundle-tmp/
           ( cd bundle-tmp && git init -q -b bundle && git add -A && git -c user.email=ci@local -c user.name=CI commit -qm "Linux $VER bundle" \
             && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" bundle ) || echo "bundle branch not updated"
           rm -rf bundle-tmp
