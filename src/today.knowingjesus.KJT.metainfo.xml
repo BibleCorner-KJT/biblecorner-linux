@@ -6,10 +6,10 @@
   <name>Bible Corner - KJT</name>
   <summary>Holy Bible and the Orthodox faith</summary>
   <description>
-    <p>Bible Corner - KJT (Knowing Jesus Today) is a Bible reader for Linux: read the Holy Bible with the Orthodox faith, study it with the Holy Fathers, and keep it all on your computer, to read also without the internet.</p>
+    <p>Bible Corner - KJT (Knowing Jesus Today) is a Bible reader for Linux: read the Holy Bible with the Orthodox faith, study it with the Church Fathers, and keep it all on your computer, to read also without the internet.</p>
     <ul>
       <li>The Holy Bible in many languages, with search, comparison, cross-references and the Greek and Hebrew words</li>
-      <li>The Holy Fathers beside every chapter, and their writings to read like books, by topic and by era</li>
+      <li>The Church Fathers beside every chapter, and their writings to read like books, by topic and by era</li>
       <li>Bookmarks, colours, notes and Study Pads, kept in step with your phone and the website when you sign in</li>
       <li>A library of free Bibles, commentaries, dictionaries and books from CrossWire and AndBible, the Septuagint and the Church Fathers first</li>
       <li>The Bible Maps in the land's real colours, with story maps such as the journeys of St Paul</li>
@@ -25,11 +25,11 @@
   <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/reader.png</image>
-      <caption>The Holy Bible, with the Holy Fathers on the chosen verses</caption>
+      <caption>The Holy Bible, with the Church Fathers on the chosen verses</caption>
     </screenshot>
     <screenshot>
       <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/fathers.png</image>
-      <caption>The Holy Fathers, by topic and by era</caption>
+      <caption>The Church Fathers, by topic and by era</caption>
     </screenshot>
     <screenshot>
       <image>https://raw.githubusercontent.com/BibleCorner-KJT/biblecorner-linux/main/screenshots/maps.png</image>
@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.39" date="2026-11-21"><description><p>"Church Fathers" (was "Holy Fathers") everywhere in the app: the sidebar, the page, the Bible's side tab and button, the Library and Downloads, in all nine languages. Book titles and the names of feasts keep their wording.</p></description></release>
     <release version="2.38" date="2026-11-20"><description><p>Phones: the Sign in window fits the screen (both with a study key and with a name and password); its links go onto more lines. The language download window and the note window fit too.</p></description></release>
     <release version="2.37" date="2026-11-20"><description><p>Phones: Bible Study Journey and My Study no longer run off the right edge before a reading plan is chosen. Rows of buttons go onto two lines when there is no room.</p></description></release>
     <release version="2.36" date="2026-11-20"><description><p>Phones: pages no longer run off the right edge of the screen when larger text is set. Side panels keep a fixed size, and long headings (Today's readings, the Holy Fathers line in the Bible, Bookmarks and notes) wrap or shorten.</p></description></release>

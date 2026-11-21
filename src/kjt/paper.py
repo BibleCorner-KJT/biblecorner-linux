@@ -1,4 +1,4 @@
-"""2.18: reading pages that are easy on the eyes: the page behind the Bible, the Holy Fathers and the books.
+"""2.18: reading pages that are easy on the eyes: the page behind the Bible, the Church Fathers and the books.
 
 Chosen from what is known about reading comfort:
  - dark letters on a light page are read faster and more accurately than light letters on dark (the

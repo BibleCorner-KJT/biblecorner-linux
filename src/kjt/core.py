@@ -2,7 +2,7 @@
 
 Everything the app shows lives in one folder of your own (~/.var/app/today.knowingjesus.KJT/data/kjt):
  - kjt.db       the Bibles (every verse, with a search index), your study, and small settings
- - files/       the dictionary, the maps, the Holy Fathers' library and commentary, saved audio
+ - files/       the dictionary, the maps, the Church Fathers' library and commentary, saved audio
 The website is asked only to fetch these (once, and for updates), to sign in, and to keep your study in step
 with My KJT.
 """

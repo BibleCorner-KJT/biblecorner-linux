@@ -1,10 +1,10 @@
 # Bible Corner for Linux (Knowing Jesus Today)
 
-The Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps of
+The Holy Bible, the Church Fathers, the Bible Dictionary and the Bible Maps of
 [knowingjesus.today](https://knowingjesus.today), in an app of its own that works without the internet.
 
 - **The Holy Bible**: many Bibles in nine languages, search, two Bibles side by side, listening, highlights, notes and Study Pads.
-- **The Holy Fathers** beside every chapter, and their writings to read like books.
+- **The Church Fathers** beside every chapter, and their writings to read like books.
 - **Bible Dictionary**: names, places, the Apostles, the Fathers, and every place of the maps.
 - **Bible Maps**: the land in its real colours, every place of Scripture, and story maps (Abraham, the Exodus, the Twelve Tribes, St Paul ...).
 - **Today with God**: the verse of the day, the feast, the fast, the saints and the day's readings.

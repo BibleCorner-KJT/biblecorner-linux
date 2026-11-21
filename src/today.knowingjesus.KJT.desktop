@@ -2,10 +2,10 @@
 Type=Application
 Name=Bible Corner - KJT
 GenericName=Holy Bible and the Orthodox faith
-Comment=The Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps, kept on your computer
+Comment=The Holy Bible, the Church Fathers, the Bible Dictionary and the Bible Maps, kept on your computer
 Exec=kjt
 Icon=today.knowingjesus.KJT
 Terminal=false
 Categories=Education;Literature;
-Keywords=Bible;Orthodox;Christian;Holy Fathers;KJT;Bible Corner;Knowing Jesus Today;Maps;
+Keywords=Bible;Orthodox;Christian;Church Fathers;Holy Fathers;KJT;Bible Corner;Knowing Jesus Today;Maps;
 StartupNotify=true

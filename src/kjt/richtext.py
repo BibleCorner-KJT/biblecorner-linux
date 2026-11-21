@@ -1,4 +1,4 @@
-"""Simple HTML (the dictionary, the Holy Fathers' writings, Study Pads) shown in a Gtk.TextView."""
+"""Simple HTML (the dictionary, the Church Fathers' writings, Study Pads) shown in a Gtk.TextView."""
 import re, html
 from html.parser import HTMLParser
 from gi.repository import Gtk, Pango, Gdk

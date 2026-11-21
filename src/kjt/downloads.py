@@ -10,7 +10,7 @@ MAP_FILES = ['base.json', 'places.json', 'stories.json', 'words.json', 'chapters
 
 
 class Job:
-    """one download: a Bible, the dictionary, the maps, the Holy Fathers ..."""
+    """one download: a Bible, the dictionary, the maps, the Church Fathers ..."""
     def __init__(self, kind, arg, title):
         self.kind, self.arg, self.title = kind, arg, title
         self.done = self.total = self.errors = 0
@@ -90,19 +90,19 @@ class Downloader:
         if plan.get('maps'):
             jobs.append(Job('maps', sorted(set(plan.get('dict') or [lang()])), 'Bible Maps'))
         if plan.get('library'):
-            jobs.append(Job('library', sorted(set(plan.get('dict') or [lang()])), 'The Holy Fathers: their writings'))
+            jobs.append(Job('library', sorted(set(plan.get('dict') or [lang()])), 'The Church Fathers: their writings'))
         if plan.get('commentary'):
-            jobs.append(Job('commentary', None, 'The Holy Fathers on the Bible'))
+            jobs.append(Job('commentary', None, 'The Church Fathers on the Bible'))
         if plan.get('study', plan.get('commentary')):
             jobs.append(Job('study', None, 'For the reader: cross-references, Greek and Hebrew'))
         for lg in plan.get('today', []):
             jobs.append(Job('today', lg, 'Today with God · ' + lg))
-        # 2.27: the Library's Audio Bibles (a recording, all or some books), one writing of the Holy Fathers, the games
+        # 2.27: the Library's Audio Bibles (a recording, all or some books), one writing of the Church Fathers, the games
         for a in plan.get('audio', []):
             jobs.append(Job('audio', a, 'Audio Bible · ' + (a.get('name') or a['tr']) + (' · ' + a['label'] if a.get('label') else '')
                             + (' · ' + a['bname'] if a.get('bname') else '')))
         for w in plan.get('works', []):
-            jobs.append(Job('work', w['id'], 'The Holy Fathers · ' + (w.get('name') or w['id'])))
+            jobs.append(Job('work', w['id'], 'The Church Fathers · ' + (w.get('name') or w['id'])))
         if plan.get('games'):
             jobs.append(Job('games', None, 'Good Fun games'))
         for c in plan.get('sword', []):
@@ -229,14 +229,14 @@ class Downloader:
         langs = set(langs or [lang()])
         idx = [f for f in idx if not f.get('lang') or f['lang'] in langs]
         write_file('library/index.json', json.dumps(idx).encode())
-        try:   # the topics, eras and colours of the Holy Fathers page (the same as on the website)
+        try:   # the topics, eras and colours of the Church Fathers page (the same as on the website)
             write_file('library/topics.json', NET.file('library/topics.json'))
         except Exception:
             pass
-        self.files(job, ['library/%s.json.gz' % f['id'] for f in idx], 'The Holy Fathers')
+        self.files(job, ['library/%s.json.gz' % f['id'] for f in idx], 'The Church Fathers')
 
     def get_commentary(self, job, books):
-        self.files(job, ['fathers/%s.json.gz' % b for b in books], 'The Holy Fathers on the Bible')
+        self.files(job, ['fathers/%s.json.gz' % b for b in books], 'The Church Fathers on the Bible')
 
     def get_study(self, job, _):
         """for the reader: the cross-references of every verse, the Greek and Hebrew words, and the words of Christ in red"""
@@ -316,7 +316,7 @@ class Downloader:
                     write_file('library/topics.json', NET.file('library/topics.json'))
         except Exception:
             pass
-        self.files(job, ['library/%s.json.gz' % wid], 'The Holy Fathers')
+        self.files(job, ['library/%s.json.gz' % wid], 'The Church Fathers')
 
     def get_games(self, job, _):
         from . import sitecache

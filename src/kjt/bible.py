@@ -1,4 +1,4 @@
-"""The Holy Bible: reading, comparing, searching, listening, the Holy Fathers beside each chapter, and your study."""
+"""The Holy Bible: reading, comparing, searching, listening, the Church Fathers beside each chapter, and your study."""
 import bisect, math, re, time, unicodedata
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
 from .core import STORE, SET, OT, NT, DEFAULT_BIBLES, canon, book_name, lang, read_file, version
@@ -78,7 +78,7 @@ class BiblePage(Gtk.Box):
         # tools (in the top bar on a big window; at the bottom on a small one)
         self.tools = Gtk.Box(spacing=2)
         self.search_btn = ib('kjt-search-symbolic', _('Search the Bible (Ctrl+F)'), toggle=True)
-        self.hf_btn = ib('kjt-cross-symbolic', _('The Holy Fathers on this chapter'), toggle=True)
+        self.hf_btn = ib('kjt-cross-symbolic', _('The Church Fathers on this chapter'), toggle=True)
         self.cmp_btn = Gtk.MenuButton(tooltip_text=_('Compare with another Bible')); self.cmp_btn.add_css_class('flat'); self.cmp_btn.set_popover(self.make_tr_menu(True))
         cb = Gtk.Box(spacing=5); cb.append(Gtk.Image(icon_name='kjt-compare-symbolic'))
         self.cmp_label = Gtk.Label(ellipsize=Pango.EllipsizeMode.END, max_width_chars=16); self.cmp_label.add_css_class('kjt-cmp-on'); cb.append(self.cmp_label)
@@ -94,7 +94,7 @@ class BiblePage(Gtk.Box):
         self.search_btn.connect('toggled', lambda b: self.toggle_search(b.get_active()))
         self.hf_btn.connect('toggled', lambda b: self.toggle_fathers(b.get_active()))
 
-        # the chapter, and beside it (or over it, on a small screen) the Holy Fathers or what was found
+        # the chapter, and beside it (or over it, on a small screen) the Church Fathers or what was found
         self.osv = Adw.OverlaySplitView(sidebar_position=Gtk.PackType.END, show_sidebar=False, min_sidebar_width=300, max_sidebar_width=440, sidebar_width_fraction=0.36, sidebar_width_unit=Adw.LengthUnit.PX)   # 2.36: px, so larger text on a phone does not widen the window
         self.view = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD_CHAR, left_margin=28, right_margin=28,
                                  top_margin=18, bottom_margin=40, pixels_below_lines=6, pixels_inside_wrap=5)
@@ -190,7 +190,7 @@ class BiblePage(Gtk.Box):
         # small screens: the tools at the bottom
         self.cbar = Gtk.ActionBar(); self.cbar.set_revealed(False)
         cb = Gtk.Box(spacing=0, homogeneous=True, hexpand=True)
-        self.c_search = ib('kjt-search-symbolic', 'Search', toggle=True); self.c_hf = ib('kjt-cross-symbolic', 'The Holy Fathers', toggle=True)
+        self.c_search = ib('kjt-search-symbolic', 'Search', toggle=True); self.c_hf = ib('kjt-cross-symbolic', 'The Church Fathers', toggle=True)
         self.c_search.bind_property('active', self.search_btn, 'active', 1 | 2); self.c_hf.bind_property('active', self.hf_btn, 'active', 1 | 2)
         more = Gtk.MenuButton(icon_name='kjt-more-symbolic', tooltip_text=_('More')); more.add_css_class('flat')
         mp = Gtk.Popover(); mb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
@@ -927,7 +927,7 @@ class BiblePage(Gtk.Box):
         box.append(Gtk.Label(label=self.sel_label.get_label(), xalign=0, css_classes=['heading'], margin_start=6, margin_bottom=4))
         for icon, label, fn in (('kjt-copy-symbolic', 'Copy', self.copy), ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-note-symbolic', 'Write a note', self.note),
                                 ('kjt-tag-symbolic', 'Put in a Study Pad', self.pads), (None, None, None),
-                                ('kjt-cross-symbolic', 'The Holy Fathers on it', lambda: self.side_show('hf')), ('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')),
+                                ('kjt-cross-symbolic', 'The Church Fathers on it', lambda: self.side_show('hf')), ('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')),
                                 ('kjt-globe-symbolic', 'Greek and Hebrew words', lambda: self.side_show('words')), ('kjt-compare-symbolic', 'Compare with another Bible', lambda: self.cmp_btn.popup()),
                                 ('kjt-listen-symbolic', 'Listen to this chapter', self.listen), ('kjt-map-symbolic', 'Places on the map', self.map)):
             if icon is None:
@@ -950,7 +950,7 @@ class BiblePage(Gtk.Box):
 
     # ---------- the people and places of the chapter ----------
     def fill_info(self, marks):
-        """above the chapter, as on the website: your bookmarks and notes here, the people and places, the Holy Fathers"""
+        """above the chapter, as on the website: your bookmarks and notes here, the people and places, the Church Fathers"""
         while self.info.get_first_child():
             self.info.remove(self.info.get_first_child())
         recs = {}
@@ -991,7 +991,7 @@ class BiblePage(Gtk.Box):
         d = read_file('fathers/%s.json.gz' % canon(self.book))
         n = len((d or {}).get('e', {}).get(str(self.ch), [])) if d else 0
         if n:
-            b = Gtk.Button(label='☦ ' + _('The Holy Fathers on this chapter: %d') % n, halign=Gtk.Align.START); b.add_css_class('flat')
+            b = Gtk.Button(label='☦ ' + _('The Church Fathers on this chapter: %d') % n, halign=Gtk.Align.START); b.add_css_class('flat')
             b.get_child().set_wrap(True); b.get_child().set_xalign(0)   # 2.36: wraps on a phone instead of widening the page
             b.connect('clicked', lambda *_: (setattr(self, 'sel', []), self.mark_selection(), self.hf_btn.set_active(True), self.side_show('hf')))
             self.info.append(b)
@@ -1108,7 +1108,7 @@ class BiblePage(Gtk.Box):
             h.append('<p><small>The Greek (Byzantine text) and Hebrew words, with their meanings and Strong\'s numbers: STEPBible.org (CC BY 4.0).</small></p>')
         html_into(self.words_view, ''.join(h), self.on_link, 0.95)
 
-    # ---------- the side: the Holy Fathers, or what was found ----------
+    # ---------- the side: the Church Fathers, or what was found ----------
     def toggle_search(self, on):
         self.sbar.set_search_mode(on)
         if on:
@@ -1126,7 +1126,7 @@ class BiblePage(Gtk.Box):
 
     def side_show(self, what):
         self.side.set_visible_child_name(what)
-        self.side_title.set_label({'hf': 'The Holy Fathers', 'search': 'Found in this Bible', 'xref': 'Cross-references', 'words': 'The words of the original'}[what])
+        self.side_title.set_label({'hf': 'The Church Fathers', 'search': 'Found in this Bible', 'xref': 'Cross-references', 'words': 'The words of the original'}[what])
         self.osv.set_show_sidebar(True)
         if what == 'hf':
             self.show_fathers()
@@ -1148,7 +1148,7 @@ class BiblePage(Gtk.Box):
         names = (STORE.kv('info') or {}).get('fathers', {})
         h = ['<h2>%s %d</h2>' % (book_name(self.book, tr=self.tr), self.ch)]
         if d is None:
-            h.append('<p>The Holy Fathers\' commentary is not on this computer yet. Open Downloads to keep it.</p>')
+            h.append('<p>The Church Fathers\' commentary is not on this computer yet. Open Downloads to keep it.</p>')
         else:
             want = set(self.sel)
             rows = []

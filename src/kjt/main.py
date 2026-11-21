@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.38'
+VERSION = '2.39'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -126,7 +126,7 @@ DARK = 'button.kjt-bk-law { background: alpha(#dc2626, 0.16); color: #f2eaf4; }\
 
 PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy Bible', 'kjt-bible-symbolic'),
          ('study', 'Study Journey', 'kjt-study-symbolic'), ('you', 'You Today', 'kjt-you-symbolic'),
-         ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
+         ('fathers', 'The Church Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
          ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'),
          ('pray', 'Prayer', 'kjt-pray-symbolic'), ('fun', 'Good Fun', 'kjt-fun-symbolic'), ('church', 'Churches near me', 'kjt-church-symbolic'),
          ('settings', 'Settings', 'kjt-settings-symbolic')]   # 2.27: the Offline library is now in the Library ("On This Device")
@@ -509,14 +509,14 @@ class Window(Adw.ApplicationWindow):
             self.background()
             return False
         d = Adw.AlertDialog(heading=_('Welcome to Bible Corner - KJT'),
-                            body=_('The app keeps the Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps on this computer, so you can read them without the internet. Choose your languages:'))
+                            body=_('The app keeps the Holy Bible, the Church Fathers, the Bible Dictionary and the Bible Maps on this computer, so you can read them without the internet. Choose your languages:'))
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3, min_children_per_line=2, column_spacing=6)
         checks = {}
         for l in LANGS:
             cb = Gtk.CheckButton(label=LANG_NAMES[l], active=(l == 'en')); checks[l] = cb; flow.append(cb)
         box.append(flow)
-        allr = Gtk.CheckButton(active=True, margin_top=8); allr.set_child(Gtk.Label(label=_('Also the Holy Fathers\' writings and commentary (about 60 MB)'), wrap=True, xalign=0))   # 2.38: wraps on a phone
+        allr = Gtk.CheckButton(active=True, margin_top=8); allr.set_child(Gtk.Label(label=_('Also the Church Fathers\' writings and commentary (about 60 MB)'), wrap=True, xalign=0))   # 2.38: wraps on a phone
         allr.get_last_child().set_wrap(True) if isinstance(allr.get_last_child(), Gtk.Label) else None
         box.append(allr)
         d.set_extra_child(box)
@@ -752,7 +752,7 @@ class App(Adw.Application):
 
     def about(self, *_):
         d = Adw.AboutDialog(application_name='Bible Corner - KJT', application_icon=APP_ID, version=VERSION, website='https://knowingjesus.today',
-                            comments='The Holy Bible, the Holy Fathers, the Bible Dictionary and the Bible Maps, kept on your computer: the Orthodox faith, to know Jesus today.',
+                            comments='The Holy Bible, the Church Fathers, the Bible Dictionary and the Bible Maps, kept on your computer: the Orthodox faith, to know Jesus today.',
                             license_type=Gtk.License.GPL_2_0)
         d.set_developer_name('Knowing Jesus Today')
         d.add_credit_section('Places', ['OpenBible.info Bible Geocoding Data (CC BY 4.0)'])

@@ -3,9 +3,9 @@
 moves from More Online to On This Device, what is deleted goes back. The pages of each library stay for links.
 
 At the top, "On This Device": one page with everything kept on this computer (Bibles, Audio Bibles, Books,
-The Holy Fathers, Study tools, Games), its size, Delete, and "Update what is here".
+The Church Fathers, Study tools, Games), its size, Delete, and "Update what is here".
 Below it, the libraries, each with the same two tabs, "On This Device" and "Get more":
-Bibles, Audio Bibles, Books (CrossWire and AndBible), The Holy Fathers, Study tools.
+Bibles, Audio Bibles, Books (CrossWire and AndBible), The Church Fathers, Study tools.
 The downloads show at the bottom of every page of the Library, each with its progress, Stop and Try again;
 a stopped or interrupted download goes on from where it stopped."""
 import json, os, shutil
@@ -17,13 +17,13 @@ from .downloads import DL
 CATS = [('bibles', 'Bibles', 'kjt-bible-symbolic', 'Read and search without the internet'),
         ('audio', 'Audio Bibles', 'kjt-listen-symbolic', 'Listen without the internet'),
         ('books', 'Books', 'kjt-library-symbolic', 'Commentaries, dictionaries and books from CrossWire and AndBible'),
-        ('fathers', 'The Holy Fathers', 'kjt-cross-symbolic', 'Their writings, to read like books'),
+        ('fathers', 'The Church Fathers', 'kjt-cross-symbolic', 'Their writings, to read like books'),
         ('study', 'Study tools', 'kjt-dict-symbolic', 'Bible Dictionary, Bible Maps, the Fathers on each chapter, Greek and Hebrew')]
 NAMES = dict((c[0], c[1]) for c in CATS)
 KINDS = {'commentary': 'Commentary', 'dictionary': 'Dictionary', 'glossary': 'Glossary', 'daily': 'Daily readings', 'book': 'Book', 'map': 'Map', 'bible': 'Bible'}
 STUDY = [('dict', 'Bible Dictionary', 'Every entry, and every place of the maps', 'dictionary', 'kjt-dict-symbolic'),
          ('maps', 'Bible Maps', 'The land in its real colours, the places and the story maps', 'maps', 'kjt-map-symbolic'),
-         ('commentary', 'The Holy Fathers on the Bible', 'Their commentary beside each chapter', 'fathers', 'kjt-cross-symbolic'),
+         ('commentary', 'The Church Fathers on the Bible', 'Their commentary beside each chapter', 'fathers', 'kjt-cross-symbolic'),
          ('study', 'For the reader', 'Cross-references, the Greek and Hebrew words, the words of Christ in red', 'xref', 'kjt-bible-symbolic')]
 MAIN_LANGS = ['English', 'Arabic', 'Greek', 'Ancient Greek', 'Russian', 'Church Slavonic', 'Chinese', 'French', 'Hindi', 'Spanish', 'Tagalog', 'Filipino']
 
@@ -637,7 +637,7 @@ class LibHub(Gtk.Box):
             g.add(row); n += 1
         return n
 
-    # The Holy Fathers (each Father is one file: all his writings)
+    # The Church Fathers (each Father is one file: all his writings)
     def father_sub(self, w, extra=''):
         n = len(w.get('works') or [])
         return ' · '.join(x for x in (w.get('when') or '', '%d %s' % (n, _('work') if n == 1 else _('works')), extra) if x)

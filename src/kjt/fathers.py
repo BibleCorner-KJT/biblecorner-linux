@@ -1,4 +1,4 @@
-"""The Holy Fathers: their writings, kept on this computer, to read like books."""
+"""The Church Fathers: their writings, kept on this computer, to read like books."""
 import re
 import json, os
 from gi.repository import Gtk, Adw, Gdk, GLib, Pango
@@ -52,7 +52,7 @@ class FathersPage(Gtk.Box):
         idx = read_file('library/index.json') or []
         self.idx = {x['id']: x for x in idx}
         T = self.topics()
-        page = Adw.NavigationPage(title=_('The Holy Fathers'), tag='home')
+        page = Adw.NavigationPage(title=_('The Church Fathers'), tag='home')
         tv = Adw.ToolbarView(); hb = Adw.HeaderBar(); tv.add_top_bar(hb); self.win.sidebar_button(hb)
         self.q = Gtk.SearchEntry(placeholder_text=_('Find a Father or a writing'), width_chars=22); hb.set_title_widget(self.q)
         self.set_compact = lambda c: self.q.set_width_chars(10 if c else 22)   # 2.34: fits a phone
@@ -77,7 +77,7 @@ class FathersPage(Gtk.Box):
             b.get_child().set_ellipsize(Pango.EllipsizeMode.END)   # 2.34: a long title no longer pushes past a phone's screen
             b.connect('clicked', lambda *_: self.open_part(last['a'], last['w'], last['p'])); box.append(b)
         if not self.idx:
-            box.append(Gtk.Label(label=_('The writings of the Holy Fathers are not on this computer yet. Choose Downloads in the sidebar.'), wrap=True, xalign=0))
+            box.append(Gtk.Label(label=_('The writings of the Church Fathers are not on this computer yet. Choose Downloads in the sidebar.'), wrap=True, xalign=0))
             return
         # read by topic: coloured tiles, as on the website
         if not q:

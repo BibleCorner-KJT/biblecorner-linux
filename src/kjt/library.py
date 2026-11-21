@@ -197,7 +197,7 @@ class LibraryPage(Gtk.Box):
         ortho = [c for c in rows if S.ORTHODOX_FIRST.search((c.get('Description') or '') + ' ' + c['_name'] + ' ' + S.about(c)[:300])]
         if ortho:
             g = self.group('')
-            ex = Adw.ExpanderRow(title='☦ ' + _('For Orthodox readers'), subtitle=_('The Septuagint, the Byzantine and Patriarchal texts, the Holy Fathers and the early Church') + ' · %d' % len(ortho[:60]))
+            ex = Adw.ExpanderRow(title='☦ ' + _('For Orthodox readers'), subtitle=_('The Septuagint, the Byzantine and Patriarchal texts, the Church Fathers and the early Church') + ' · %d' % len(ortho[:60]))
             op = SET.get('lib_open_ortho')
             ex.set_expanded(bool(self.q.get_text().strip()) or (op if op is not None else len(ortho) <= 8))
             ex.connect('notify::expanded', lambda e, _p: SET.set('lib_open_ortho', e.get_expanded()))
