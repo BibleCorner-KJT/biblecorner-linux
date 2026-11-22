@@ -125,6 +125,7 @@ class SettingsPage(Gtk.Box):
             app = self.win.get_application()
             (app.start_tray() if SET.get('bg_keep') else app.stop_tray())
             self.win.menu_btn.set_menu_model(self.win.make_menu())
+        self.switch(g, 'Notifications', 'When someone asks for prayer (🙏 New Prayer Request), and now and then news from Bible Corner. Checked about every half hour while the app runs.', 'n_news', True)
         self.switch(g, 'Keep running in the tray', 'Closing the window hides it: the app keeps running, with its icon in the tray (on GNOME, with the AppIndicator extension; otherwise under Background Apps). Quit closes it fully (Ctrl+Q).', 'bg_keep', False, bg)
         self.add(g)
         # the rest

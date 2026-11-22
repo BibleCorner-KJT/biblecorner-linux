@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.40" date="2026-11-22"><description><p>Notifications, as in the Android app: when someone asks for prayer (🙏 New Prayer Request: "Click here to pray for your brothers and sisters in Christ", with James 5:16), and now and then news from Bible Corner. A click opens the Prayer page. Checked about every half hour while the app runs; Settings › Notifications turns them off.</p></description></release>
     <release version="2.39" date="2026-11-21"><description><p>"Church Fathers" (was "Holy Fathers") everywhere in the app: the sidebar, the page, the Bible's side tab and button, the Library and Downloads, in all nine languages. Book titles and the names of feasts keep their wording.</p></description></release>
     <release version="2.38" date="2026-11-20"><description><p>Phones: the Sign in window fits the screen (both with a study key and with a name and password); its links go onto more lines. The language download window and the note window fit too.</p></description></release>
     <release version="2.37" date="2026-11-20"><description><p>Phones: Bible Study Journey and My Study no longer run off the right edge before a reading plan is chosen. Rows of buttons go onto two lines when there is no room.</p></description></release>

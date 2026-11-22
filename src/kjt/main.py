@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.39'
+VERSION = '2.40'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -566,9 +566,40 @@ class Window(Adw.ApplicationWindow):
                     if 'today' in self.pages:
                         self.today.refresh()
                 run_bg(lambda: info(refresh=True), fin)
+                self.notices()
             return True
         GLib.timeout_add_seconds(2, lambda: (tick(), False)[1])
         GLib.timeout_add_seconds(600, tick)
+
+    def notices(self):
+        """2.40: as on Android: New Prayer Request and news from Bible Corner, as notifications (about every half hour
+        while the app runs, also in the background; Settings > Notifications turns them off). Nothing about you is sent."""
+        import time
+        if SET.get('n_news') is False or time.time() - float(SET.get('n_at') or 0) < 1500:
+            return
+        SET.set('n_at', time.time())
+        since = SET.get('n_since'); first = since is None
+
+        def done(r):
+            if isinstance(r, Exception) or not isinstance(r, dict) or not r.get('success'):
+                return
+            d = r.get('data') or {}
+            app = self.get_application()
+            if not first and app:
+                for o in (d.get('notices') or [])[:5]:
+                    url = o.get('url') or ''
+                    target = 'pray' if 'kjt_go=pray' in url else (url or 'today')
+                    n = Gio.Notification.new(o.get('title') or 'Bible Corner - KJT')
+                    n.set_body(o.get('text') or '')
+                    n.set_default_action_and_target('app.notice', GLib.Variant('s', target))
+                    if target == 'pray':
+                        n.add_button_with_target('🙏 ' + _('Pray'), 'app.notice', GLib.Variant('s', 'pray'))
+                    try:
+                        app.send_notification('notice-%s' % o.get('id', 0), n)
+                    except Exception:
+                        pass
+            SET.set('n_since', max(int(d.get('last') or 0), 0))
+        run_bg(lambda: NET.ajax('kjtb_app_notices', since=-1 if first else int(since), lang=lang()), done)
 
     def on_close(self, *_):
         if not self.is_maximized():
@@ -596,6 +627,20 @@ class App(Adw.Application):
                 self.set_accels_for_action('app.' + name, keys)
         a = Gio.SimpleAction.new('page', GLib.VariantType.new('s')); a.connect('activate', lambda _a, v: self.open_page(v.get_string())); self.add_action(a)
         a = Gio.SimpleAction.new('report', None); a.connect('activate', lambda *_: self.report()); self.add_action(a)
+        a = Gio.SimpleAction.new('notice', GLib.VariantType.new('s')); a.connect('activate', lambda _a, v: self.open_notice(v.get_string())); self.add_action(a)
+
+    def open_notice(self, target):
+        """2.40: a notification was clicked: the Prayer page (or the page it names) in the app, or its link"""
+        if target.startswith('http'):
+            self.open_uri(target); return
+        self.activate()
+        w = self.props.active_window or (self.get_windows()[0] if self.get_windows() else None)
+        if w:
+            w.set_visible(True); w.present()
+            try:
+                w.show(target)
+            except Exception:
+                pass
 
     def open_page(self, key):
         if key in ('you', 'pray', 'fun', 'church') and self.props.active_window:
