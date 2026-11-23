@@ -84,7 +84,8 @@ class SettingsPage(Gtk.Box):
         lr.set_selected([x[0] for x in looks].index(cur) if cur in [x[0] for x in looks] else 0)
         lr.connect('notify::selected', lambda r, _p: self.win.get_application().set_style(looks[r.get_selected()][0]))
         g.add(lr); self.add(g)
-        self.add(icon_group())
+        # 2.42: no icon colour choice on Linux any more: it needed write access to your files (GNOME Software showed
+        # "Potentially unsafe" because of it). The app always has its usual purple icon; Android keeps the choice.
         # 2.18: the reading page: paper colours that are easy on the eyes
         from . import paper
         g = Adw.PreferencesGroup(title=_('Reading page'), description=_('Dark letters on a warm, paper-like page are the clearest and the easiest on the eyes for long reading. Candlelight is only for a dark room.'))
@@ -123,10 +124,17 @@ class SettingsPage(Gtk.Box):
         g = Adw.PreferencesGroup(title=_('When the window is closed'))
         def bg():
             app = self.win.get_application()
-            (app.start_tray() if SET.get('bg_keep') else app.stop_tray())
             self.win.menu_btn.set_menu_model(self.win.make_menu())
+            if SET.get('bg_keep'):
+                # 2.42: the desktop is asked (once) to let the app run without a window: no tray icon any more
+                def said(ok):
+                    if not ok:
+                        SET.set('bg_keep', False); self.win.menu_btn.set_menu_model(self.win.make_menu())
+                        self.win.toast(_('Your computer did not allow Bible Corner to run in the background.'))
+                        self.refresh()
+                app.ask_background(said)
         self.switch(g, 'Notifications', 'When someone asks for prayer (🙏 New Prayer Request), and now and then news from Bible Corner. Checked about every half hour while the app runs.', 'n_news', True)
-        self.switch(g, 'Keep running in the tray', 'Closing the window hides it: the app keeps running, with its icon in the tray (on GNOME, with the AppIndicator extension; otherwise under Background Apps). Quit closes it fully (Ctrl+Q).', 'bg_keep', False, bg)
+        self.switch(g, 'Keep running in the background', 'Closing the window hides it: the app keeps running, so notifications still come. Your computer asks you once to allow it. Open the app again from your list of apps; on GNOME it is also under Background Apps in the top-right menu. Quit closes it fully (Ctrl+Q).', 'bg_keep', False, bg)
         self.add(g)
         # the rest
         g = Adw.PreferencesGroup(title=_('Help'))

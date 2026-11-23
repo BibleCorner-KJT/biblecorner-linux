@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.41'
+VERSION = '2.42'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -689,13 +689,13 @@ class App(Adw.Application):
 
     def do_startup(self):
         Adw.Application.do_startup(self)
-        if SET.get('bg_keep'):
-            GLib.idle_add(lambda: (self.start_tray(), False)[1])
-        # 2.25: an icon that is no longer offered goes back to the usual one
+        # 2.42: the icon colour choice is gone on Linux: a chosen icon (a menu entry of the user's own, in
+        # ~/.local/share/applications) is taken away, so the app shows its usual icon. Done while the app may still
+        # write there; a later version no longer asks for that access.
         try:
-            from .settings import current_icon, set_icon, ICONS
-            if current_icon() not in [k for k, _l in ICONS]:
-                set_icon('purple')
+            from .settings import set_icon
+            if not SET.get('icon_cleaned'):
+                set_icon('purple'); SET.set('icon_cleaned', 1)
         except Exception:
             pass
         # 2.18: Arabic reads from right to left: the whole app is laid out that way
@@ -733,26 +733,43 @@ class App(Adw.Application):
         w = self.props.active_window or (ws[0] if ws else None) or Window(self)
         w.present()
 
-    # 2.22: running in the background, with an icon in the tray
-    def start_tray(self):
-        if getattr(self, 'tray', None):
-            return
+    # 2.42: running in the background, asked of the desktop (the Background portal) instead of an icon in the tray
+    def ask_background(self, done=None):
+        """asks once whether the app may keep running without a window; done(True/False). Where the desktop has no such
+        question (some phone shells), the app simply keeps running, as before."""
+        done = done or (lambda ok: None)
+        if SET.get('bg_allowed'):
+            done(True); return
         try:
-            from .tray import Tray
-            from .settings import current_icon
-            ic = os.path.join(os.path.dirname(__file__), 'appicons', current_icon() + '.png')
-            self.tray = Tray('Bible Corner - KJT', ic, self.show_window, self.really_quit, lambda: (_('Open Bible Corner'), _('Quit')))
-        except Exception as e:
-            self.tray = None
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            sender = bus.get_unique_name()[1:].replace('.', '_')
+        except Exception:
+            done(True); return
+        tok = 'kjtbg%d' % GLib.random_int_range(1, 1 << 30)
+        path = '/org/freedesktop/portal/desktop/request/%s/%s' % (sender, tok)
+        state = {'sub': 0, 'over': False}
+        def finish(ok):
+            if state['over']:
+                return
+            state['over'] = True
+            if state['sub']:
+                bus.signal_unsubscribe(state['sub'])
+            if ok:
+                SET.set('bg_allowed', 1)
+            done(ok)
+        def response(_c, _s, _p, _i, _n, params):
+            code, res = params.unpack()
+            finish(code == 0 and bool(res.get('background', True)))
+        state['sub'] = bus.signal_subscribe('org.freedesktop.portal.Desktop', 'org.freedesktop.portal.Request', 'Response', path, None, Gio.DBusSignalFlags.NONE, response)
+        opts = {'handle_token': GLib.Variant('s', tok), 'reason': GLib.Variant('s', _('To keep bringing notifications (like a new prayer request) after its window is closed.')),
+                'autostart': GLib.Variant('b', False), 'dbus-activatable': GLib.Variant('b', False)}
+        def called(b, res):
             try:
-                from .core import log_problem; log_problem('tray: ' + str(e)[:150])
+                b.call_finish(res)
             except Exception:
-                pass
-
-    def stop_tray(self):
-        t = getattr(self, 'tray', None)
-        if t:
-            t.close(); self.tray = None
+                finish(True)   # no Background portal here: keep running as before
+        bus.call('org.freedesktop.portal.Desktop', '/org/freedesktop/portal/desktop', 'org.freedesktop.portal.Background', 'RequestBackground',
+                 GLib.Variant('(sa{sv})', ('', opts)), None, Gio.DBusCallFlags.NONE, 60000, None, called)
 
     def to_background(self, w=None):
         w = w or self.props.active_window or (self.get_windows() or [None])[0]
@@ -760,14 +777,15 @@ class App(Adw.Application):
             return
         if not SET.get('bg_keep'):
             w.close(); return
-        self.start_tray()
+        if not SET.get('bg_allowed'):
+            self.ask_background()
         w.set_visible(False)
         if not getattr(self, 'held', False):
             self.hold(); self.held = True
         if not SET.get('bg_told'):
             SET.set('bg_told', 1)
             n = Gio.Notification.new(_('Bible Corner is still running'))
-            n.set_body(_('Open it again from its icon in the tray, or from your list of apps. To close it fully, choose Quit (Ctrl+Q).'))
+            n.set_body(_('Open it again from your list of apps. To close it fully, choose Quit (Ctrl+Q).'))
             try:
                 self.send_notification('bg', n)
             except Exception:
@@ -789,7 +807,6 @@ class App(Adw.Application):
                 pass
         if getattr(self, 'held', False):
             self.release(); self.held = False
-        self.stop_tray()
         self.quit()
 
     def do_open(self, files, n, hint):
