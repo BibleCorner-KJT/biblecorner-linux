@@ -37,16 +37,75 @@ def _key(url):
     return os.path.join(DIR, hashlib.sha1(url.encode()).hexdigest())
 
 
-def _keep(url, status, ctype, body):
+def _keep(url, status, ctype, body, headers=None):
     try:
         os.makedirs(DIR, exist_ok=True)
         with open(_key(url) + '.part', 'wb') as f:
             f.write(body)
         os.replace(_key(url) + '.part', _key(url))
+        m = {'url': url, 'type': ctype, 'status': status}
+        if headers is not None:   # 2.41: what the website said about this version of the file, to ask later whether it changed
+            m['etag'] = headers.get('ETag') or ''; m['modified'] = headers.get('Last-Modified') or ''
         with open(_key(url) + '.json', 'w') as f:
-            json.dump({'url': url, 'type': ctype, 'status': status}, f)
+            json.dump(m, f)
     except Exception:
         pass
+
+
+def _meta(url):
+    try:
+        with open(_key(url) + '.json') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _request(url, method='GET', extra=None):
+    h = {'User-Agent': 'Mozilla/5.0 (X11; Linux) BibleCornerKJT', 'Accept-Encoding': 'identity'}
+    h.update(extra or {})
+    req = urllib.request.Request(url, method=method, headers=h)
+    opener = getattr(NET, 'op', None)
+    return opener.open(req, timeout=40) if opener else urllib.request.urlopen(req, timeout=40)
+
+
+def refresh_one(url):
+    """2.41: brings one kept file up to date, downloading it only when it changed on the website.
+    Returns 'same' (nothing downloaded), 'new' (downloaded) or 'fail'."""
+    m = _meta(url)
+    if m is None or not os.path.exists(_key(url)):
+        return 'new' if fetch(url)[0] == 200 else 'fail'
+    if re.search(r'[?&]ver=', url):
+        return 'same'   # the address carries the version: a new version has a new address
+    try:
+        if m.get('etag') or m.get('modified'):
+            h = {}
+            if m.get('etag'):
+                h['If-None-Match'] = m['etag']
+            if m.get('modified'):
+                h['If-Modified-Since'] = m['modified']
+            try:
+                r = _request(url, 'GET', h)
+            except urllib.error.HTTPError as e:
+                if e.code == 304:
+                    return 'same'
+                return 'fail'
+            data = r.read()
+            if r.status == 304:
+                return 'same'
+            ct = r.headers.get('Content-Type', 'application/octet-stream').split(';')[0].strip()
+            _keep(url, r.status, ct, data, r.headers)
+            return 'new'
+        # kept by an older version of the app (without those details): compare the size, and remember the details
+        r = _request(url, 'HEAD')
+        size = r.headers.get('Content-Length')
+        if size is not None and int(size) == os.path.getsize(_key(url)):
+            m['etag'] = r.headers.get('ETag') or ''; m['modified'] = r.headers.get('Last-Modified') or ''
+            with open(_key(url) + '.json', 'w') as f:
+                json.dump(m, f)
+            return 'same'
+    except Exception:
+        pass
+    return 'new' if fetch(url)[0] == 200 else 'fail'
 
 
 def _kept(url):
@@ -74,7 +133,7 @@ def fetch(url, method='GET', body=None, ctype=None):
             r = (opener.open(req, timeout=40) if opener else urllib.request.urlopen(req, timeout=40))
             data = r.read(); st = r.status; ct = r.headers.get('Content-Type', 'application/octet-stream').split(';')[0].strip()
             if keepable and st == 200:
-                _keep(url, st, ct, data)
+                _keep(url, st, ct, data, r.headers)
             return st, ct, data
         except urllib.error.HTTPError as e:
             try:
@@ -147,30 +206,59 @@ def register(WebKit):
 
 
 # ---------- keep all the games here (for use without the internet) ----------
+LAST = {'new': 0, 'total': 0}
+
+
+def same_contents(url, md5):
+    """2.41: the kept copy is exactly the website's file (same fingerprint)"""
+    try:
+        h = hashlib.md5()
+        with open(_key(url), 'rb') as f:
+            for b in iter(lambda: f.read(1 << 20), b''):
+                h.update(b)
+        return h.hexdigest() == md5
+    except Exception:
+        return False
+
+
 def keep_games(progress=None, cancel=None, fresh=True):
     """fetches the games page and every file the games use; returns how many files are kept
-    (2.27: progress(i, n) is called from this thread; a file kept already is kept as it is unless fresh)"""
+    (2.27: progress(i, n) is called from this thread; a file kept already is kept as it is unless fresh)
+    2.41: with fresh, a file kept already is downloaded again only if it changed on the website;
+    LAST tells how many files were really downloaded"""
     page = SITE + '/fun-and-games/?kjt_embed=1&kjt_linux=1'
     st, ct, html = fetch(page)
     if st != 200:
         return 0
     urls = set(re.findall(r'''(?:src|href)=["'](%s[^"'#]+)["']''' % re.escape(SITE), html.decode('utf-8', 'replace')))
+    sums = {}
     try:
-        r = NET.ajax('kjt_games_files')
+        r = NET.ajax('kjt_games_files', hashes=1)
         if r.get('success'):
-            urls |= set(r['data'] or [])
+            d = r['data'] or []
+            if isinstance(d, dict):   # 2.41: Site Core 7.44.0 and newer: each file with a fingerprint of its contents
+                sums = {u: h for u, h in (d.get('files') or {}).items() if h}
+                urls |= set(d.get('files') or {})
+            else:
+                urls |= set(d)
     except Exception:
         pass
-    n = 0; urls = sorted(urls)
+    n = 0; new = 0; urls = sorted(urls)
     for i, u in enumerate(urls):
         if cancel and cancel():
             break
         if progress:
             progress(i + 1, len(urls))
-        if not fresh and _kept(u):
+        if not fresh and os.path.exists(_key(u)) and _meta(u) is not None:
             n += 1; continue
-        if fetch(u)[0] == 200:
+        if fresh and sums.get(u) and same_contents(u, sums[u]):
+            n += 1; continue
+        r = refresh_one(u)
+        if r != 'fail':
             n += 1
+        if r == 'new':
+            new += 1
+    LAST['new'] = new; LAST['total'] = len(urls)
     return n
 
 

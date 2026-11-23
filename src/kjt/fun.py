@@ -723,7 +723,15 @@ class FunPage(Gtk.Box):
         from .downloads import DL
         if not NET.online():
             self.win.toast(_('This needs the internet. Try again when you are connected.')); return
-        DL.start({'games': True, 'refresh': True}); self.win.toast(_('Downloading…'))
+        # 2.41: 'refresh' now only downloads what changed on the website since the games were kept
+        from . import sitecache
+        def done(new):
+            self.win.toast(_('All the games are already on this computer. Nothing new to download.') if not new
+                           else _('Games updated: %d new or changed files.') % new)
+        sitecache.ON_DONE = done
+        here = sitecache.kept_size() > 2 * 1048576
+        DL.start({'games': True, 'refresh': True})
+        self.win.toast(_('Checking for new or changed games…') if here else _('Downloading…'))
 
     def refresh(self):
         d = data()

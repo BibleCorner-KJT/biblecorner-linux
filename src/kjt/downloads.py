@@ -327,6 +327,10 @@ class Downloader:
         if not n:
             job.errors += 1
         job.done = job.total = max(job.total, 1)
+        cb = getattr(sitecache, 'ON_DONE', None)   # 2.41: says whether anything new was downloaded
+        if cb and n and not job.cancel:
+            sitecache.ON_DONE = None
+            GLib.idle_add(lambda: (cb(sitecache.LAST['new']), False)[1])
 
     def get_today(self, job, lg):
         job.total = 1
