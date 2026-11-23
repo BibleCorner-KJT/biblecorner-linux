@@ -2,10 +2,10 @@
 (from OpenStreetMap, checked on the website), searched by town, postcode or name, or near where you are,
 listed by distance and shown on a map. The town you type is looked up through the website (never sent
 elsewhere); "Near me" asks your computer where you are, only when you press it, and it stays here."""
-import json, math, random, re, time
+import json, math, os, random, re, time
 from urllib.parse import quote
 from gi.repository import Gtk, Adw, Gio, GLib, Pango, Gdk
-from .core import STORE, SET, NET, SITE, lang, run_bg, log_problem
+from .core import STORE, SET, NET, SITE, DATA, lang, run_bg, log_problem
 from .i18n import _
 from .tilemap import TileMap
 
@@ -47,13 +47,14 @@ def _num(x):
 
 
 def row_of(r):
-    """[id,name,kind,jur,addr,city,region,postcode,country,lat,lon,web,phone,times,name_en,email,contact] -> dict"""
-    r = list(r) + [''] * 17
+    """[id,name,kind,jur,addr,city,region,postcode,country,lat,lon,web,phone,times,name_en,email,contact,names,pic] -> dict"""
+    r = list(r) + [''] * 19
     k = r[2] if isinstance(r[2], int) else 0
     t = lambda x: x if isinstance(x, str) else ('' if x is None else str(x))
     return {'id': r[0], 'name': t(r[1]), 'kind': KINDS[k] if 0 <= k < len(KINDS) else 'church', 'jur': t(r[3]) or 'other', 'addr': t(r[4]),
             'city': t(r[5]), 'region': t(r[6]), 'postcode': t(r[7]), 'country': t(r[8]), 'lat': _num(r[9]), 'lon': _num(r[10]),
-            'web': t(r[11]), 'phone': t(r[12]), 'times': t(r[13]), 'name_en': t(r[14]), 'email': t(r[15]), 'contact': t(r[16])}
+            'web': t(r[11]), 'phone': t(r[12]), 'times': t(r[13]), 'name_en': t(r[14]), 'email': t(r[15]), 'contact': t(r[16]),
+            'names': r[17] if isinstance(r[17], dict) else {}, 'pic': bool(r[18])}   # 2.43: names in the site's languages; a photo
 
 
 def fav_row(cid, v):
@@ -77,7 +78,7 @@ def raw_of(d):
     k = KINDS.index(d.get('kind')) if d.get('kind') in KINDS else 0
     return [d.get('id'), d.get('name', ''), k, d.get('jur', ''), d.get('addr', ''), d.get('city', ''), d.get('region', ''), d.get('postcode', ''),
             d.get('country', ''), d.get('lat', 0), d.get('lon', 0), d.get('web', ''), d.get('phone', ''), d.get('times', ''), d.get('name_en', ''),
-            d.get('email', ''), d.get('contact', '')]
+            d.get('email', ''), d.get('contact', ''), d.get('names') or 0, 1 if d.get('pic') else 0]
 
 # ---------- where am I (the desktop's location portal: it asks you first) ----------
 def locate(done, timeout=25):
@@ -228,6 +229,9 @@ class ChurchPage(Gtk.Box):
         tv = Adw.ToolbarView(); tv.set_vexpand(True); self.append(tv)
         hb = Adw.HeaderBar(); tv.add_top_bar(hb); win.sidebar_button(hb)
         t = Gtk.Label(label=_('Churches near me')); t.add_css_class('heading'); hb.set_title_widget(t)
+        # 2.43: add a church (it goes to the website, which checks it)
+        addb = Gtk.Button(label='＋ ' + _('Add a church'), tooltip_text=_('Missing a church? Add it!')); addb.add_css_class('suggested-action')
+        addb.connect('clicked', lambda *_a: __import__('kjt.churchform', fromlist=['open_form']).open_form(self.win, self)); hb.pack_end(addb)
         # search, near me, filters
         bar = Gtk.Box(spacing=6, margin_top=8, margin_bottom=8, margin_start=10, margin_end=10)
         self.entry = Gtk.SearchEntry(hexpand=True, placeholder_text=_('Town, postcode or church name')); self.entry.connect('activate', lambda *_a: self.search())
@@ -247,9 +251,15 @@ class ChurchPage(Gtk.Box):
         self.listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.listbox.add_css_class('boxed-list')
         lb = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=6, margin_bottom=20, margin_start=10, margin_end=10)
         # 2.20: My churches: the ones you starred, kept on this computer, always at the top
-        self.favhead = Gtk.Label(xalign=0); self.favhead.add_css_class('heading'); lb.append(self.favhead)
+        # 2.43: My churches and Recently viewed fold open and closed (remembered); the other churches have their own heading
+        self.favhead = self.fold_head('fav'); lb.append(self.favhead)
         self.favlist = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.favlist.add_css_class('boxed-list'); lb.append(self.favlist)
         self.favnote = Gtk.Label(label=_('Star a church to keep it here, on this computer.'), xalign=0, wrap=True); self.favnote.add_css_class('dim-label'); self.favnote.add_css_class('caption'); lb.append(self.favnote)
+        rh = Gtk.Box(spacing=6); self.rechead = self.fold_head('recent'); self.rechead.set_hexpand(True); rh.append(self.rechead)
+        rc = Gtk.Button(label=_('Clear'), valign=Gtk.Align.CENTER); rc.add_css_class('flat'); rc.connect('clicked', lambda *_a: (SET.set('ch_recent', []), self.draw_recent())); rh.append(rc)
+        self.recbar = rh; lb.append(rh)
+        self.reclist = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE); self.reclist.add_css_class('boxed-list'); lb.append(self.reclist)
+        self.listhead = Gtk.Label(xalign=0, visible=False, margin_top=6); self.listhead.add_css_class('heading'); lb.append(self.listhead)
         lb.append(self.listbox)
         credit = Gtk.Label(label=_('Church data © OpenStreetMap contributors (ODbL), checked on the website.'), xalign=0, wrap=True); credit.add_css_class('dim-label'); credit.add_css_class('caption')
         lb.append(credit)
@@ -302,6 +312,36 @@ class ChurchPage(Gtk.Box):
         b.connect('toggled', toggled)
         return b
 
+    def fold_head(self, key):
+        b = Gtk.Button(halign=Gtk.Align.FILL); b.add_css_class('flat')
+        lab = Gtk.Label(xalign=0, hexpand=True); lab.add_css_class('heading'); arrow = Gtk.Image()
+        box = Gtk.Box(spacing=6); box.append(lab); box.append(arrow); b.set_child(box)
+        b.lab, b.arrow, b.key = lab, arrow, key
+        b.connect('clicked', lambda *_a: (SET.set('ch_open_' + key, not self.is_open(key)), self.draw_favs()))
+        return b
+
+    def is_open(self, key):
+        return SET.get('ch_open_' + key) is not False
+
+    def set_head(self, b, text, n, lst):
+        op = self.is_open(b.key)
+        b.lab.set_label(text + (' (%d)' % n if n else '')); b.arrow.set_from_icon_name('pan-down-symbolic' if op else 'pan-end-symbolic')
+        lst.set_visible(bool(n) and op)
+
+    def add_recent(self, r):
+        rec = [x for x in (SET.get('ch_recent') or []) if isinstance(x, dict) and x.get('id') != r['id']]
+        rec.insert(0, {k: v for k, v in r.items() if k not in ('d', 'm')}); SET.set('ch_recent', rec[:12])
+        GLib.idle_add(lambda: (self.draw_recent(), False)[1])
+
+    def draw_recent(self):
+        while self.reclist.get_first_child():
+            self.reclist.remove(self.reclist.get_first_child())
+        fv = self.favs(); rec = [fav_row(str(x.get('id')), x) for x in (SET.get('ch_recent') or []) if isinstance(x, dict) and str(x.get('id')) not in fv]
+        rec = [x for x in rec if x][:6]
+        for r in rec:
+            r = dict(r); r['d'] = None; self.reclist.append(self.row(r, recent=True))
+        self.recbar.set_visible(bool(rec)); self.set_head(self.rechead, '🕘 ' + _('Recently viewed'), len(rec), self.reclist)
+
     def draw_favs(self):
         while self.favlist.get_first_child():
             self.favlist.remove(self.favlist.get_first_child())
@@ -310,8 +350,8 @@ class ChurchPage(Gtk.Box):
         for r in f:
             r = dict(r); r['d'] = km(start[0], start[1], r['lat'], r['lon']) if start else None
             self.favlist.append(self.row(r))
-        self.favhead.set_label('★ ' + _('My churches') + (' (%d)' % len(f) if f else ''))
-        self.favlist.set_visible(bool(f)); self.favnote.set_visible(not f)
+        self.set_head(self.favhead, '★ ' + _('My churches'), len(f), self.favlist); self.favnote.set_visible(not f)
+        self.draw_recent()
 
     def set_compact(self, c):
         self.paned.set_orientation(Gtk.Orientation.VERTICAL if c else Gtk.Orientation.HORIZONTAL)
@@ -548,10 +588,12 @@ class ChurchPage(Gtk.Box):
     def dist(self, d):
         if d is None:
             return ''
-        mi = d * 0.621371
-        return ('%.1f km' % d if d < 10 else '%d km' % round(d)) + ' · ' + ('%.1f mi' % mi if mi < 10 else '%d mi' % round(mi))
+        return ('%d m' % round(d * 1000)) if d < 1 else ('%.1f km' % d if d < 10 else '%d km' % round(d))   # 2.43: metric only
 
     def name(self, r):
+        loc = (r.get('names') or {}).get(lang())   # 2.43: the church's name in the app's language, when OpenStreetMap has it
+        if loc:
+            return loc
         if r['name_en'] and lang() == 'en' and not re.search(r'[A-Za-z]', r['name']):
             return r['name_en']
         return r['name'] or r['name_en'] or _(KIND_NAMES[r['kind']])
@@ -569,6 +611,9 @@ class ChurchPage(Gtk.Box):
             self.say((_('Churches found') + ': %d' % n + (' · ' + self.label if getattr(self, 'label', '') else '')) if n else _('No churches found here yet. Try a larger town nearby.'))
         for r in rows:
             self.listbox.append(self.row(r))
+        mode = getattr(self, 'label', '') == _('In this part of the map')
+        self.listhead.set_label(('🗺 ' + _('In this area') if mode else '📍 ' + _('Nearest churches') if getattr(self, 'center', None) else '🔎 ' + _('Search results')) + ' (%d)' % n)
+        self.listhead.set_visible(bool(n))
         ids = {r['id'] for r in rows}
         marks = [(r['lat'], r['lon'], r['id'], JUR_COL.get(r['jur'], '#7a1f78'), self.name(r)) for r in rows]
         marks += [(r['lat'], r['lon'], r['id'], '#d4a017', '★ ' + self.name(r)) for r in self.favs().values() if r['id'] not in ids]
@@ -578,17 +623,19 @@ class ChurchPage(Gtk.Box):
             pts = [(r['lat'], r['lon']) for r in near[:12]] + ([self.center] if getattr(self, 'center', None) else [])
             GLib.idle_add(lambda: (self.map.fit(pts, maxz=14), self.bubbles(), False)[2])
 
-    def row(self, r):
+    def row(self, r, recent=False):
         ex = Adw.ExpanderRow(title=GLib.markup_escape_text(self.name(r)),
                              subtitle=GLib.markup_escape_text(' · '.join(x for x in (_(KIND_NAMES[r['kind']]), _(JURS.get(r['jur'], JURS['other'])), self.dist(r.get('d'))) if x)))
         ex.set_title_lines(2); ex.set_subtitle_lines(2)
         ic = Gtk.Label(label=KIND_ICON.get(r['kind'], '⛪')); ic.add_css_class('kjt-ch-ic'); ex.add_prefix(ic)
         ex.add_suffix(self.star(r))
-        ex.connect('notify::expanded', lambda e, _p, r=r: self.opened(r) if e.get_expanded() else None)
+        ex.connect('notify::expanded', lambda e, _p, r=r: (self.opened(r), self.photo(r, ex)) if e.get_expanded() else None)
         addr = ', '.join(x for x in (r['addr'], ' '.join(y for y in (r['postcode'], r['city']) if y), r['region'], r['country']) if x)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=8, margin_bottom=10, margin_start=14, margin_end=14)
-        if r['name_en'] and r['name_en'] != r['name']:
-            box.append(Gtk.Label(label=r['name_en'] if self.name(r) != r['name_en'] else r['name'], xalign=0, wrap=True, css_classes=['dim-label']))
+        ex.pic = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, visible=False); box.append(ex.pic)   # 2.43: a photo of the church
+        other = r['name'] if self.name(r) != r['name'] else (r['name_en'] if r['name_en'] and r['name_en'] != r['name'] else '')
+        if other:
+            box.append(Gtk.Label(label=other, xalign=0, wrap=True, css_classes=['dim-label']))
         if addr:
             box.append(Gtk.Label(label='📍 ' + addr, xalign=0, wrap=True, selectable=True))
         if r['times']:
@@ -610,7 +657,10 @@ class ChurchPage(Gtk.Box):
             link('✉ ' + _('Email'), 'mailto:' + r['email'])
         if r['contact'] and r['contact'].startswith('http'):
             link('💬 ' + _('Contact'), r['contact'])
-        box.append(acts); box.append(dbox)
+        # 2.43: something wrong? corrected here, and sent to the website
+        fix = Gtk.Button(label='⚠ ' + _('Error? Fix it here'), halign=Gtk.Align.END); fix.add_css_class('flat'); fix.add_css_class('caption')
+        fix.connect('clicked', lambda *_a, r=r: __import__('kjt.churchform', fromlist=['open_form']).open_form(self.win, self, r))
+        box.append(acts); box.append(dbox); box.append(fix)
         ex.add_row(box)
         ex.cid = r['id']
         return ex
@@ -665,7 +715,33 @@ class ChurchPage(Gtk.Box):
         m = int(round(sec / 60.0))
         return ('%d min' % m) if m < 60 else ('%d h %02d min' % (m // 60, m % 60))
 
+    def photo(self, r, ex):
+        """2.43: the church's photo, as the website keeps it (Wikimedia Commons, or a street photo beside it), with its author and licence"""
+        if getattr(ex, 'pic_done', False):
+            return
+        ex.pic_done = True
+        def work():
+            j = json.loads(NET.get(SITE + '/wp-json/kjt/v1/church-photo?id=%d' % int(r['id']), timeout=40).decode('utf-8'))
+            if not isinstance(j, dict) or not j.get('src'):
+                return None
+            path = os.path.join(DATA, 'church-photos', '%d.img' % int(r['id'])); os.makedirs(os.path.dirname(path), exist_ok=True)
+            if not os.path.exists(path):
+                data = NET.get(j['src'], timeout=40, strict=True)
+                with open(path, 'wb') as f:
+                    f.write(data)
+            return path, j
+        def done(res):
+            if not isinstance(res, tuple):
+                return
+            path, j = res
+            pic = Gtk.Picture.new_for_filename(path); pic.set_content_fit(Gtk.ContentFit.COVER); pic.set_size_request(-1, 170); pic.set_can_shrink(True)
+            fr = Gtk.Frame(); fr.set_child(pic); fr.add_css_class('kjt-ch-photo'); ex.pic.append(fr)
+            cap = Gtk.Label(label=(_('Street photo beside the church') if j.get('kind') == 'street' else _('Photo')) + ': ' + (j.get('credit') or ''), xalign=0, wrap=True)
+            cap.add_css_class('caption'); cap.add_css_class('dim-label'); ex.pic.append(cap); ex.pic.set_visible(True)
+        run_bg(work, done)
+
     def opened(self, r):
+        self.add_recent(r)
         self.open_id = r['id']; self.map.select(r['id'])
         if self.map.z < 13:
             self.map.center(r['lat'], r['lon'], 14)

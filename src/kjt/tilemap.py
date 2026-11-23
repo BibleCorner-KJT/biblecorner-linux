@@ -3,14 +3,17 @@ Drag to move, scroll (or + and −) to zoom, click a mark to choose it. The pict
 a week. Map © OpenStreetMap contributors (shown on the map)."""
 import math, os, threading, time
 import cairo
-from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
-from .core import DATA, NET
+from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo, GdkPixbuf
+from .core import DATA, NET, SET
 from .i18n import _
 
 TILE = 256
 URL = 'https://tile.openstreetmap.org/%d/%d/%d.png'
+# 2.43: satellite photos (Esri World Imagery, which OpenStreetMap also allows for placing things) and the names of places over them
+SAT = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/%d/%d/%d'
+SAT_NAMES = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/%d/%d/%d'
 KEEP = 7 * 86400
-_cache = {}            # (z, x, y) -> cairo picture / None while loading
+_cache = {}            # (layer, z, x, y) -> cairo picture / None while loading
 _lock = threading.Semaphore(4)
 
 
@@ -51,8 +54,25 @@ class TileMap(Gtk.Overlay):
             b = Gtk.Button(icon_name=icon, tooltip_text=_('Larger') if d_ > 0 else _('Smaller')); b.add_css_class('osd'); b.connect('clicked', lambda _b, d_=d_: self.zoom_by(d_)); zb.append(b)
         self.add_overlay(zb)
         att = Gtk.Label(label='© OpenStreetMap', halign=Gtk.Align.END, valign=Gtk.Align.END, margin_end=6, margin_bottom=4)
-        att.add_css_class('kjt-map-att'); att.set_tooltip_text(_('Map © OpenStreetMap contributors')); self.add_overlay(att)
+        att.add_css_class('kjt-map-att'); att.set_tooltip_text(_('Map © OpenStreetMap contributors')); self.add_overlay(att); self.att = att
+        # 2.43: Map or Satellite (remembered); a place picked with a click (on_point, for the church form)
+        self.on_point = None; self.pin = None; self.sat = bool(SET.get('map_sat'))
+        lb = Gtk.Box(halign=Gtk.Align.START, valign=Gtk.Align.START, margin_top=10, margin_start=10); lb.add_css_class('linked')
+        self.bmap = Gtk.ToggleButton(label='🗺 ' + _('Map'), active=not self.sat); self.bsat = Gtk.ToggleButton(label='🛰 ' + _('Satellite'), active=self.sat, group=self.bmap)
+        for b in (self.bmap, self.bsat):
+            b.add_css_class('osd'); lb.append(b)
+        self.bsat.connect('toggled', lambda b: self.set_sat(b.get_active()))
+        self.add_overlay(lb); self.set_sat(self.sat)
         self.dir = os.path.join(DATA, 'tiles'); os.makedirs(self.dir, exist_ok=True)
+
+    def set_sat(self, on):
+        self.sat = bool(on); SET.set('map_sat', self.sat)
+        self.att.set_label('© Esri, Maxar · OpenStreetMap' if self.sat else '© OpenStreetMap')
+        self.att.set_tooltip_text(_('Satellite photos © Esri, Maxar, Earthstar Geographics') if self.sat else _('Map © OpenStreetMap contributors'))
+        self.area.queue_draw()
+
+    def set_pin(self, lat, lon):
+        self.pin = (lat, lon) if lat is not None else None; self.area.queue_draw()
 
     # the map's place
     def center(self, lat, lon, z=None):
@@ -143,6 +163,9 @@ class TileMap(Gtk.Overlay):
         if getattr(self, 'moved', False):
             self.moved = False; return
         w, h = self.area.get_width(), self.area.get_height(); cx, cy = to_px(self.lat, self.lon, self.z)
+        if self.on_point:   # 2.43: the church form: a click puts the pin there
+            la, lo = to_ll(cx - w / 2 + x, cy - h / 2 + y, self.z); lo = ((lo + 180) % 360) - 180
+            self.pin = (la, lo); self.area.queue_draw(); self.on_point(la, lo); return
         for la, lo, n in self.bubbles:     # a number: zoom in there
             mx, my = to_px(la, lo, self.z); sx, sy = mx - cx + w / 2, my - cy + h / 2
             r = 14 + min(16, math.log10(max(1, n)) * 6)
@@ -163,20 +186,25 @@ class TileMap(Gtk.Overlay):
                 self.on_unpick()
 
     # the pictures
-    def tile(self, z, x, y):
-        k = (z, x, y)
+    def tile(self, z, x, y, layer='map'):
+        k = (layer, z, x, y)
         if k in _cache:
             return _cache[k]
         _cache[k] = None
-        path = os.path.join(self.dir, '%d_%d_%d.png' % k)
+        path = os.path.join(self.dir, ('%d_%d_%d.png' % (z, x, y)) if layer == 'map' else ('%s_%d_%d_%d.png' % (layer, z, x, y)))
+        url = {'map': URL % (z, x, y), 'sat': SAT % (z, y, x), 'names': SAT_NAMES % (z, y, x)}[layer]
         def work():
             with _lock:
                 if not (os.path.exists(path) and time.time() - os.path.getmtime(path) < KEEP and os.path.getsize(path) > 100):
-                    data = NET.get(URL % k, timeout=30, strict=True)
+                    data = NET.get(url, timeout=30, strict=True)
                     if not data or len(data) < 100:
                         raise ValueError('no tile')
-                    with open(path + '.part', 'wb') as f:
-                        f.write(data)
+                    if data[:4] != b'\x89PNG':   # 2.43: the satellite photos come as JPEG: kept as PNG, which the map draws
+                        ld = GdkPixbuf.PixbufLoader(); ld.write(data); ld.close()
+                        ld.get_pixbuf().savev(path + '.part', 'png', [], [])
+                    else:
+                        with open(path + '.part', 'wb') as f:
+                            f.write(data)
                     os.replace(path + '.part', path)
                 return path
         def done(r):
@@ -207,10 +235,11 @@ class TileMap(Gtk.Overlay):
             if ty < 0 or ty >= n:
                 continue
             for tx in range(int(math.floor(x0 / TILE)), int(math.floor((x0 + w) / TILE)) + 1):
-                t = self.tile(z, tx % n, ty)
-                if t is not None:
-                    px, py = tx * TILE - x0, ty * TILE - y0
-                    cr.set_source_surface(t, px, py); cr.paint()
+                px, py = tx * TILE - x0, ty * TILE - y0
+                for layer in (('sat', 'names') if self.sat else ('map',)):
+                    t = self.tile(z, tx % n, ty, layer)
+                    if t is not None:
+                        cr.set_source_surface(t, px, py); cr.paint()
         # 2.18: a route (directions), under the places
         if len(self.route) > 1:
             cr.set_line_join(1); cr.set_line_cap(1)
@@ -245,6 +274,12 @@ class TileMap(Gtk.Overlay):
                 cr.set_source_rgba(1, 1, 1, 0.92); cr.rectangle(sx + 12, sy - lh / 2 - 3, lw + 10, lh + 6); cr.fill()
                 cr.set_source_rgb(0.24, 0.04, 0.25); cr.move_to(sx + 17, sy - lh / 2)
                 PangoCairo.show_layout(cr, lay)
+        if self.pin:   # 2.43: the place picked for the church form
+            px_, py_ = to_px(self.pin[0], self.pin[1], z); sx, sy = px_ - x0, py_ - y0
+            lay = area.create_pango_layout('⛪'); lay.set_font_description(Pango.FontDescription.from_string('Sans 22'))
+            lw, lh = lay.get_pixel_size()
+            cr.arc(sx, sy, 4, 0, 2 * math.pi); cr.set_source_rgb(0.48, 0.12, 0.47); cr.fill()
+            cr.set_source_rgb(0, 0, 0); cr.move_to(sx - lw / 2, sy - lh - 2); PangoCairo.show_layout(cr, lay)
         if self.here:
             hx, hy = to_px(self.here[0], self.here[1], z); sx, sy = hx - x0, hy - y0
             cr.arc(sx, sy, 9, 0, 2 * math.pi); cr.set_source_rgba(0.12, 0.47, 0.9, 0.25); cr.fill()
