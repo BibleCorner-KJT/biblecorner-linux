@@ -107,7 +107,7 @@ class BiblePage(Gtk.Box):
         self.press = (0, 0, 0)
         rclick = Gtk.GestureClick(button=3); rclick.connect('pressed', self.on_menu); self.view.add_controller(rclick)
         lp = Gtk.GestureLongPress(); lp.connect('pressed', lambda g, x, y: self.on_menu(g, 1, x, y)); self.view.add_controller(lp)
-        self.scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True); self.scroll.add_css_class('kjt-paper-scroll')
+        self.scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER); self.scroll.add_css_class('kjt-paper-scroll')   # 2.45: the chapter never scrolls sideways
         self.scroll.get_vadjustment().connect('value-changed', self.remember_place)
         inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_start=22, margin_end=22, margin_top=12)
@@ -960,7 +960,7 @@ class BiblePage(Gtk.Box):
         if mine:
             notes = sum(1 for _, r in mine if r.get('note'))
             row = Gtk.Box(spacing=8)
-            row.append(Gtk.Label(label=('📝 ' if notes else '🔖 ') + _('Your notes and bookmarks in this chapter: %d') % len(mine), xalign=0, hexpand=True, wrap=True))
+            row.append(Gtk.Label(label=('📝 ' if notes else '🔖 ') + _('Your notes and bookmarks in this chapter: %d') % len(mine), xalign=0, hexpand=True, wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR))
             nb = Gtk.Button(label=_('Next ↓'), tooltip_text=_('Go to the next one')); nb.add_css_class('flat')
             nb.connect('clicked', lambda *_: self.next_mark(mine)); row.append(nb)
             self.info.append(row)
@@ -969,6 +969,7 @@ class BiblePage(Gtk.Box):
                 ve = int(r.get('verse_end') or 0)
                 lab = '%d%s' % (v, '–%d' % ve if ve > v else '') + (' ✎' if r.get('note') else '') + ''.join('  ' + STUDY.pad_label(t) for t in (r.get('tags') or [])[:2])
                 b = Gtk.Button(label=lab, tooltip_text=(r.get('note') or '').strip()[:300] or 'Bookmark')
+                b.get_child().set_ellipsize(Pango.EllipsizeMode.END); b.get_child().set_max_width_chars(28)
                 b.add_css_class('kjt-chip'); b.add_css_class('kjt-chip-none')
                 pc = STUDY.pad_color((r.get('tags') or [''])[0]) if r.get('tags') and SET.get('pad_colours') is not False else ''
                 if pc:
@@ -985,7 +986,7 @@ class BiblePage(Gtk.Box):
             self.info.append(Gtk.Label(label=_('People and places in this chapter'), xalign=0, css_classes=['kjt-pp-head']))
             fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=6, row_spacing=6)
             for i, n, kind in names[:60]:
-                b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-pp')
+                b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-pp'); b.get_child().set_ellipsize(Pango.EllipsizeMode.END)
                 b.connect('clicked', lambda _b, i=i: self.win.open_dict(i)); fb.append(b)
             self.info.append(fb)
         d = read_file('fathers/%s.json.gz' % canon(self.book))

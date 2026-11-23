@@ -569,6 +569,9 @@ def wrap_row():
 
 def btn(text, fn, *cls):
     b = Gtk.Button(label=text)
+    l = b.get_child()   # 2.45: a long label wraps on a phone instead of widening the page
+    if isinstance(l, Gtk.Label):
+        l.set_wrap(True); l.set_wrap_mode(Pango.WrapMode.WORD_CHAR); l.set_justify(Gtk.Justification.CENTER)
     for c in cls:
         b.add_css_class(c)
     b.connect('clicked', lambda *_: fn())
@@ -900,13 +903,13 @@ class MarkBar(Gtk.Box):
         if not r:
             fb.append(btn('✓ ' + T('Mark as read') + ' · ' + label(k), lambda: self.mark('button'), 'kjj-btn'))
         else:
-            fb.append(lab('✓ %s %s%s · %s' % (label(k), T('read'), (' %d×' % r[2]) if r[2] > 1 else '', fmt(r[1])), 'kjj-done', wrap=False))
+            fb.append(lab('✓ %s %s%s · %s' % (label(k), T('read'), (' %d×' % r[2]) if r[2] > 1 else '', fmt(r[1])), 'kjj-done'))
             if r[1] == today():
                 fb.append(btn(T('Undo'), lambda: JOURNEY.unmark(k), 'flat'))
             else:
                 fb.append(btn(T('I read it again'), lambda: self.mark('again'), 'flat'))
             if JOURNEY.note:
-                fb.append(lab(JOURNEY.note, 'dim-label', wrap=False))
+                fb.append(lab(JOURNEY.note, 'dim-label'))
             ps = JOURNEY.plan_status()
             nx = JOURNEY.next_unread([x for p in ps['parts'] for x in p]) if ps else None
             if nx and nx != k:
