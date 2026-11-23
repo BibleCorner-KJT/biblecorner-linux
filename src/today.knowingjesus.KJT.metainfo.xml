@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.43" date="2026-12-07"><description><p>The app no longer has any access to your files: only the internet, sound and the screen. GNOME Software now shows it as probably safe.</p></description></release>
     <release version="2.42" date="2026-11-23"><description><p>Safer: the app no longer uses a tray icon. "Keep running in the background" now asks your computer once, and notifications keep coming. The app icon is always the usual purple one on Linux (the colour choice needed access to your files). First step towards GNOME Software showing the app as "probably safe".</p></description></release>
     <release version="2.41" date="2026-11-23"><description><p>Good Fun games: pressing Download again no longer downloads every game again. Only files that changed on the website are downloaded, and when nothing changed the app says so.</p></description></release>
     <release version="2.40" date="2026-11-22"><description><p>Notifications, as in the Android app: when someone asks for prayer (🙏 New Prayer Request: "Click here to pray for your brothers and sisters in Christ", with James 5:16), and now and then news from Bible Corner. A click opens the Prayer page. Checked about every half hour while the app runs; Settings › Notifications turns them off.</p></description></release>

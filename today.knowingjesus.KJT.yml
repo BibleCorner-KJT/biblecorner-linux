@@ -10,10 +10,8 @@ finish-args:
   - --socket=fallback-x11
   - --device=dri
   - --socket=pulseaudio
-  # 2.42: no tray any more (the Background portal asks instead), so no --talk-name=org.kde.StatusNotifierWatcher.
-  # Kept for ONE release only: 2.42 removes the icon a user chose earlier (~/.local/share/applications).
-  # 2.43 drops it, and GNOME Software then shows the app as "probably safe" instead of "potentially unsafe".
-  - --filesystem=xdg-data/applications:create
+  # 2.43: no access to your files and no tray: only the internet, sound, the graphics card and the screen.
+  # GNOME Software shows the app as "probably safe" (it uses the internet), no longer "potentially unsafe".
 modules:
   - name: kjt
     buildsystem: simple
