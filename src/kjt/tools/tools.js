@@ -43,6 +43,8 @@
   function btn(text, fn, cls) { return el('button', { type: 'button', cls: 'kt-btn ' + (cls || ''), text: text, on: { click: fn } }); }
   function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
   function say(msg) { var b = el('div', { cls: 'kt-toast', role: 'status', text: msg }); document.body.appendChild(b); setTimeout(function () { b.remove(); }, 2600); }
+  /* a star of My Agenda is also told to Kids Corner (kjt-achieve), for My Pilgrim Corner to count when it learns to */
+  function star() { try { window.dispatchEvent(new CustomEvent('kjt-achieve', { detail: { type: 'agenda' } })); } catch (e) {} }
   function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
   /* ---------- the Church's days (feasts and fasts), from the website or the app ---------- */
@@ -166,7 +168,7 @@
         ticks[s.id] = !ticks[s.id]; buzz(20);
         var all = r.steps.every(function (x) { return ticks[x.id]; });
         var sd = a.starDays[today] || (a.starDays[today] = {});
-        if (all && !sd[r.id]) { sd[r.id] = 1; a.stars++; say('⭐ ' + t('Well done! A new star.')); }
+        if (all && !sd[r.id]) { sd[r.id] = 1; a.stars++; star(); say('⭐ ' + t('Well done! A new star.')); }
         save(); var n = routineCard(r, ticks, a, today); c.replaceWith(n);
       } } }, [el('span', { cls: 'kt-step-i', text: s.icon }), el('span', { text: t(s.t) })]));
     });
@@ -198,7 +200,7 @@
     var cb = el('input', { type: 'checkbox', 'aria-label': t('Done') }); cb.checked = !!x.done;
     cb.addEventListener('change', function () {
       x.done = cb.checked;
-      if (x.done) { a.stars++; say('⭐ ' + t('Well done! A new star.')); }
+      if (x.done) { a.stars++; star(); say('⭐ ' + t('Well done! A new star.')); }
       else a.stars = Math.max(0, a.stars - 1);
       save(); redraw();
     });
