@@ -72,7 +72,14 @@ class YouPage(Gtk.Box):
         return 'you_' + lang()
 
     def data(self):
-        return STORE.kv(self.key())
+        d = STORE.kv(self.key())
+        if not d:   # 2.48: You Today inside the app
+            from . import pack
+            h = pack.page('you', lang()) if pack.present() else None
+            d = parse_you(h) if h else None
+            if d:
+                STORE.set_kv(self.key(), d)
+        return d
 
     def refresh(self):
         if self.loaded_lang != lang():

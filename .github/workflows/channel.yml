@@ -25,6 +25,11 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4
+      - name: The offline pack (branch "pack") inside the app
+        continue-on-error: true
+        run: |
+          git config --global --add safe.directory '*'
+          git fetch --depth 1 origin pack && mkdir -p src/kjt/pack && git --work-tree=src/kjt/pack checkout FETCH_HEAD -- . && git reset -q && du -sh src/kjt/pack
       - name: Build for ARM
         run: |
           set -e
@@ -46,6 +51,11 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4
+      - name: The offline pack (branch "pack") inside the app
+        continue-on-error: true
+        run: |
+          git config --global --add safe.directory '*'
+          git fetch --depth 1 origin pack && mkdir -p src/kjt/pack && git --work-tree=src/kjt/pack checkout FETCH_HEAD -- . && git reset -q && du -sh src/kjt/pack
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:

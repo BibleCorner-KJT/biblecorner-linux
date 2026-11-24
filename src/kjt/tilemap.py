@@ -1,7 +1,7 @@
 """2.16: a street map of the world, drawn here from OpenStreetMap's map pictures (tiles), with places marked on it.
 Drag to move, scroll (or + and −) to zoom, click a mark to choose it. The pictures are kept on this computer for
 a week. Map © OpenStreetMap contributors (shown on the map)."""
-import math, os, threading, time
+import math, re, os, threading, time
 import cairo
 from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo, GdkPixbuf
 from .core import DATA, NET, SET
@@ -15,6 +15,53 @@ SAT_NAMES = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/Worl
 KEEP = 7 * 86400
 _cache = {}            # (layer, z, x, y) -> cairo picture / None while loading
 _lock = threading.Semaphore(4)
+
+
+_WORLD = None
+
+
+def world():
+    """2.48: the world inside the app (land and today's borders, from the website's maps), drawn where map pictures are missing
+    (no internet): a list of shapes, each a list of points in pixels at zoom 0"""
+    global _WORLD
+    if _WORLD is not None:
+        return _WORLD
+    _WORLD = ([], [])
+    try:
+        from .core import read_file
+        w = read_file('maps/world.json')
+        if not w:
+            from . import pack
+            w = pack.js('data/maps/world.json')
+        for i, key in enumerate(('land', 'borders')):
+            shape = None; x = y = 0.0; cmd = 'M'; nums = []
+            for tok in re.findall(r'[MmLlZz]|-?\d+(?:\.\d+)?', (w or {}).get(key) or ''):
+                if tok in 'MmLlZz':
+                    cmd = tok
+                    if tok in 'Zz' and shape:
+                        _WORLD[i].append(shape); shape = None
+                    continue
+                nums.append(float(tok))
+                if len(nums) < 2:
+                    continue
+                a, b = nums; nums = []
+                if cmd in 'ml':
+                    x += a; y += b
+                else:
+                    x, y = a, b
+                lon = x / 86.60254037844387 - 10; lat = 46 - y / 100.0
+                px, py = to_px(max(-85, min(85, lat)), lon, 0)
+                if cmd in 'Mm':
+                    if shape:
+                        _WORLD[i].append(shape)
+                    shape = [(px, py)]; cmd = 'L' if cmd == 'M' else 'l'
+                else:
+                    shape.append((px, py))
+            if shape:
+                _WORLD[i].append(shape)
+    except Exception:
+        pass
+    return _WORLD
 
 
 def to_px(lat, lon, z):
@@ -227,10 +274,36 @@ class TileMap(Gtk.Overlay):
         run_bg(work, done)
         return None
 
+    def any_missing(self, z, n, x0, y0, w, h):
+        for ty in range(int(math.floor(y0 / TILE)), int(math.floor((y0 + h) / TILE)) + 1):
+            if 0 <= ty < n:
+                for tx in range(int(math.floor(x0 / TILE)), int(math.floor((x0 + w) / TILE)) + 1):
+                    if self.tile(z, tx % n, ty, 'sat' if self.sat else 'map') is None:
+                        return True
+        return False
+
     def draw(self, area, cr, w, h):
         cr.set_source_rgb(0.93, 0.92, 0.9); cr.paint()
         z = self.z; n = 2 ** z; cx, cy = to_px(self.lat, self.lon, z)
         x0, y0 = cx - w / 2, cy - h / 2
+        if not NET.online() or self.any_missing(z, n, x0, y0, w, h):   # 2.48: the world under the map pictures that are not here
+            land, borders = world()
+            if land:
+                k = 2 ** z
+                cr.set_source_rgb(0.81, 0.89, 0.93); cr.paint()
+                cr.save(); cr.translate(-x0, -y0); cr.scale(k, k)
+                for sh in land:
+                    cr.move_to(*sh[0])
+                    for p in sh[1:]:
+                        cr.line_to(*p)
+                    cr.close_path()
+                cr.set_source_rgb(0.95, 0.94, 0.9); cr.fill()
+                for sh in borders:
+                    cr.move_to(*sh[0])
+                    for p in sh[1:]:
+                        cr.line_to(*p)
+                cr.set_line_width(1.0 / k); cr.set_source_rgb(0.72, 0.68, 0.6); cr.stroke()
+                cr.restore()
         for ty in range(int(math.floor(y0 / TILE)), int(math.floor((y0 + h) / TILE)) + 1):
             if ty < 0 or ty >= n:
                 continue
@@ -240,6 +313,7 @@ class TileMap(Gtk.Overlay):
                     t = self.tile(z, tx % n, ty, layer)
                     if t is not None:
                         cr.set_source_surface(t, px, py); cr.paint()
+
         # 2.18: a route (directions), under the places
         if len(self.route) > 1:
             cr.set_line_join(1); cr.set_line_cap(1)

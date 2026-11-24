@@ -42,7 +42,16 @@ class TodayPage(Gtk.Box):
 
     def data(self):
         d = dict(STORE.kv('today_' + lang()) or STORE.kv('today_en') or {})
-        extra = STORE.kv('today_more_' + lang()) or {}   # 2.13: days fetched for the calendar
+        extra = dict(STORE.kv('today_more_' + lang()) or {})   # 2.13: days fetched for the calendar
+        try:   # 2.48: about two years inside the app (the offline pack)
+            from . import pack
+            if pack.present():
+                pack.day(lang(), '')
+                for k, v in (pack._days.get(lang()) or {}).items():
+                    if k and k not in extra:
+                        extra[k] = v
+        except Exception:
+            pass
         if extra:
             have = {x['date'] for x in d.get('days') or []}
             d['days'] = list(d.get('days') or []) + [x for x in extra.values() if x['date'] not in have]

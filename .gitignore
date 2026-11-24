@@ -4,3 +4,4 @@ build/
 .flatpak-builder/
 repo/
 *.flatpak
+src/kjt/pack/

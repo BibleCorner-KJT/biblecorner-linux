@@ -4,14 +4,14 @@ import gi
 gi.require_version('Gtk', '4.0'); gi.require_version('Adw', '1'); gi.require_version('PangoCairo', '1.0')
 from gi.repository import Gtk, Adw, Gio, GLib, Gdk, GObject
 
-from .core import STORE, SET, NET, SITE, LANGS, LANG_NAMES, info, lang, canon, run_bg
+from .core import STORE, SET, NET, SITE, LANGS, LANG_NAMES, info, lang, canon, run_bg, DEFAULT_BIBLES
 from .i18n import _
 from .downloads import DL, default_plan, have_data
 from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.47'
+VERSION = '2.48'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -505,6 +505,20 @@ class Window(Adw.ApplicationWindow):
 
     # starting and stopping
     def first_run(self):
+        # 2.48: the offline pack: the Bibles, the dictionary, the maps, the Church Fathers, Today with God and more are
+        # inside the app, so nothing needs the internet, even now; the reader shows the Bible as soon as it is in
+        from . import pack
+        if pack.present():
+            def ready():
+                try:
+                    if not self.bible.tr or not STORE.find_book(self.bible.tr, self.bible.book or 'JHN'):
+                        self.bible.tr = DEFAULT_BIBLES.get(lang(), 'eng-kjv') if DEFAULT_BIBLES.get(lang(), 'eng-kjv') in STORE.bibles() else (STORE.bibles() or ['eng-kjv'])[0]
+                    self.bible.go(self.bible.book or 'JHN', self.bible.ch or 1, 0)
+                except Exception:
+                    pass
+            pack.start(lang(), ready)
+            self.background()
+            return False
         if have_data():
             self.background()
             return False

@@ -17,6 +17,11 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4
+      - name: The offline pack (branch "pack") inside the app
+        continue-on-error: true
+        run: |
+          git config --global --add safe.directory '*'
+          git fetch --depth 1 origin pack && mkdir -p src/kjt/pack && git --work-tree=src/kjt/pack checkout FETCH_HEAD -- . && git reset -q && du -sh src/kjt/pack
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@933e9e8ca36e85046ebca8e211f0785c6becac40   # pinned (2026-11-17)
         with:
           bundle: knowing-jesus-today.flatpak

@@ -528,12 +528,13 @@ class ChurchPage(Gtk.Box):
             g = {}
             # 2.18: through the website's usual address for the apps; its REST address if that one is not there
             try:
-                r = NET.ajax('kjtb_desk', op='church_geo', q=q)
-                if r.get('success') and isinstance(r.get('data'), dict):
-                    g = r['data']
+                if NET.online():
+                    r = NET.ajax('kjtb_desk', op='church_geo', q=q)
+                    if r.get('success') and isinstance(r.get('data'), dict):
+                        g = r['data']
             except Exception as e:
                 log_problem('church search (app address): ' + str(e)[:120])
-            if not g.get('found') and not g.get('busy'):
+            if not g.get('found') and not g.get('busy') and NET.online():
                 try:
                     u = urls()[1]
                     g2 = json.loads(NET.get(u + ('&' if '?' in u else '?') + 'q=' + quote(q), timeout=30).decode() or '{}')
@@ -545,6 +546,20 @@ class ChurchPage(Gtk.Box):
                 return ('place', g['lat'], g['lon'], g.get('label') or q, self.around(g['lat'], g['lon'], ix))
             if named:
                 return ('named', named)
+            # 2.48: without the website: the town, postcode, region or church name in the whole directory kept here
+            town, by_name, qn = [], [], ql.replace(' ', '')
+            for c in (ix or {}).get('cells') or []:
+                for r in (STORE.kv('ch_c_' + c[0]) or {}).get('c') or []:
+                    rr = row_of(r); city = (rr.get('city') or '').casefold()
+                    if city == ql or (len(qn) >= 3 and (rr.get('postcode') or '').casefold().replace(' ', '').startswith(qn)) or (rr.get('region') or '').casefold() == ql:
+                        town.append(rr)
+                    elif len(ql) >= 3 and (ql in rr['name'].casefold() or ql in (rr.get('name_en') or '').casefold() or city.startswith(ql)):
+                        by_name.append(rr)
+            if town:
+                la = sum(r['lat'] for r in town) / len(town); lo = sum(r['lon'] for r in town) / len(town)
+                return ('place', la, lo, q, self.around(la, lo, ix))
+            if by_name:
+                return ('named', by_name[:200])
             return ('none', g.get('busy'))
         def done(r):
             if isinstance(r, Exception) or not r:

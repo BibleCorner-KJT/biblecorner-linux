@@ -206,7 +206,14 @@ class PrayPage(Gtk.Box):
         return 'pray_' + lang()
 
     def data(self):
-        return STORE.kv(self.key())
+        d = STORE.kv(self.key())
+        if not d:   # 2.48: the Prayer page inside the app
+            from . import pack
+            h = pack.page('pray', lang()) if pack.present() else None
+            d = parse_pray(h) if h else None
+            if d:
+                STORE.set_kv(self.key(), d)
+        return d
 
     def refresh(self):
         if self.loaded_lang != lang():
