@@ -5,7 +5,8 @@ the Linux app and the Android app. Only what the website shows to everyone; noth
 
 pack/
   info.json                    the website's list of Bibles, languages, book names (kjtb_desk op=info)
-  bibles/<tr>.json.gz          the nine Bibles of the app's languages: {"tr","books":[{"code","name","rows":[[ch,v,text],..]}]}
+  bibles/<tr>/books.json       the nine Bibles of the app's languages: [{"code","name"}] in the website's order
+  bibles/<tr>/<BOOK>.json.gz   one book: [[chapter, verse, text], ...]
   data/...                     the same files the apps download: dictionary, maps, cross-references, Greek and Hebrew
                                words, the words of Christ in red, the Church Fathers (writings and commentary)
   today/<lang>.json.gz         Today with God for about two years: {"days":[...]}
@@ -76,9 +77,11 @@ def main():
         def one(b):
             r = ajax('kjtb_data', op='offline_book', tr=tr, book=b['book_code'])
             rows = [[int(x['chapter']), int(x['verse']), x['text']] for x in (r.get('data') or [])]
-            return {'code': b['book_code'], 'name': b.get('book') or b['book_code'], 'rows': rows}
-        out = many(one, books, 6)
-        put('bibles/%s.json.gz' % tr, gz({'tr': tr, 'books': out}))
+            if rows:
+                put('bibles/%s/%s.json.gz' % (tr, b['book_code']), gz(rows))
+                return {'code': b['book_code'], 'name': b.get('book') or b['book_code']}
+        out = [x for x in many(one, books, 6) if x]
+        put('bibles/%s/books.json' % tr, json.dumps(out, ensure_ascii=False))
         log('Bible', tr, len(out), 'books')
     # the files the apps download (the same names)
     en = (info.get('books') or {}).get('en') or {}
