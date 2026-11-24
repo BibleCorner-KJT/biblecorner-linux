@@ -1,0 +1,287 @@
+{
+"v": 1,
+"base": "https://biblecorner-kjt.github.io/biblecorner-linux/atlas/",
+"credit": "Wikimedia Commons (public domain)",
+"maps": [
+{
+"id": "maccoun-1899-p033-about-2250-1700-b-c-canaan-at-the-time-of-the-patria",
+"t": "Canaan at the time of the Patriarchs",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2026,
+"h": 3598,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p033_ABOUT_2250-1700_B.C._-_CANAAN_AT_THE_TIME_OF_THE_PATRIARCHES.jpg"
+},
+{
+"id": "maccoun-1899-p063-about-138-b-c-canaan-at-the-death-of-moses",
+"t": "Canaan at the death of Moses",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2010,
+"h": 3598,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p063_ABOUT_138_B.C._-_CANAAN_AT_THE_DEATH_OF_MOSES.jpg"
+},
+{
+"id": "maccoun-1899-p075-joshua-s-camaigns-the-conquest-west-of-jordan",
+"t": "Joshua’s campaigns: the conquest west of the Jordan",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2002,
+"h": 3574,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p075_JOSHUA%27S_CAMAIGNS._THE_CONQUEST%2C_WEST_OF_JORDAN.jpg"
+},
+{
+"id": "maccoun-1899-p081-about-1350-to-1020-b-c-israel-time-of-the-judges",
+"t": "Israel at the time of the Judges",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 1990,
+"h": 3586,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p081_ABOUT_1350_TO_1020_B.C._-_ISRAEL%2C_TIME_OF_THE_JUDGES.jpg"
+},
+{
+"id": "maccoun-1899-p095-about-975-to-930-b-c-kingdom-of-david-and-solomon",
+"t": "The kingdom of David and Solomon",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2022,
+"h": 3594,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p095_ABOUT_975_TO_930_B.C._-_KINGDOM_OF_DAVID_AND_SOLOMON.jpg"
+},
+{
+"id": "maccoun-1899-p111-about-830-b-c-the-syrian-conquest",
+"t": "The Syrian conquest (about 830 B.C.)",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2026,
+"h": 3590,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p111_ABOUT_830_B.C._-_THE_SYRIAN_CONQUEST.jpg"
+},
+{
+"id": "maccoun-1899-p127-587-b-c-capativity-of-judah",
+"t": "The captivity of Judah (587 B.C.)",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2026,
+"h": 3582,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p127_587_B.C._CAPATIVITY_OF_JUDAH.jpg"
+},
+{
+"id": "maccoun-1899-p145-central-range-judea",
+"t": "The central hill country: Judea",
+"y": "1899",
+"by": "Townsend MacCoun",
+"s": "ot",
+"w": 2006,
+"h": 3550,
+"src": "https://commons.wikimedia.org/wiki/File%3AMACCOUN%281899%29_p145_CENTRAL_RANGE_-_JUDEA.jpg"
+},
+{
+"id": "philippe-briet-palestinae-delineatio-ad-geographiae-canones-revocata",
+"t": "Palestine, drawn by the rules of geography",
+"y": "1641",
+"by": "Philippe Briet",
+"s": "ot",
+"w": 4800,
+"h": 3528,
+"src": "https://commons.wikimedia.org/wiki/File%3APhilippe_Briet._Palestinae_delineatio_ad_geographiae_canones_revocata.jpg"
+},
+{
+"id": "canaan-or-the-land-of-promise-loc-99466735",
+"t": "Canaan, or the Land of Promise",
+"y": "about 1700",
+"by": "Joseph Moxon",
+"s": "ot",
+"w": 4800,
+"h": 3347,
+"src": "https://commons.wikimedia.org/wiki/File%3ACanaan%2C_or_The_Land_of_promise._LOC_99466735.jpg"
+},
+{
+"id": "1759-map-holy-land-and-12-tribes",
+"t": "The Holy Land and the twelve tribes",
+"y": "1759",
+"by": "Tobias Conrad Lotter",
+"s": "ot",
+"w": 2000,
+"h": 1676,
+"src": "https://commons.wikimedia.org/wiki/File%3A1759_map_Holy_Land_and_12_Tribes.jpg"
+},
+{
+"id": "john-melish-the-places-recorded-in-the-five-books-of-moses-1815",
+"t": "The places recorded in the five books of Moses",
+"y": "1815",
+"by": "John Melish",
+"s": "ot",
+"w": 4800,
+"h": 3977,
+"src": "https://commons.wikimedia.org/wiki/File%3AJohn_Melish._The_Places_Recorded_in_the_Five_Books_of_Moses._1815.jpg"
+},
+{
+"id": "karte-von-dem-gelobten-lande-und-der-40-j-hrigen-reise-der-kinder-isra",
+"t": "The Promised Land and the forty years’ journey of the children of Israel",
+"y": "about 1830",
+"by": "Heinrich Schneeweiß",
+"s": "ot",
+"w": 4800,
+"h": 3367,
+"src": "https://commons.wikimedia.org/wiki/File%3AKarte_von_dem_Gelobten_Lande_und_der_40-j%C3%A4hrigen_Reise_der_Kinder_Israel.jpg"
+},
+{
+"id": "stieler-1859-map-of-ancient-palaestina",
+"t": "Ancient Palestine",
+"y": "1859",
+"by": "Adolf Stieler and August Petermann",
+"s": "ot",
+"w": 3060,
+"h": 4064,
+"src": "https://commons.wikimedia.org/wiki/File%3AStieler_-_1859_map_of_ancient_Palaestina.jpg"
+},
+{
+"id": "george-f-cram-judea-according-to-the-apocryphal-books-fl46962050-39043",
+"t": "Judea in the books of the Maccabees and Tobit, and Jerusalem",
+"y": "1880s",
+"by": "George F. Cram",
+"s": "ot",
+"w": 3453,
+"h": 4800,
+"src": "https://commons.wikimedia.org/wiki/File%3AGeorge_F._Cram%2C_Judea_according_to_the_Apocryphal_books_%28FL46962050_3904375%29.jpg"
+},
+{
+"id": "heinrich-kiepert-aegyptus-phoenice-et-palaestina",
+"t": "Egypt, Phoenicia and Palestine",
+"y": "1903",
+"by": "Heinrich Kiepert",
+"s": "ot",
+"w": 4800,
+"h": 3809,
+"src": "https://commons.wikimedia.org/wiki/File%3AHeinrich_Kiepert._Aegyptus._Phoenice_et_Palaestina.jpg"
+},
+{
+"id": "joseph-moxon-the-travels-of-st-paul-and-other-the-apostles-or-a-geogra",
+"t": "The travels of St Paul and the other Apostles",
+"y": "about 1700",
+"by": "Joseph Moxon",
+"s": "nt",
+"w": 4800,
+"h": 3687,
+"src": "https://commons.wikimedia.org/wiki/File%3AJoseph_Moxon%2C_The_travels_of_St._Paul_and_other_the_Apostles_or_a_geographical_description_of_those_lands_and_countries_where_in_the_Gospel_of_Christ_was_first_propagated_%28FL200037423_2368800%29.jpg"
+},
+{
+"id": "an-accurate-map-of-the-travels-of-the-apostles-with-st-paul-s-voyage-t",
+"t": "The travels of the Apostles, with St Paul’s voyage to Rome",
+"y": "1700s",
+"by": "",
+"s": "nt",
+"w": 4472,
+"h": 2722,
+"src": "https://commons.wikimedia.org/wiki/File%3AAn_accurate_map_of_the_travels_of_the_Apostles_with_St._Paul%27s_Voyage_to_Rome_%28FL37121985_3898255%29.jpg"
+},
+{
+"id": "map-showing-the-missionary-tours-of-the-apostle-paul-fl37663542-391575",
+"t": "The missionary journeys of the Apostle Paul",
+"y": "1800s",
+"by": "",
+"s": "nt",
+"w": 4800,
+"h": 3700,
+"src": "https://commons.wikimedia.org/wiki/File%3AMap_showing_the_missionary_tours_of_the_Apostle_Paul_%28FL37663542_3915753%29.jpg"
+},
+{
+"id": "sketch-of-routes-to-accompany-a-visit-to-the-seven-churches-cc-by-the-",
+"t": "The Seven Churches of Asia",
+"y": "1828",
+"by": "Francis V. J. Arundell",
+"s": "nt",
+"w": 2000,
+"h": 1078,
+"src": "https://commons.wikimedia.org/wiki/File%3ASketch_of_Routes_to_accompany_a_Visit_to_the_Seven_Churches_%26cc_By_the_Revd_Fr_V_J_Arundell_-_Arundell_Francis_Vyvyan_Jago_-_1828.jpg"
+},
+{
+"id": "sidney-hall-1-countries-travelled-by-the-apostles-2-asia-minor-and-gre",
+"t": "The countries travelled by the Apostles; Asia Minor and Greece; Palestine",
+"y": "1830s",
+"by": "Sidney Hall",
+"s": "nt",
+"w": 3600,
+"h": 3000,
+"src": "https://commons.wikimedia.org/wiki/File%3ASidney_Hall%2C_1_Countries_travelled_by_the_Apostles._2_Asia_Minor_and_Greece._3_Palestine_%28FL200037065_2368592%29.jpg"
+},
+{
+"id": "phebe-ellen-nichols-map-of-galil-a-map-of-canaan-1853",
+"t": "Galilee (a map of Canaan)",
+"y": "1853",
+"by": "Phebe Ellen Nichols",
+"s": "nt",
+"w": 4174,
+"h": 2988,
+"src": "https://commons.wikimedia.org/wiki/File%3APhebe_Ellen_Nichols._Map_of_Galil%C3%A6a_%28Map_of_Canaan%29._1853.jpg"
+},
+{
+"id": "johann-nepomuk-sepp-pal-stina-zur-zeit-christi-fl33144862-3882654",
+"t": "Palestine at the time of Christ",
+"y": "1860s",
+"by": "Johann Nepomuk Sepp",
+"s": "nt",
+"w": 3237,
+"h": 4800,
+"src": "https://commons.wikimedia.org/wiki/File%3AJohann_Nepomuk_Sepp%2C_Pal%C3%A6stina_zur_Zeit_Christi_%28FL33144862_3882654%29.jpg"
+},
+{
+"id": "edward-weller-map-showing-st-paul-s-2nd-missionary-journey-fl36012228-",
+"t": "St Paul’s second missionary journey",
+"y": "1860s",
+"by": "Edward Weller",
+"s": "nt",
+"w": 4800,
+"h": 4294,
+"src": "https://commons.wikimedia.org/wiki/File%3AEdward_Weller%2C_Map_showing_St._Paul%27s_2nd_missionary_journey_%28FL36012228_3897562%29.jpg"
+},
+{
+"id": "johnson-s-roman-empire-in-the-time-of-christ-and-his-apostles-aslo-ind",
+"t": "The Roman Empire in the time of Christ and His Apostles",
+"y": "1860s",
+"by": "A. J. Johnson",
+"s": "nt",
+"w": 4800,
+"h": 2965,
+"src": "https://commons.wikimedia.org/wiki/File%3AJohnson%27s_Roman_Empire_in_the_Time_of_Christ_and_His_Apostles_aslo_indicating_St._Paul%27s_Journeyings._Published_by_A._J._%28IA_dr_johnsons-roman-empire-in-the-time-of-christ-and-his-apostles-aslo-indicati-4574061%29.jpg"
+},
+{
+"id": "rawson-a-l-map-of-apostel-paul-s-travels-1873",
+"t": "The travels of the Apostle Paul",
+"y": "1873",
+"by": "A. L. Rawson",
+"s": "nt",
+"w": 2400,
+"h": 1753,
+"src": "https://commons.wikimedia.org/wiki/File%3ARawson%2C_A.L._Map_of_Apostel_Paul%27s_Travels._1873.jpg"
+},
+{
+"id": "butler-palestina-2",
+"t": "Palestine (Atlas of Ancient and Classical Geography)",
+"y": "1907",
+"by": "Samuel Butler",
+"s": "nt",
+"w": 2088,
+"h": 3388,
+"src": "https://commons.wikimedia.org/wiki/File%3AButler_Palestina_2.jpg"
+},
+{
+"id": "nr-4-palaestina-und-phoenizien-zur-zeit-der-geburt-christi",
+"t": "Palestine and Phoenicia at the birth of Christ",
+"y": "1909",
+"by": "Wilhelm Sieglin and Max Kiessling",
+"s": "nt",
+"w": 4185,
+"h": 3343,
+"src": "https://commons.wikimedia.org/wiki/File%3ANr._4._Palaestina_und_Phoenizien_zur_Zeit_der_Geburt_Christi.png"
+}
+]
+}

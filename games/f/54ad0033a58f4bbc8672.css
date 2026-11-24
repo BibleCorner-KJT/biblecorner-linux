@@ -1,0 +1,131 @@
+/* KJT Bible Adventure Trail — Site Core 5.0.5
+   Everything is scoped under .kjt-trail so it cannot affect the rest of the site.
+   Colours follow the site's own palette, with fallbacks. */
+
+.kjt-trail{
+  --kt-deep:var(--color-purple-deep,#3e093f);
+  --kt-purple:var(--color-purple,#70126f);
+  --kt-yellow:var(--color-yellow,#f3c548);
+  --kt-ink:var(--color-ink,#1d1a22);
+  --kt-muted:var(--color-muted,#665f6b);
+  --kt-line:var(--color-line,#e5dfe7);
+  --kt-paper:var(--color-paper,#fbfafc);
+  --kt-teal:var(--color-teal,#0b7778);
+  --kt-teal-soft:var(--color-teal-soft,#e6f3f1);
+  --kt-red:var(--color-red,#a92839);
+  --kt-display:var(--font-display,"Roboto Slab",Georgia,serif);
+  background:linear-gradient(180deg,#fff7df 0%,var(--kt-paper) 100%);
+  color:var(--kt-ink);
+  border-bottom:1px solid var(--kt-line);
+  scroll-margin-top:6rem;
+}
+.kjt-trail *{box-sizing:border-box}
+.kjt-trail__wrap{max-width:80rem;margin:0 auto;padding:3rem 1.25rem}
+@media(min-width:640px){.kjt-trail__wrap{padding:4rem 2rem}}
+.kjt-trail__eyebrow{margin:0 0 .5rem;font-size:.75rem;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--kt-purple)}
+.kjt-trail__title{margin:0;font-family:var(--kt-display);font-size:clamp(2rem,5vw,3.25rem);line-height:1.05;color:var(--kt-deep)}
+.kjt-trail__tagline{margin:.5rem 0 0;font-weight:700;font-size:1.15rem;color:var(--kt-purple)}
+.kjt-trail__intro{margin:.75rem 0 0;max-width:42rem;font-size:1.05rem;line-height:1.7;color:var(--kt-muted)}
+.kjt-trail__app{margin-top:2rem}
+.kjt-trail__fallback{padding-left:1.25rem;line-height:1.7}
+
+/* Buttons */
+.kjt-trail button,.kjt-trail .kt-btn{font:inherit;cursor:pointer}
+.kjt-trail .kt-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:3rem;padding:.7rem 1.3rem;border-radius:999px;border:2px solid var(--kt-deep);background:var(--kt-deep);color:#fff;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .15s,background .15s}
+.kjt-trail .kt-btn:hover{background:var(--kt-purple);border-color:var(--kt-purple);color:#fff}
+.kjt-trail .kt-btn:active{transform:scale(.97)}
+.kjt-trail .kt-btn--ghost{background:#fff;color:var(--kt-deep)}
+.kjt-trail .kt-btn--ghost:hover{background:var(--kt-deep);color:#fff}
+.kjt-trail .kt-btn--yellow{background:var(--kt-yellow);border-color:var(--kt-yellow);color:var(--kt-deep)}
+.kjt-trail .kt-btn--yellow:hover{background:#ffd966;border-color:#ffd966;color:var(--kt-deep)}
+.kjt-trail .kt-btn:focus-visible,.kjt-trail button:focus-visible{outline:3px solid var(--kt-teal);outline-offset:3px}
+.kjt-trail .kt-btn[disabled]{opacity:.45;cursor:default;transform:none}
+
+/* Trail map */
+.kjt-trail .kt-trail{margin-bottom:2.5rem}
+.kjt-trail .kt-trail__name{margin:0 0 1rem;font-family:var(--kt-display);font-size:1.5rem;color:var(--kt-deep)}
+.kjt-trail .kt-path{list-style:none;margin:0;padding:0;display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
+.kjt-trail .kt-stop{position:relative;display:flex;align-items:center;gap:1rem;width:100%;padding:1rem 1.1rem;border:2px solid var(--kt-line);border-radius:1.25rem;background:#fff;text-align:left;color:var(--kt-ink);box-shadow:0 6px 18px rgba(62,9,63,.07);transition:transform .15s,border-color .15s,box-shadow .15s}
+.kjt-trail .kt-stop:hover{transform:translateY(-3px);border-color:var(--kt-yellow);box-shadow:0 10px 24px rgba(62,9,63,.12)}
+.kjt-trail .kt-stop__num{position:absolute;top:-.6rem;left:-.4rem;width:1.8rem;height:1.8rem;border-radius:50%;background:var(--kt-deep);color:#fff;font-size:.85rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.kjt-trail .kt-stop__icon{flex:0 0 3.5rem;height:3.5rem;border-radius:1rem;background:#fff4cf;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.kjt-trail .kt-stop__body{display:flex;flex-direction:column;gap:.25rem}
+.kjt-trail .kt-stop__title{font-weight:700;font-size:1.05rem}
+.kjt-trail .kt-stop__next{font-size:.8rem;font-weight:700;color:var(--kt-teal)}
+.kjt-trail .kt-stars{letter-spacing:.1em;font-size:1rem}
+.kjt-trail .kt-stars .off{opacity:.45;filter:grayscale(1)}
+
+/* Passport */
+.kjt-trail .kt-passport{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:2rem;padding:1.1rem 1.3rem;border-radius:1.25rem;background:var(--kt-deep);color:#fff}
+.kjt-trail .kt-passport__title{margin:0;font-family:var(--kt-display);font-size:1.25rem}
+.kjt-trail .kt-passport__count{margin:.2rem 0 0;color:rgba(255,255,255,.85)}
+.kjt-trail .kt-passport__actions{display:flex;flex-wrap:wrap;gap:.6rem}
+.kjt-trail .kt-link{background:none;border:0;padding:.3rem;color:var(--kt-muted);text-decoration:underline;font-size:.85rem}
+.kjt-trail .kt-passport .kt-link{color:rgba(255,255,255,.8)}
+
+/* Stop view */
+.kjt-trail .kt-view{background:#fff;border:2px solid var(--kt-line);border-radius:1.5rem;overflow:hidden;box-shadow:0 10px 30px rgba(62,9,63,.08)}
+.kjt-trail .kt-view__head{display:flex;flex-wrap:wrap;align-items:center;gap:1rem;padding:1.1rem 1.3rem;background:var(--kt-deep);color:#fff}
+.kjt-trail .kt-view__icon{font-size:2.2rem}
+.kjt-trail .kt-view__title{margin:0;font-family:var(--kt-display);font-size:clamp(1.4rem,3.5vw,2rem);color:#fff;flex:1 1 12rem}
+.kjt-trail .kt-view__head .kt-btn--ghost{min-height:2.5rem;padding:.45rem 1rem;font-size:.9rem}
+.kjt-trail .kt-tabs{display:flex;overflow-x:auto;gap:.4rem;padding:.8rem 1rem;background:#fff7df;border-bottom:1px solid var(--kt-line)}
+.kjt-trail .kt-tab{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:.1rem;min-width:4.6rem;padding:.45rem .6rem;border:2px solid transparent;border-radius:.9rem;background:transparent;color:var(--kt-muted);font-size:.78rem;font-weight:700}
+.kjt-trail .kt-tab span{font-size:1.35rem}
+.kjt-trail .kt-tab[aria-selected="true"]{border-color:var(--kt-deep);background:#fff;color:var(--kt-deep)}
+.kjt-trail .kt-tab.done{color:var(--kt-teal)}
+.kjt-trail .kt-panel{padding:1.5rem 1.3rem 1.75rem}
+@media(min-width:640px){.kjt-trail .kt-panel{padding:2rem 2.25rem 2.25rem}}
+.kjt-trail .kt-step-label{margin:0 0 .3rem;font-size:.75rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--kt-purple)}
+.kjt-trail .kt-h{margin:0 0 1rem;font-family:var(--kt-display);font-size:1.6rem;color:var(--kt-deep)}
+.kjt-trail .kt-big{font-size:1.2rem;line-height:1.75;max-width:44rem}
+.kjt-trail .kt-story p{font-size:1.1rem;line-height:1.8;max-width:44rem;margin:0 0 1rem}
+.kjt-trail .kt-hero-img{display:block;width:100%;max-height:22rem;object-fit:cover;border-radius:1rem;margin:0 0 1.25rem}
+.kjt-trail .kt-hero-icon{display:flex;align-items:center;justify-content:center;height:9rem;margin:0 0 1.25rem;border-radius:1rem;background:linear-gradient(135deg,#fff4cf,#f7e7ff);font-size:5rem}
+.kjt-trail .kt-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.25rem}
+.kjt-trail .kt-nav{display:flex;justify-content:space-between;gap:.75rem;margin-top:2rem;padding-top:1.25rem;border-top:1px solid var(--kt-line)}
+.kjt-trail audio{width:100%;max-width:32rem;margin-top:.5rem}
+.kjt-trail .kt-note{color:var(--kt-muted);font-size:.95rem}
+
+/* Quiz and games */
+.kjt-trail .kt-q{margin:0 0 1.5rem;padding:1.1rem;border:2px solid var(--kt-line);border-radius:1rem}
+.kjt-trail .kt-q__text{margin:0 0 .8rem;font-weight:700;font-size:1.1rem}
+.kjt-trail .kt-options{display:grid;gap:.6rem}
+@media(min-width:640px){.kjt-trail .kt-options{grid-template-columns:repeat(3,1fr)}}
+.kjt-trail .kt-opt{min-height:3.2rem;padding:.7rem 1rem;border:2px solid var(--kt-line);border-radius:.9rem;background:var(--kt-paper);color:var(--kt-ink);font-size:1rem;font-weight:600;text-align:left}
+.kjt-trail .kt-opt:hover:not([disabled]){border-color:var(--kt-deep)}
+.kjt-trail .kt-opt.right{border-color:var(--kt-teal);background:var(--kt-teal-soft);color:var(--kt-teal)}
+.kjt-trail .kt-opt.gentle{border-color:#e9b7bf;background:#fdf1f3}
+.kjt-trail .kt-opt[disabled]{cursor:default}
+.kjt-trail .kt-feedback{min-height:1.5rem;margin:.7rem 0 0;font-weight:700;color:var(--kt-teal)}
+.kjt-trail .kt-feedback.try{color:var(--kt-purple)}
+.kjt-trail .kt-order{display:grid;gap:.6rem;max-width:36rem;margin:0}
+.kjt-trail .kt-order li{list-style:none}
+.kjt-trail .kt-chosen{display:grid;gap:.5rem;max-width:36rem;margin:0 0 1rem;padding:0;counter-reset:kt}
+.kjt-trail .kt-chosen li{list-style:none;counter-increment:kt;padding:.7rem 1rem;border-radius:.9rem;background:var(--kt-teal-soft);color:var(--kt-teal);font-weight:700}
+.kjt-trail .kt-chosen li::before{content:counter(kt) ". "}
+.kjt-trail .kt-shake{animation:kt-shake .35s}
+@keyframes kt-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.kjt-trail .kt-verse{margin:0 0 1rem;padding:1.2rem 1.4rem;border-left:5px solid var(--kt-yellow);border-radius:.75rem;background:#fff7df;font-family:var(--kt-display);font-size:1.3rem;line-height:1.6;color:var(--kt-deep)}
+.kjt-trail .kt-verse cite{display:block;margin-top:.5rem;font-family:inherit;font-style:normal;font-size:.95rem;font-weight:700;color:var(--kt-purple)}
+.kjt-trail .kt-blank{display:inline-block;min-width:4.5rem;border-bottom:3px solid var(--kt-purple);text-align:center}
+.kjt-trail .kt-box{margin:1.25rem 0;padding:1.2rem 1.4rem;border-radius:1rem;background:var(--kt-paper);border:2px solid var(--kt-line)}
+.kjt-trail .kt-box h4{margin:0 0 .5rem;font-size:1.05rem;color:var(--kt-deep)}
+.kjt-trail .kt-box p{margin:0;font-size:1.1rem;line-height:1.7}
+.kjt-trail .kt-celebrate{text-align:center;padding:1rem 0}
+.kjt-trail .kt-celebrate__stars{font-size:2.5rem;letter-spacing:.2em}
+.kjt-trail .kt-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media(prefers-reduced-motion:reduce){.kjt-trail *{animation:none!important;transition:none!important}}
+
+/* Printable certificate: only the certificate prints. */
+.kjt-cert-print{display:none}
+@media print{
+  body.kjt-printing-cert > *:not(.kjt-cert-print){display:none!important}
+  body.kjt-printing-cert .kjt-cert-print{display:block!important}
+  .kjt-cert-print{font-family:Georgia,serif;color:#3e093f;text-align:center;padding:2.5rem;border:10px double #3e093f;margin:1rem}
+  .kjt-cert-print h1{font-size:2.4rem;margin:.5rem 0}
+  .kjt-cert-print .name{font-size:2.2rem;margin:1.5rem 0;border-bottom:2px solid #f3c548;display:inline-block;padding:0 2rem .3rem}
+  .kjt-cert-print p{font-size:1.2rem;line-height:1.6}
+  .kjt-cert-print .stops{font-size:1.1rem}
+}
