@@ -1,0 +1,126 @@
+/* KJT Kids Corner extras — Site Core 5.0.7
+   Builds on the shared .kjt-trail look (assets/adventure-trail/trail.css). */
+
+.kjt-kids .kk-app{margin-top:2rem}
+.kjt-kids--garden{background:linear-gradient(180deg,#eef8ec 0%,var(--kt-paper) 100%)}
+.kjt-kids--whoami{background:#fff}
+.kjt-kids--prayer{background:linear-gradient(180deg,#f3ecf8 0%,var(--kt-paper) 100%)}
+.kjt-kids--parents{background:var(--kt-paper)}
+
+/* Memory Verse Garden */
+.kjt-kids .kk-beds{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr))}
+.kjt-kids .kk-plot{display:flex;flex-direction:column;align-items:center;gap:.35rem;min-height:8.5rem;padding:1rem .6rem;border:2px solid #d5ead0;border-radius:1.25rem;background:#fff;color:var(--kt-ink);text-align:center;font-weight:700;font-size:.9rem;transition:transform .15s,border-color .15s}
+.kjt-kids .kk-plot__flower{font-size:2.6rem;line-height:1}
+.kjt-kids button.kk-plot:hover{transform:translateY(-3px);border-color:var(--kt-teal)}
+.kjt-kids button.kk-plot[aria-pressed="true"]{border-color:var(--kt-deep);box-shadow:0 0 0 3px var(--kt-yellow)}
+.kjt-kids .kk-plot--seed{border-style:dashed;background:transparent;color:var(--kt-muted);font-weight:600}
+.kjt-kids .kk-plot--seed .kk-plot__flower{opacity:.7}
+.kjt-kids .kk-count{margin:0 0 1rem;font-weight:700;color:var(--kt-teal)}
+.kjt-kids .kk-card{margin-top:1.5rem;padding:1.4rem 1.5rem;border-radius:1.25rem;background:#fff;border:2px solid var(--kt-line);box-shadow:0 10px 30px rgba(62,9,63,.07)}
+.kjt-kids .kk-blank{display:inline-block;min-width:4.5rem;border:0;border-bottom:3px dashed var(--kt-purple);background:#fff4cf;border-radius:.3rem;padding:0 .4rem;font:inherit;color:var(--kt-purple);cursor:pointer}
+
+/* Who Am I? */
+.kjt-kids .kk-riddle{max-width:46rem;padding:1.5rem;border-radius:1.5rem;background:#fff7df;border:2px solid #f1dfa8}
+.kjt-kids .kk-riddle__count{margin:0 0 .6rem;font-size:.8rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--kt-purple)}
+.kjt-kids .kk-clues{margin:0 0 1rem;padding:0;list-style:none;display:grid;gap:.5rem}
+.kjt-kids .kk-clues li{padding:.8rem 1rem;border-radius:.9rem;background:#fff;font-size:1.15rem;line-height:1.5;font-weight:600;color:var(--kt-deep)}
+.kjt-kids .kk-clues li::before{content:"🔎 "}
+.kjt-kids .kk-solved{font-size:1.4rem;font-weight:700;color:var(--kt-teal)}
+
+/* Prayer Garden */
+.kjt-kids .kk-feelings{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))}
+.kjt-kids .kk-feel{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;min-height:7.5rem;padding:1rem;border:2px solid var(--kt-line);border-radius:1.25rem;background:#fff;color:var(--kt-deep);font-weight:700;font-size:1rem;text-align:center;transition:transform .15s,border-color .15s}
+.kjt-kids .kk-feel:hover{transform:translateY(-3px);border-color:var(--kt-purple)}
+.kjt-kids .kk-feel[aria-expanded="true"]{border-color:var(--kt-deep);background:var(--kt-deep);color:#fff}
+.kjt-kids .kk-feel__icon{font-size:2.3rem;line-height:1}
+.kjt-kids .kk-prayer{margin-top:1.5rem;max-width:44rem;padding:1.6rem 1.7rem;border-radius:1.5rem;background:#fff;border:2px solid var(--kt-line);border-left:6px solid var(--kt-yellow);box-shadow:0 10px 30px rgba(62,9,63,.07)}
+.kjt-kids .kk-prayer[hidden]{display:none}
+.kjt-kids .kk-prayer__title{margin:0 0 .6rem;font-weight:700;color:var(--kt-purple)}
+.kjt-kids .kk-prayer__text{margin:0;font-family:var(--kt-display);font-size:1.3rem;line-height:1.7;color:var(--kt-deep)}
+
+/* Parent Corner */
+.kjt-kids .kk-parents{max-width:48rem;margin-top:1.5rem;font-size:1.05rem;line-height:1.75;color:var(--kt-ink)}
+.kjt-kids .kk-parents h3{margin:1.8rem 0 .6rem;font-family:var(--kt-display);font-size:1.4rem;color:var(--kt-deep)}
+.kjt-kids .kk-parents h3:first-child{margin-top:0}
+.kjt-kids .kk-parents p{margin:0 0 1rem}
+.kjt-kids .kk-parents ul{margin:0 0 1rem;padding-left:1.3rem;list-style:disc}
+.kjt-kids .kk-parents li{margin:.35rem 0}
+.kjt-kids .kk-parents a{color:var(--kt-purple);text-decoration:underline}
+
+/* Superbook language picker (5.0.8) */
+.kjt-kids--superbook{background:#fff;border-bottom:0}
+.kjt-kids--superbook .kjt-trail__wrap{padding-bottom:1rem}
+.kjt-kids .kk-langs{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.5rem}
+.kjt-kids .kk-lang{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem;min-height:3.2rem;padding:.55rem 1.1rem;border:2px solid var(--kt-line);border-radius:1rem;background:var(--kt-paper);color:var(--kt-deep);font-weight:700;font-size:1rem;text-align:left}
+.kjt-kids .kk-lang:hover{border-color:var(--kt-purple)}
+.kjt-kids .kk-lang[aria-pressed="true"]{border-color:var(--kt-deep);background:var(--kt-deep);color:#fff}
+.kjt-kids .kk-lang__native{font-size:.8rem;font-weight:600;opacity:.8}
+[data-kjt-superbook-lang].kk-sb-hidden{display:none!important}
+
+/* Picture menu cards (5.0.9). Scoped to the Kids Corner menu only. */
+nav[data-kjt-kids-cards]{gap:.75rem!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+@media(min-width:640px){nav[data-kjt-kids-cards]{gap:1rem!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(min-width:1024px){nav[data-kjt-kids-cards]{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
+nav[data-kjt-kids-cards] a.kk-card{position:relative;display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:0!important;padding:0!important;overflow:hidden;border-width:2px!important;border-radius:1.25rem!important;box-shadow:0 6px 16px rgba(62,9,63,.07);transition:transform .15s,box-shadow .15s,border-color .15s!important}
+nav[data-kjt-kids-cards] a.kk-card:hover{transform:translateY(-4px);box-shadow:0 12px 26px rgba(62,9,63,.14);border-color:var(--color-yellow,#f3c548)!important;background:#fff!important}
+nav[data-kjt-kids-cards] .kk-card__art{display:block;aspect-ratio:2/1;overflow:hidden;background:#f6f1fa}
+nav[data-kjt-kids-cards] .kk-card__art img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .3s}
+nav[data-kjt-kids-cards] a.kk-card:hover .kk-card__art img{transform:scale(1.06)}
+nav[data-kjt-kids-cards] a.kk-card > span.min-w-0,nav[data-kjt-kids-cards] a.kk-card > span:not(.kk-card__art){display:block;padding:.8rem 1rem 1rem}
+nav[data-kjt-kids-cards] a.kk-card > svg{position:absolute;bottom:.85rem;right:.8rem;margin:0!important}
+nav[data-kjt-kids-cards] a.kk-card > span:not(.kk-card__art){padding-right:2rem}
+@media(max-width:639px){nav[data-kjt-kids-cards] a.kk-card > span:not(.kk-card__art){padding:.6rem .7rem .75rem}nav[data-kjt-kids-cards] a.kk-card > svg{display:none}}
+@media(prefers-reduced-motion:reduce){nav[data-kjt-kids-cards] a.kk-card,nav[data-kjt-kids-cards] .kk-card__art img{transition:none!important}}
+
+/* Read-aloud voice settings in Parent Corner (5.1.0) */
+.kjt-kids .kk-voice-settings{margin-top:2rem;padding:1.3rem 1.4rem;border-radius:1.25rem;background:#fff;border:2px solid var(--kt-line)}
+.kjt-kids .kk-voice-settings h3{margin-top:0!important}
+.kjt-kids .kk-voice-row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.kjt-kids .kk-voice-row select{min-height:3rem;max-width:100%;padding:.5rem .8rem;border:2px solid var(--kt-line);border-radius:.8rem;background:var(--kt-paper);font:inherit;color:var(--kt-ink)}
+[data-kjt-voice][hidden],[data-kjt-voice-none][hidden]{display:none!important}
+
+/* Section banners (5.1.1) */
+.kk-banner{position:relative;overflow:hidden;isolation:isolate;border:0!important;border-radius:1.75rem;padding:1.7rem 1.8rem 1.7rem 8rem!important;margin-bottom:1.75rem;background:linear-gradient(120deg,var(--kb1),var(--kb2));box-shadow:0 16px 36px rgba(62,9,63,.16)}
+.kk-banner::before{content:"";position:absolute;inset:0;z-index:-1;background-image:radial-gradient(rgba(255,255,255,.22) 2px,transparent 2.6px),radial-gradient(rgba(255,255,255,.14) 1.5px,transparent 2px);background-size:26px 26px,17px 17px;background-position:0 0,9px 11px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 30%,#000 100%);mask-image:linear-gradient(90deg,transparent 0,#000 30%,#000 100%)}
+.kk-banner::after{content:"";position:absolute;z-index:-1;right:-3.5rem;bottom:-5rem;width:15rem;height:15rem;border-radius:50%;background:rgba(255,255,255,.16);box-shadow:-9rem -4rem 0 -4.5rem rgba(255,255,255,.12)}
+.kk-banner__badge{position:absolute;left:1.5rem;top:50%;transform:translateY(-50%) rotate(-4deg);width:5.2rem;height:5.2rem;border-radius:50%;overflow:hidden;border:4px solid #fff;background:#fff;box-shadow:0 8px 18px rgba(0,0,0,.18);transition:transform .25s}
+.kk-banner:hover .kk-banner__badge{transform:translateY(-50%) rotate(4deg) scale(1.05)}
+.kk-banner__badge img{display:block;width:100%;height:100%;object-fit:cover}
+.kk-banner .kjt-trail__title{margin:0}
+.kk-banner .kjt-trail__intro,.kk-banner .kjt-trail__tagline{margin-top:.5rem}
+.kk-banner--light p,.kk-banner--light h2,.kk-banner--light blockquote{color:#fff!important}
+.kk-banner--light .kjt-trail__intro,.kk-banner--light p[class*="text-sm"]{color:rgba(255,255,255,.92)!important}
+.kk-banner--light .kjt-trail__eyebrow,.kk-banner--light p[class*="uppercase"]{color:rgba(255,255,255,.85)!important}
+.kk-banner--light h2{text-shadow:0 2px 10px rgba(0,0,0,.15)}
+.kk-banner--dark p,.kk-banner--dark h2{color:#3E093F!important}
+.kk-banner--dark .kjt-trail__intro,.kk-banner--dark p[class*="text-sm"]{color:rgba(62,9,63,.85)!important}
+@media(max-width:639px){
+ .kk-banner{padding:5.8rem 1.25rem 1.4rem!important;border-radius:1.4rem}
+ .kk-banner__badge{top:1.2rem;left:1.25rem;transform:rotate(-4deg);width:3.9rem;height:3.9rem;border-width:3px}
+ .kk-banner:hover .kk-banner__badge{transform:rotate(4deg)}
+ .kk-banner p[class*="sm:text-right"]{text-align:left!important}
+}
+@media(prefers-reduced-motion:reduce){.kk-banner__badge{transition:none}}
+/* 5.9.0: Who Am I? levels */
+.kk-levels{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 .8rem}
+.kk-level{padding:.45rem 1rem;border:2px solid #e2d4f2;border-radius:999px;background:#fff;color:#3e093f;font:800 .95rem system-ui,sans-serif;cursor:pointer}
+.kk-level.on{background:#5b1f6b;border-color:#5b1f6b;color:#fff}
+.kk-answer-row{display:flex;flex-wrap:wrap;gap:.5rem;width:100%}
+.kk-answer{flex:1 1 14rem;min-height:2.8rem;padding:.4rem 1rem;border:3px solid #e2d4f2;border-radius:999px;font:700 1.05rem system-ui,sans-serif}
+.kk-answer:focus{outline:none;border-color:#f3c94e}
+
+/* 7.8.10: "A verse to carry", centred */
+.kk-carry{position:relative;overflow:hidden;padding:3.2rem 1.25rem 3.4rem;text-align:center;background:radial-gradient(90% 120% at 50% 0%,#fff7d6 0%,#f4ecff 60%,#e8eef5 100%);border-top:1px solid #e5dfe7;border-bottom:1px solid #e5dfe7}
+.kk-carry::before,.kk-carry::after{content:"\2726";position:absolute;font-size:1.6rem;color:#f3c548;opacity:.8}
+.kk-carry::before{left:8%;top:22%}.kk-carry::after{right:9%;bottom:20%;font-size:1.2rem}
+.kk-carry__wrap{max-width:46rem;margin:0 auto}
+.kk-carry .kk-carry__eyebrow{display:inline-block;margin:0!important;padding:.4rem .9rem;border-radius:999px;background:#3e093f;color:#f3c548;font:800 .72rem/1 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.kk-carry .kk-carry__verse{position:relative;margin:1.2rem 0 0!important;padding:0;border:0;color:#3e093f;font-family:var(--font-display,Georgia),Georgia,serif;font-size:clamp(1.6rem,3.6vw,2.4rem);line-height:1.3}
+.kk-carry__mark{display:block;height:2.4rem;margin-bottom:-.4rem;color:#f3c548;font:700 4.5rem/1 Georgia,serif}
+.kk-carry .kk-carry__ref{display:inline-flex;align-items:center;gap:.4rem;margin-top:1.3rem;padding:.55rem 1.1rem;border-radius:999px;background:#fff;border:2px solid #0b7778;color:#0b7778!important;font:800 .9rem/1 system-ui,sans-serif;text-decoration:none;transition:background .2s,color .2s}
+.kk-carry .kk-carry__ref:hover,.kk-carry .kk-carry__ref:focus-visible{background:#0b7778;color:#fff!important}
+
+/* 7.11.0: the verse ends with its closing quotation mark too */
+.kk-carry__verse::after{content:"\201D"}
+/* 7.11.0: one "Load more" per Superbook row on phones (the row of arrows, with its own Load more, is for wider screens) */
+@media (max-width:639.98px){.kjt-kids [aria-label^="Scroll "].hidden,section[id] div.hidden.sm\:flex[aria-label^="Scroll "]{display:none!important}}

@@ -1,0 +1,125 @@
+/* KJT Kids Corner - Pilgrim Keys and Pilgrim Cards (Site Core 5.7.0) */
+.kp-panel{margin:0 0 1.5rem;padding:.9rem 1.1rem;border-radius:1.25rem;background:#fff;border:2px dashed #d9c68a}
+.kp-row{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem}
+.kp-icon{flex:0 0 2.8rem;height:2.8rem;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fff4cf;font-size:1.5rem}
+.kp-text{flex:1 1 16rem;display:flex;flex-direction:column;gap:.15rem}
+.kp-text strong{color:#3E093F;font-size:1.02rem}
+.kp-text span{color:#665f6b;font-size:.9rem}
+.kp-actions{display:flex;flex-wrap:wrap;gap:.4rem}
+.kp-small{margin:.5rem 0 0;font-size:.82rem;color:#665f6b}
+.kp-link{border:0;background:none;padding:.15rem .2rem;color:#70126F;font-weight:700;text-decoration:underline;cursor:pointer;font-size:inherit}
+/* Dialogs */
+.kp-overlay{position:fixed;inset:0;z-index:99990;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow:auto;background:rgba(29,26,34,.6)}
+.kp-dialog{width:min(100%,40rem);margin:auto;padding:1.1rem 1.25rem 1.3rem;border-radius:1.4rem;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.35);color:#1d1a22}
+.kp-dhead{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.4rem}
+.kp-dhead h3{margin:0;font-family:var(--font-display,Georgia,serif);font-size:1.4rem;color:#3E093F}
+.kp-x{width:2.5rem;height:2.5rem;border:0;border-radius:50%;background:#f1ecf5;color:#3E093F;font-weight:800;cursor:pointer}
+.kp-dialog p{line-height:1.6}
+.kp-msg{min-height:1.4rem;font-weight:700;color:#70126F}
+.kp-choose{display:grid;gap:.7rem;grid-template-columns:1fr 1fr}
+@media(max-width:560px){.kp-choose{grid-template-columns:1fr}}
+.kp-choice{display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:1rem;border:2px solid #e5dfe7;border-radius:1.1rem;background:#fff;cursor:pointer;text-align:center}
+.kp-choice:hover{border-color:#3E093F}
+.kp-choice__big{font-weight:800;font-size:1.15rem;letter-spacing:.04em;color:#3E093F}
+.kp-choice small{color:#665f6b}
+.kp-keybox{margin:.8rem 0 1rem;padding:1rem;border-radius:1rem;background:#fff7df;border:3px solid #F3C548;text-align:center;font:800 clamp(1.3rem,5vw,1.9rem)/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;color:#3E093F}
+.kp-keybox.pics{font-family:inherit;letter-spacing:.2em}
+.kp-input{width:100%;min-height:3.2rem;padding:.5rem .9rem;border:2px solid #d7c9e2;border-radius:.9rem;font:700 1.2rem/1.2 ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em;margin:.3rem 0 .6rem}
+.kp-num{max-width:9rem;text-align:center}
+.kp-slotrow{display:flex;align-items:center;gap:.6rem}
+.kp-slots{display:flex;gap:.4rem}
+.kp-slot{width:3rem;height:3rem;display:flex;align-items:center;justify-content:center;border-radius:.8rem;border:2px dashed #d7c9e2;color:#b5a8bf;font-size:1.5rem;font-weight:700}
+.kp-slot.on{border-style:solid;border-color:#F3C548;background:#fff7df;color:inherit}
+.kp-pad{display:grid;grid-template-columns:repeat(8,1fr);gap:.35rem;margin:.6rem 0}
+@media(max-width:560px){.kp-pad{grid-template-columns:repeat(4,1fr)}}
+.kp-pic{min-height:3rem;border:2px solid #e5dfe7;border-radius:.8rem;background:#fff;font-size:1.6rem;cursor:pointer}
+.kp-pic:active{transform:scale(.95)}
+.kp-parents p{margin:.5rem 0}
+/* ===== The Pilgrim Card ===== */
+.kp-card-holder{margin:.8rem 0}
+.kp-card{position:relative;display:grid;grid-template-columns:36% 64%;width:100%;max-width:34rem;aspect-ratio:14/9;margin:0 auto;border-radius:1.1rem;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2);background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.kp-card__art{position:relative;overflow:hidden}
+.kp-card__art svg{display:block;width:100%;height:100%}
+.kp-card__body{position:relative;display:flex;flex-direction:column;justify-content:center;gap:.2rem;padding:1.1rem 1.1rem 1rem 1.1rem}
+.kp-card--boy .kp-card__body{background:linear-gradient(160deg,#eef6ff 0%,#fff 55%);border-left:6px solid #F3C548}
+.kp-card--girl .kp-card__body{background:linear-gradient(160deg,#fdf0f6 0%,#fff 55%);border-left:6px solid #F3C548}
+.kp-card__logo{position:absolute;top:.55rem;right:.6rem;width:2.7rem;height:auto;padding:.2rem;border-radius:.6rem;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.kp-card__kicker{margin:0;font-size:.58rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;padding-right:3rem}
+.kp-card--boy .kp-card__kicker{color:#1E5AA8}.kp-card--girl .kp-card__kicker{color:#C2185B}
+.kp-card__title{margin:0 0 .2rem;font-family:var(--font-display,Georgia,serif);font-size:1.55rem;line-height:1.1}
+.kp-card--boy .kp-card__title{color:#16326e}.kp-card--girl .kp-card__title{color:#8e1650}
+.kp-card__owner{margin:0 0 .35rem;font-size:.72rem;color:#665f6b;display:flex;align-items:flex-end;gap:.3rem}
+.kp-card__owner span{flex:1;border-bottom:1.5px dotted #9e93a6;height:.9rem}
+.kp-card__label{margin:0;font-size:.6rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8d5a2b}
+.kp-card__key{margin:0 0 .3rem;padding:.35rem .5rem;border-radius:.55rem;background:#fff7df;border:2px solid #F3C548;font:800 clamp(.8rem,2.8vw,1.05rem)/1.25 ui-monospace,Menlo,monospace;letter-spacing:.04em;color:#3E093F;text-align:center}
+.kp-card__key.pics{font-family:inherit;font-size:1.25rem;letter-spacing:.12em}
+.kp-card__level{margin:0;font-size:.7rem;font-weight:700;color:#3E093F}
+.kp-card__how{margin:.1rem 0 0;font-size:.6rem;color:#665f6b}
+.kp-card__verse{margin:.35rem 0 0;padding-top:.35rem;border-top:1px solid #efe3c8;font-family:var(--font-display,Georgia,serif);font-style:italic;font-size:.66rem;line-height:1.35;color:#5b4a2b}
+/* Printing: only the card, at about 14 x 9 cm, with a dashed cut line */
+.kp-print{display:none}
+@media print{
+ body.kjt-printing-pilgrim>*:not(.kp-print){display:none!important}
+ html,body.kjt-printing-pilgrim{margin:0!important;padding:0!important;background:#fff!important}
+ body.kjt-printing-pilgrim .kp-print{display:block!important;padding:0;margin:0}
+ .kp-print .kp-card{width:140mm;height:90mm;max-width:none;margin:0;aspect-ratio:auto;border-radius:0;box-shadow:none;outline:0;overflow:hidden;page-break-inside:avoid;break-inside:avoid}
+ .kp-print .kp-card__title{font-size:22pt}.kp-print .kp-card__key{font-size:14pt}.kp-print .kp-card__key.pics{font-size:18pt}
+ .kp-print .kp-card__kicker{font-size:7pt}.kp-print .kp-card__owner,.kp-print .kp-card__level{font-size:9pt}
+ .kp-print .kp-card__how,.kp-print .kp-card__label{font-size:7.5pt}.kp-print .kp-card__verse{font-size:8pt}
+ .kp-print .kp-card__logo{width:15mm}
+}
+/* Same colours and buttons as the rest of Kids Corner (these parts sit outside its sections) */
+.kp-panel,.kp-overlay{--kt-yellow:#f3c548;--kt-deep:#3E093F;--kt-purple:#70126F;--kt-teal:#0B7778;--kt-line:#e5dfe7;--kt-muted:#665f6b}
+.kp-panel .kt-btn,.kp-overlay .kt-btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:2.9rem;padding:.6rem 1.2rem;border-radius:999px;border:2px solid var(--kt-deep);background:var(--kt-deep);color:#fff;font:inherit;font-weight:700;font-size:.98rem;text-decoration:none;cursor:pointer}
+.kp-panel .kt-btn:hover,.kp-overlay .kt-btn:hover{background:var(--kt-purple);border-color:var(--kt-purple);color:#fff}
+.kp-panel .kt-btn--ghost,.kp-overlay .kt-btn--ghost{background:#fff;color:var(--kt-deep)}
+.kp-panel .kt-btn--ghost:hover,.kp-overlay .kt-btn--ghost:hover{background:var(--kt-deep);color:#fff}
+.kp-panel .kt-btn--yellow,.kp-overlay .kt-btn--yellow{background:var(--kt-yellow);border-color:var(--kt-yellow);color:var(--kt-deep)}
+.kp-panel .kt-btn--yellow:hover,.kp-overlay .kt-btn--yellow:hover{background:#ffd966;border-color:#ffd966;color:var(--kt-deep)}
+.kp-panel .kt-btn:focus-visible,.kp-overlay button:focus-visible{outline:3px solid var(--kt-teal);outline-offset:3px}
+.kp-overlay .kt-row{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.7rem}
+.kp-overlay .kg-levels{margin:.2rem 0 .6rem}
+/* Card picture fills its side; the key breaks into balanced lines */
+.kp-card__art svg{width:100%;height:100%}
+.kp-card__key{text-wrap:balance}
+/* 5.8.0: the Holy Bible page */
+.kp-panel .kp-bible{display:block;margin-top:.3rem;font-weight:700;color:#8d5a2b;text-decoration:underline}
+
+/* 6.8.2: Growing up? Take the reading to the Holy Bible page */
+.kp-panel .kp-bible-note{display:block;margin-top:.3rem;color:#665f6b}
+.kp-grow{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem .9rem;margin:.8rem 0 0;padding:.7rem .9rem;border-radius:1rem;background:#fff8e6;border:1.5px solid #e6d3a3}
+.kp-grow__icon{flex:0 0 2.3rem;height:2.3rem;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#fff;font-size:1.2rem}
+.kp-grow__text{flex:1 1 15rem;display:flex;flex-direction:column;gap:.1rem}
+.kp-grow__text strong{color:#8d5a2b}
+.kp-grow__text span{color:#665f6b;font-size:.88rem}
+.kp-grow__go{text-decoration:none}
+
+/* 7.8.4: name, sign-in form and "Remember my card" */
+.kp-signin,.kp-remember{display:flex;flex-direction:column;gap:.55rem}
+.kp-remember{margin-top:1rem;padding:.9rem 1rem;border:2px dashed #e0c86a;border-radius:1rem;background:#fffbea}
+.kp-remember__h{margin:0;font-weight:800;color:#3e093f}
+.kp-passrow{display:flex;gap:.4rem;align-items:stretch}
+.kp-passrow .kp-input{flex:1 1 auto;min-width:0;letter-spacing:.06em}
+.kp-eye{flex:none;min-width:2.9rem;border:2px solid #e2d4f2;border-radius:.8rem;background:#fff;font-size:1.2rem;cursor:pointer}
+.kp-eye:focus-visible{outline:3px solid #f3c94e;outline-offset:2px}
+.kp-name{font-weight:600}
+.kp-input.kp-name{text-transform:none;letter-spacing:0;font-family:system-ui,sans-serif}
+.kp-name::placeholder,.kp-pass::placeholder{color:#9a8fa3;font-weight:500;opacity:1}
+.kp-pass--saved{font-size:.92rem;letter-spacing:.02em!important}
+
+/* 7.9.1: signed in = a big, warm welcome with the child's name; signed out = a calm invitation */
+.kp-panel--in{background:linear-gradient(135deg,#3e093f 0%,#6a1b6e 55%,#0b7778 100%)!important;color:#fff;border:0!important;border-radius:1.4rem;padding:1.2rem 1.3rem 1rem!important;box-shadow:0 14px 34px rgba(62,9,63,.28)}
+.kp-hello{display:flex;align-items:center;gap:1rem;margin-bottom:.9rem}
+.kp-hello__avatar{flex:0 0 auto;display:grid;place-items:center;width:4rem;height:4rem;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b8,#f3c548 60%,#d99a16);color:#3e093f;font:900 2rem/1 "Fredoka","Baloo 2",system-ui,sans-serif;box-shadow:0 0 0 4px rgba(255,255,255,.35),0 8px 18px rgba(0,0,0,.25)}
+.kp-hello__text{min-width:0}
+.kp-hello__line{margin:0!important;font:800 clamp(1.6rem,4.5vw,2.3rem)/1.1 "Fredoka","Baloo 2",system-ui,sans-serif;color:#fff!important;letter-spacing:.01em}
+.kp-hello__name{color:#ffd54a;text-shadow:0 2px 0 rgba(0,0,0,.25);word-break:break-word}
+.kp-hello__saved{margin:.35rem 0 0!important;font:700 1rem/1.35 inherit;color:#e9fff8!important}
+.kp-hello__ago{margin:.15rem 0 0!important;font-size:.82rem;color:rgba(255,255,255,.78)!important}
+.kp-panel--in .kp-row--in{display:flex;flex-wrap:wrap;gap:.5rem}
+.kp-panel--in .kt-btn--ghost{background:rgba(255,255,255,.14)!important;color:#fff!important;border-color:rgba(255,255,255,.55)!important}
+.kp-panel--in .kp-small,.kp-panel--in .kp-small .kp-link{color:rgba(255,255,255,.88)!important}
+.kp-panel--in .kp-grow{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+.kp-panel--out{border:2px dashed #c9b6f2!important;background:#fffdf6!important}
+.kp-panel--in .kp-grow strong,.kp-panel--in .kp-grow span,.kp-panel--in .kp-grow__text{color:#fff!important}
+.kp-hello__name{unicode-bidi:isolate}
