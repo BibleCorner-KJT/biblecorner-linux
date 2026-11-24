@@ -40,6 +40,13 @@ def view_url(u):
     from . import sitecache
     sitecache.register(WebKit)
     wv = WebKit.WebView(network_session=session(), vexpand=True, hexpand=True)
+    try:   # 2.50: My Agenda gives its coming reminders to the app
+        from . import agenda_alarm
+        ucm = wv.get_user_content_manager()
+        ucm.register_script_message_handler('kjtRemind', None)
+        ucm.connect('script-message-received::kjtRemind', lambda _m, v: agenda_alarm.set_list(v.to_string()))
+    except Exception:
+        pass
     def decide(v, dec, kind):
         try:
             if kind == WebKit.PolicyDecisionType.NEW_WINDOW_ACTION:

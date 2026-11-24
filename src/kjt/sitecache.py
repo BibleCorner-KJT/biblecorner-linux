@@ -175,7 +175,7 @@ def _tools(url):
     if u.path.endswith('/admin-ajax.php') and q.get('action') == ['kjtb_desk'] and q.get('op') == ['today'] and q.get('helps') == ['1']:
         try:
             from .today import days_for_helps
-            return 200, 'application/json', json.dumps({'success': True, 'data': {'days': days_for_helps((q.get('lang') or ['en'])[0])}}).encode('utf-8')
+            return 200, 'application/json', json.dumps({'success': True, 'data': {'days': days_for_helps((q.get('lang') or ['en'])[0], (q.get('from') or [''])[0], int((q.get('days') or ['92'])[0]))}}).encode('utf-8')
         except Exception:
             return 200, 'application/json', b'{"success":true,"data":{"days":[]}}'
     return None

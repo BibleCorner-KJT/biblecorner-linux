@@ -105,7 +105,8 @@ def main():
     many(fetch, files, 8)
     log('files', len(files) - len(missing), 'kept,', len(missing), 'not on the website:', missing[:12])
     # Today with God, about two years
-    start = datetime.date.today() - datetime.timedelta(days=7)
+    # the website gives 42 days from the first of the month asked, so ask month by month (no gaps)
+    start = datetime.date.today().replace(day=1)
     for l in LANGS:
         days, d = [], start
         while d < start + datetime.timedelta(days=DAYS):
@@ -114,9 +115,9 @@ def main():
                 days += (r.get('data') or {}).get('days') or []
             except Exception as e:
                 log('today', l, d, e)
-            d += datetime.timedelta(days=42)
+            d = (d.replace(day=28) + datetime.timedelta(days=5)).replace(day=1)
         seen, uniq = set(), []
-        for x in days:
+        for x in sorted(days, key=lambda x: x.get('date') or ''):
             if x.get('date') not in seen:
                 seen.add(x.get('date')); uniq.append(x)
         put('today/%s.json.gz' % l, gz({'days': uniq, 'made': datetime.date.today().isoformat()}))

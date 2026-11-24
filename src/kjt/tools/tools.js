@@ -43,8 +43,6 @@
   function btn(text, fn, cls) { return el('button', { type: 'button', cls: 'kt-btn ' + (cls || ''), text: text, on: { click: fn } }); }
   function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
   function say(msg) { var b = el('div', { cls: 'kt-toast', role: 'status', text: msg }); document.body.appendChild(b); setTimeout(function () { b.remove(); }, 2600); }
-  /* a star of My Agenda is also told to Kids Corner (kjt-achieve), for My Pilgrim Corner to count when it learns to */
-  function star() { try { window.dispatchEvent(new CustomEvent('kjt-achieve', { detail: { type: 'agenda' } })); } catch (e) {} }
   function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
   /* ---------- the Church's days (feasts and fasts), from the website or the app ---------- */
@@ -60,6 +58,20 @@
       .then(function (j) { var l = (j && j.data && j.data.days) || []; try { localStorage.setItem('kjt_daily_helps_days_' + LANG, JSON.stringify(l)); } catch (e) {} keep(l); })
       .catch(function () { keep(cached || []); });
   }
+  /* the Church's days of one month (and the first days of the next), for the agenda's calendar */
+  var MONTHS = {};
+  function churchMonth(y, m, done) {
+    var key = y + '-' + ('0' + (m + 1)).slice(-2), from = key + '-01';
+    if (MONTHS[key]) return done(MONTHS[key]);
+    var keep = function (list) { var o = {}; (list || []).forEach(function (d) { o[d.date] = d; }); MONTHS[key] = o; done(o); };
+    try { if (window.KJTApp && KJTApp.days) { keep(JSON.parse(KJTApp.days(LANG, from, 42))); return; } } catch (e) {}
+    var ck = 'kjt_daily_helps_m_' + LANG + '_' + key, cached = null; try { cached = JSON.parse(localStorage.getItem(ck) || 'null'); } catch (e) {}
+    fetch(AJAX + '?action=kjtb_desk&op=today&days=42&helps=1&lang=' + LANG + '&from=' + from, { credentials: 'omit' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { var l = (j && j.data && j.data.days) || []; try { localStorage.setItem(ck, JSON.stringify(l)); } catch (e) {} keep(l); })
+      .catch(function () { keep(cached || []); });
+  }
+
   function churchLine(d) {
     if (!d) return null;
     var bits = [];
@@ -70,7 +82,7 @@
 
   /* ---------- the tools ---------- */
   var TOOLS = [
-    { k: 'agenda', icon: '🎒', name: 'My Agenda', sub: 'My day, homework, the week and stars (for children)' },
+    { k: 'agenda', icon: '🎒', name: 'My Agenda', sub: 'Day, week, month and year; birthdays, homework and reminders' },
     { k: 'rope', icon: '📿', name: 'Prayer rope', sub: 'Count the Jesus Prayer quietly' },
     { k: 'rule', icon: '🕯️', name: 'My rule of prayer', sub: 'A small daily rule, ticked off each day' },
     { k: 'names', icon: '📜', name: 'Names to remember', sub: 'The living and the departed, for my prayers' },
@@ -99,242 +111,388 @@
   }
   window.addEventListener('hashchange', route);
 
-  /* ======================= MY AGENDA (children) ======================= */
+  /* ======================= MY AGENDA (children) =======================
+     4.119.0: a calm, useful agenda, not a game. Day, week, month and year views; the Church's great feasts and other
+     special days (New Year…) marked; birthdays every year; homework; reminders (in the apps they come even when the
+     app is closed; on the website while the page is open). A grown-up can change the routines and print them. */
   function A() {
-    if (!S.agenda) {
-      S.agenda = { routines: defaultRoutines(), ticks: {}, tasks: [], events: [], stars: 0, starDays: {}, plan: {}, review: {}, pin: '' };
-      save();
-    }
-    return S.agenda;
+    if (!S.agenda) S.agenda = {};
+    var a = S.agenda;
+    a.routines = a.routines || defaultRoutines(); a.ticks = a.ticks || {}; a.tasks = a.tasks || []; a.events = a.events || [];
+    a.pin = a.pin || ''; a.view = a.view || 'day'; a.hwRemind = a.hwRemind !== false;
+    return a;
   }
   function defaultRoutines() {
     function r(name, icon, when, steps) { return { id: id(), name: name, icon: icon, when: when, steps: steps.map(function (s) { return { id: id(), t: s[1], icon: s[0] }; }) }; }
     return [
       r('Getting ready', '🌅', 'morning', [['🙏', 'Morning prayers'], ['🪥', 'Wash and brush teeth'], ['👕', 'Get dressed'], ['🥣', 'Breakfast'], ['🎒', 'Take my bag']]),
-      r('After school', '🏠', 'afternoon', [['🍎', 'A snack'], ['📚', 'Homework'], ['🧸', 'Tidy my things'], ['🤸', 'Play outside']]),
-      r('Bedtime', '🌙', 'evening', [['🛁', 'Bath or wash'], ['🎒', 'Pack my bag for tomorrow'], ['📖', 'A Bible story'], ['🕯️', 'Evening prayers'], ['😴', 'Sleep']])
+      r('After school', '🏠', 'afternoon', [['🍎', 'A snack'], ['📚', 'Homework'], ['🧸', 'Tidy my things']]),
+      r('Bedtime', '🌙', 'evening', [['🎒', 'Pack my bag for tomorrow'], ['🛁', 'Bath or wash'], ['🕯️', 'Evening prayers'], ['😴', 'Sleep']])
     ];
   }
-  var SUBJECTS = [['📐', 'Maths'], ['📖', 'Reading'], ['✏️', 'Writing'], ['🔬', 'Science'], ['🌍', 'Geography'], ['🏛️', 'History'], ['🗣️', 'Languages'], ['🎨', 'Art'], ['🎵', 'Music'], ['⚽', 'Sport'], ['☦️', 'Religion'], ['📝', 'Other']];
-  var BADGES = [[5, '🌱', 'Little seed'], [15, '⭐', 'Shining star'], [30, '🏅', 'Faithful helper'], [60, '🏆', 'Great organiser'], [100, '👑', 'Champion of good habits']];
+  function partOfDay() { var h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'; }
 
+  /* ---------- special days: the Church's great feasts (with Pascha and the feasts that follow it) and New Year ---------- */
+  function pascha(y) {   // the Orthodox Pascha (Julian reckoning, given as a date of the civil calendar)
+    var a = y % 4, b = y % 7, c = y % 19, d = (19 * c + 15) % 30, e = (2 * a + 4 * b - d + 34) % 7;
+    var m = Math.floor((d + e + 114) / 31), dd = ((d + e + 114) % 31) + 1;
+    var j = new Date(y, m - 1, dd); j.setDate(j.getDate() + (y >= 2100 ? 14 : 13)); return iso(j);
+  }
+  var SPECIAL = {};
+  function specialDays(y) {
+    if (SPECIAL[y]) return SPECIAL[y];
+    var o = {}, P = pascha(y);
+    function put(d, icon, name, great) { o[d] = o[d] || []; o[d].push({ icon: icon, t: name, great: !!great }); }
+    put(y + '-01-01', '🎆', 'New Year');
+    put(y + '-01-06', '🕊️', 'Theophany', 1); put(y + '-02-02', '☦', 'Meeting of the Lord', 1); put(y + '-03-25', '☦', 'Annunciation', 1);
+    put(y + '-06-29', '☦', 'Saints Peter and Paul'); put(y + '-08-06', '☦', 'Transfiguration', 1); put(y + '-08-15', '☦', 'Dormition of the Theotokos', 1);
+    put(y + '-09-01', '☦', 'Church New Year'); put(y + '-09-08', '☦', 'Nativity of the Theotokos', 1); put(y + '-09-14', '✝️', 'Elevation of the Cross', 1);
+    put(y + '-11-21', '☦', 'Entry of the Theotokos', 1); put(y + '-12-25', '⭐', 'Nativity of Christ (Christmas)', 1);
+    put(add(P, -48), '🍃', 'Great Lent begins'); put(add(P, -7), '🌿', 'Palm Sunday', 1); put(add(P, -2), '✝️', 'Holy Friday');
+    put(P, '☦', 'Pascha: Christ is Risen!', 1); put(add(P, 39), '☦', 'Ascension', 1); put(add(P, 49), '🔥', 'Pentecost', 1);
+    put(y + '-11-15', '🍃', 'Nativity Fast begins');
+    return (SPECIAL[y] = o);
+  }
+  function specialOn(d) { return specialDays(+d.slice(0, 4))[d] || []; }
+
+  /* ---------- what is on a day (events repeat weekly or yearly; birthdays every year) ---------- */
+  function eventsOn(a, d) {
+    var wd = day(d).getDay();
+    return a.events.filter(function (e) {
+      if (e.date === d) return true;
+      if (d < e.date) return false;
+      if (e.repeat === 'week') return day(e.date).getDay() === wd;
+      if (e.repeat === 'year' || e.kind === 'birthday') return e.date.slice(5) === d.slice(5);
+      return false;
+    }).sort(function (x, y) { return (x.time || '99') < (y.time || '99') ? -1 : 1; });
+  }
+  function evLabel(e, d) {
+    if (e.kind === 'birthday') { var n = +d.slice(0, 4) - +e.date.slice(0, 4); return '🎂 ' + e.t + (e.year && n > 0 ? ' · ' + n + ' ' + t('years') : ''); }
+    return (e.time ? e.time + ' · ' : '') + e.t;
+  }
+  function homeworkOn(a, d) { return a.tasks.filter(function (x) { return x.due === d; }); }
+
+  /* ---------- reminders ---------- */
+  function upcomingReminders(a) {
+    var out = [], now = Date.now(), today = iso();
+    for (var i = 0; i < 21; i++) {
+      var d = add(today, i);
+      eventsOn(a, d).forEach(function (e) {
+        var r = e.remind || (e.kind === 'birthday' ? 'eve' : 'none'); if (r === 'none') return;
+        var at;
+        if (r === 'eve') { at = day(add(d, -1)); at.setHours(18, 0, 0, 0); }
+        else { at = day(d); var tm = (e.time || '08:00').split(':'); at.setHours(+tm[0], +tm[1], 0, 0); at = new Date(at.getTime() - (+r) * 60000); }
+        if (at.getTime() > now) out.push({ id: e.id + '-' + d, at: at.getTime(), title: (e.kind === 'birthday' ? '🎂 ' : '📌 ') + e.t, body: (r === 'eve' ? t('Tomorrow') : fmt(d, { weekday: 'long', day: 'numeric', month: 'long' })) + (e.time ? ' · ' + e.time : '') });
+      });
+      if (a.hwRemind) a.tasks.filter(function (x) { return !x.done && x.due === d; }).forEach(function (x) {
+        var at = day(add(d, -1)); at.setHours(18, 0, 0, 0);
+        if (at.getTime() > now) out.push({ id: 'hw-' + x.id, at: at.getTime(), title: '📚 ' + x.t, body: t('Homework for tomorrow') });
+      });
+    }
+    return out.sort(function (x, y) { return x.at - y.at; });
+  }
+  var remindTimer = null;
+  function syncReminders() {
+    var a = A(), list = upcomingReminders(a);
+    try { if (window.KJTApp && KJTApp.reminders) { KJTApp.reminders(JSON.stringify(list)); return; } } catch (e) {}
+    try { if (window.webkit && webkit.messageHandlers && webkit.messageHandlers.kjtRemind) { webkit.messageHandlers.kjtRemind.postMessage(JSON.stringify(list)); return; } } catch (e) {}
+    // the website: while the page is open
+    if (remindTimer) clearInterval(remindTimer);
+    remindTimer = setInterval(function () {
+      var fired = S.fired || (S.fired = {}), now = Date.now(), changed = false;
+      list.forEach(function (r) {
+        if (r.at <= now && now - r.at < 3600000 && !fired[r.id + r.at]) {
+          fired[r.id + r.at] = 1; changed = true;
+          try { if (window.Notification && Notification.permission === 'granted') new Notification(r.title, { body: r.body }); else say('🔔 ' + r.title + ' · ' + r.body); } catch (e) { say('🔔 ' + r.title); }
+        }
+      });
+      if (changed) { Object.keys(fired).forEach(function (k) { if (+k.slice(-13) < now - 86400000 * 3) delete fired[k]; }); save(); }
+    }, 30000);
+  }
+  function inApp() { return !!((window.KJTApp && KJTApp.reminders) || (window.webkit && webkit.messageHandlers && webkit.messageHandlers.kjtRemind)); }
+  function keep() { save(); syncReminders(); }
+
+  /* ---------- the agenda ---------- */
+  var VIEWS = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']];
   function agenda(body) {
-    var a = A(), tabs = [['day', '☀️', 'My day'], ['work', '📚', 'Homework'], ['week', '📅', 'My week'], ['stars', '⭐', 'Stars'], ['set', '⚙️', 'Grown-ups']];
-    var cur = S.agendaTab || 'day';
-    var bar = body.appendChild(el('div', { cls: 'kt-tabs', role: 'tablist' }));
-    var pane = body.appendChild(el('div', { cls: 'kt-pane' }));
-    function show(k) {
-      cur = k; S.agendaTab = k; save();
-      Array.prototype.forEach.call(bar.children, function (b) { b.setAttribute('aria-selected', b.getAttribute('data-k') === k ? 'true' : 'false'); });
+    var a = A(), today = iso();
+    Object.keys(a.ticks).forEach(function (k) { if (k < add(today, -7)) delete a.ticks[k]; });
+    a.tasks = a.tasks.filter(function (x) { return !(x.done && x.due < add(today, -14)); });
+    a.events = a.events.filter(function (e) { return e.kind === 'birthday' || (e.repeat && e.repeat !== 'none') || e.date >= add(today, -31); });
+    if (!a.cursor) a.cursor = today;
+    save(); syncReminders();
+
+    var bar = body.appendChild(el('div', { cls: 'kt-seg', role: 'tablist' }));
+    var pane = body.appendChild(el('div'));
+    function go(view, d) {
+      if (view) a.view = view; if (d) a.cursor = d; save();
+      Array.prototype.forEach.call(bar.children, function (b) { b.setAttribute('aria-selected', b.getAttribute('data-k') === a.view ? 'true' : 'false'); });
       clear(pane);
-      ({ day: myDay, work: homework, week: week, stars: stars, set: grownups })[k](pane, a, show);
+      ({ day: dayView, week: weekView, month: monthView, year: yearView })[a.view](pane, a, go);
     }
-    tabs.forEach(function (x) { bar.appendChild(el('button', { type: 'button', role: 'tab', 'data-k': x[0], cls: 'kt-tab', on: { click: function () { show(x[0]); } } }, [el('span', { text: x[1] }), el('small', { text: t(x[2]) })])); });
-    show(cur);
-  }
+    VIEWS.forEach(function (v) { bar.appendChild(el('button', { type: 'button', role: 'tab', 'data-k': v[0], cls: 'kt-segb', text: t(v[1]), on: { click: function () { go(v[0]); } } })); });
+    go(a.view);
 
-  function myDay(p, a, show) {
-    var today = iso();
-    p.appendChild(el('div', { cls: 'kt-date', text: fmt(today) }));
-    var ch = p.appendChild(el('div'));
-    churchDays(function (D) { var l = churchLine(D[today]); if (l) ch.appendChild(l); });
-    var ticks = a.ticks[today] || (a.ticks[today] = {});
-    // keep only two weeks of ticks
-    Object.keys(a.ticks).forEach(function (k) { if (k < add(today, -14)) delete a.ticks[k]; });
-    var h = new Date().getHours();
-    var order = h < 12 ? ['morning', 'afternoon', 'evening'] : h < 17 ? ['afternoon', 'evening', 'morning'] : ['evening', 'morning', 'afternoon'];
-    order.forEach(function (when) {
-      a.routines.filter(function (r) { return r.when === when; }).forEach(function (r) { p.appendChild(routineCard(r, ticks, a, today)); });
-    });
-    // homework for today (and late)
-    var due = a.tasks.filter(function (x) { return !x.done && x.due <= today; });
-    if (due.length) {
-      p.appendChild(el('h3', { text: '📚 ' + t('Homework for today') }));
-      due.forEach(function (x) { p.appendChild(taskRow(x, a, function () { show('day'); })); });
+    if (!inApp() && window.Notification && Notification.permission === 'default') {
+      body.appendChild(el('div', { cls: 'kt-line kt-center' }, [btn('🔔 ' + t('Allow reminders'), function (ev) { Notification.requestPermission(); ev.target.remove(); }, 'is-small')]));
     }
-    var ev = a.events.filter(function (e) { return e.date === today; });
-    if (ev.length) { p.appendChild(el('h3', { text: '📌 ' + t('Today') })); ev.forEach(function (e) { p.appendChild(el('div', { cls: 'kt-row', text: (e.time ? e.time + ' · ' : '') + e.t })); }); }
-    p.appendChild(planTomorrow(a, today));
+    if (!inApp()) body.appendChild(el('p', { cls: 'kt-sub kt-center', text: t('On the website, reminders come while this page is open. In the Bible Corner app they come even when it is closed.') }));
+    var g = body.appendChild(el('details', { cls: 'kt-grown' }, [el('summary', { text: '🔒 ' + t('For grown-ups') })]));
+    g.addEventListener('toggle', function () { if (g.open && !g.getAttribute('data-done')) { g.setAttribute('data-done', '1'); grownups(g, a, function () { go(); }); } });
   }
 
-  function routineCard(r, ticks, a, today) {
-    var done = r.steps.filter(function (s) { return ticks[s.id]; }).length;
-    var c = el('section', { cls: 'kt-routine' + (done === r.steps.length && r.steps.length ? ' is-done' : '') });
-    c.appendChild(el('div', { cls: 'kt-routine-h' }, [el('b', { text: r.icon + ' ' + t(r.name) }), el('span', { cls: 'kt-count', text: done + ' / ' + r.steps.length })]));
-    c.appendChild(el('div', { cls: 'kt-progress' }, [el('i', { style: 'width:' + (r.steps.length ? Math.round(100 * done / r.steps.length) : 0) + '%' })]));
-    var g = c.appendChild(el('div', { cls: 'kt-steps' }));
-    r.steps.forEach(function (s) {
-      g.appendChild(el('button', { type: 'button', cls: 'kt-step' + (ticks[s.id] ? ' is-on' : ''), 'aria-pressed': ticks[s.id] ? 'true' : 'false', on: { click: function () {
-        ticks[s.id] = !ticks[s.id]; buzz(20);
-        var all = r.steps.every(function (x) { return ticks[x.id]; });
-        var sd = a.starDays[today] || (a.starDays[today] = {});
-        if (all && !sd[r.id]) { sd[r.id] = 1; a.stars++; star(); say('⭐ ' + t('Well done! A new star.')); }
-        save(); var n = routineCard(r, ticks, a, today); c.replaceWith(n);
-      } } }, [el('span', { cls: 'kt-step-i', text: s.icon }), el('span', { text: t(s.t) })]));
-    });
-    return c;
+  function navBar(label, prev, next, now) {
+    return el('div', { cls: 'kt-nav' }, [btn('‹', prev, 'is-ghost', null), el('b', { text: label }), btn('›', next, 'is-ghost'), now ? btn(t('Today'), now, 'is-small') : null]);
   }
-
-  function planTomorrow(a, today) {
-    var tm = add(today, 1), box = el('section', { cls: 'kt-plan' });
-    box.appendChild(el('h3', { text: '🌙 ' + t('Plan tomorrow tonight') }));
-    box.appendChild(el('div', { cls: 'kt-sub', text: fmt(tm) }));
-    var ch = box.appendChild(el('div'));
-    churchDays(function (D) { var l = churchLine(D[tm]); if (l) ch.appendChild(l); });
-    var tasks = a.tasks.filter(function (x) { return !x.done && x.due === tm; }), ev = a.events.filter(function (e) { return e.date === tm; });
-    if (!tasks.length && !ev.length) box.appendChild(el('p', { cls: 'kt-sub', text: t('Nothing written for tomorrow yet.') }));
-    ev.forEach(function (e) { box.appendChild(el('div', { cls: 'kt-row', text: '📌 ' + (e.time ? e.time + ' · ' : '') + e.t })); });
-    tasks.forEach(function (x) { box.appendChild(el('div', { cls: 'kt-row', text: '📚 ' + x.t })); });
-    var pl = a.plan[tm] || (a.plan[tm] = {});
-    Object.keys(a.plan).forEach(function (k) { if (k < today) delete a.plan[k]; });
-    [['bag', '🎒', 'My bag is packed'], ['clothes', '👕', 'My clothes are ready'], ['homework', '📚', 'My homework is done']].forEach(function (x) {
-      var cb = el('input', { type: 'checkbox' }); cb.checked = !!pl[x[0]];
-      cb.addEventListener('change', function () { pl[x[0]] = cb.checked; save(); });
-      box.appendChild(el('label', { cls: 'kt-check' }, [cb, ' ' + x[1] + ' ' + t(x[2])]));
-    });
+  function markLine(d, a, church) {
+    var box = el('div', { cls: 'kt-marks' });
+    specialOn(d).forEach(function (x) { box.appendChild(el('div', { cls: 'kt-special' + (x.great ? ' is-great' : ''), text: x.icon + ' ' + t(x.t) })); });
+    if (church && church.feast && !specialOn(d).some(function (x) { return x.great; })) box.appendChild(el('div', { cls: 'kt-church', text: '✦ ' + church.feast }));
+    if (church && church.fast) box.appendChild(el('div', { cls: 'kt-church kt-fastline', text: '🍃 ' + church.fast }));
     return box;
   }
 
-  function taskRow(x, a, redraw) {
-    var row = el('div', { cls: 'kt-task' + (x.done ? ' is-done' : '') });
-    var cb = el('input', { type: 'checkbox', 'aria-label': t('Done') }); cb.checked = !!x.done;
-    cb.addEventListener('change', function () {
-      x.done = cb.checked;
-      if (x.done) { a.stars++; star(); say('⭐ ' + t('Well done! A new star.')); }
-      else a.stars = Math.max(0, a.stars - 1);
-      save(); redraw();
+  /* ----- one day ----- */
+  function dayView(p, a, go) {
+    var d = a.cursor, today = iso(), isToday = d === today;
+    p.appendChild(navBar(fmt(d), function () { go(null, add(d, -1)); }, function () { go(null, add(d, 1)); }, isToday ? null : function () { go(null, today); }));
+    var mk = p.appendChild(el('div'));
+    var dt = day(d); churchMonth(dt.getFullYear(), dt.getMonth(), function (M) { mk.appendChild(markLine(d, a, M[d])); });
+
+    // now: the routine of this part of the day (today only)
+    if (isToday) {
+      var ticks = a.ticks[today] || (a.ticks[today] = {});
+      a.routines.filter(function (r) { return r.when === partOfDay(); }).forEach(function (r) {
+        var box = p.appendChild(el('section', { cls: 'kt-card2' }, [el('h3', { text: r.icon + ' ' + t(r.name) })]));
+        r.steps.forEach(function (st) {
+          var cb = el('input', { type: 'checkbox' }); cb.checked = !!ticks[st.id];
+          cb.addEventListener('change', function () { ticks[st.id] = cb.checked; save(); });
+          box.appendChild(el('label', { cls: 'kt-check kt-check-big' }, [cb, ' ' + st.icon + ' ' + t(st.t)]));
+        });
+      });
+    }
+
+    // the day's events and birthdays
+    var evBox = p.appendChild(el('section', { cls: 'kt-card2' }, [el('h3', { text: '📅 ' + t('Plans') })]));
+    var evs = eventsOn(a, d);
+    if (!evs.length) evBox.appendChild(el('p', { cls: 'kt-sub', text: t('Nothing planned.') }));
+    evs.forEach(function (e) {
+      var rm = e.remind && e.remind !== 'none' || e.kind === 'birthday' ? ' 🔔' : '';
+      evBox.appendChild(el('div', { cls: 'kt-ev' }, [el('span', { text: evLabel(e, d) + (e.repeat === 'week' ? ' · ' + t('every week') : '') + rm }),
+        btn('✕', function () { if (!confirmOk(t('Remove this?'))) return; a.events = a.events.filter(function (y) { return y !== e; }); keep(); go(); }, 'is-ghost is-small')]));
     });
-    var info = el('div', { cls: 'kt-task-t' }, [el('b', { text: (x.icon || '📝') + ' ' + x.t }),
-      el('small', { text: dueWord(x.due) + (x.mins ? ' · ' + t('I think') + ' ' + x.mins + ' ' + t('min') : '') + (x.took ? ' · ' + t('it took') + ' ' + x.took + ' ' + t('min') : '') })]);
-    row.appendChild(cb); row.appendChild(info);
-    if (x.steps && x.steps.length) {
-      var ul = el('ul', { cls: 'kt-substeps' });
-      x.steps.forEach(function (s) { var c2 = el('input', { type: 'checkbox' }); c2.checked = !!s.done; c2.addEventListener('change', function () { s.done = c2.checked; save(); }); ul.appendChild(el('li', {}, [el('label', {}, [c2, ' ' + s.t])])); });
-      info.appendChild(ul);
-    }
-    if (x.done && !x.took) {
-      var tk = el('input', { type: 'number', min: '1', max: '600', cls: 'kt-mini', placeholder: t('min') });
-      info.appendChild(el('div', { cls: 'kt-took' }, [t('How long did it take?') + ' ', tk, btn('OK', function () { var v = parseInt(tk.value, 10); if (v > 0) { x.took = v; save(); redraw(); } }, 'is-small')]));
-    }
-    row.appendChild(btn('✕', function () { a.tasks = a.tasks.filter(function (y) { return y !== x; }); save(); redraw(); }, 'is-ghost'));
-    return row;
+    evBox.appendChild(addForm(a, d, go));
+
+    // homework
+    var hw = p.appendChild(el('section', { cls: 'kt-card2' }, [el('h3', { text: '📚 ' + t('Homework') })]));
+    var list = isToday ? a.tasks.filter(function (x) { return !x.done || x.due >= today; }) : homeworkOn(a, d);
+    list.sort(function (x, y) { return x.due < y.due ? -1 : 1; }).forEach(function (x) {
+      var cb = el('input', { type: 'checkbox' }); cb.checked = !!x.done;
+      cb.addEventListener('change', function () { x.done = cb.checked; keep(); go(); });
+      hw.appendChild(el('div', { cls: 'kt-task' + (x.done ? ' is-done' : '') }, [cb, el('div', { cls: 'kt-task-t' }, [el('b', { text: x.t }), el('small', { text: dueWord(x.due) })]),
+        btn('✕', function () { a.tasks = a.tasks.filter(function (y) { return y !== x; }); keep(); go(); }, 'is-ghost is-small')]));
+    });
+    if (!list.length) hw.appendChild(el('p', { cls: 'kt-sub', text: t('No homework.') }));
+    var f = hw.appendChild(el('form', { cls: 'kt-line' }));
+    var what = el('input', { type: 'text', maxlength: '100', required: true, placeholder: t('What do I have to do?') });
+    var due = el('input', { type: 'date', value: isToday ? add(d, 1) : d, 'aria-label': t('For when?') });
+    f.appendChild(what); f.appendChild(due); f.appendChild(btn('＋', function () {}, 'is-small is-main')).setAttribute('type', 'submit');
+    f.addEventListener('submit', function (e) { e.preventDefault(); var w = what.value.trim(); if (!w || !due.value) return; a.tasks.push({ id: id(), t: w, due: due.value, done: false }); keep(); go(); });
   }
+  function confirmOk(q) { try { return window.confirm ? confirm(q) : true; } catch (e) { return true; } }
+
+  function addForm(a, d, go) {
+    var wrap = el('div');
+    var open = btn('＋ ' + t('Add a plan or a birthday'), function () { open.remove(); wrap.appendChild(form()); }, 'is-small');
+    wrap.appendChild(open);
+    function form() {
+      var f = el('form', { cls: 'kt-form' });
+      var kind = el('select', { 'aria-label': t('What is it?') });
+      [['event', '📌 ' + t('A plan')], ['birthday', '🎂 ' + t('A birthday')]].forEach(function (o) { kind.appendChild(el('option', { value: o[0], text: o[1] })); });
+      var what = el('input', { type: 'text', maxlength: '80', required: true, placeholder: t('What? (a trip, church, sport, a visit…)') });
+      var date = el('input', { type: 'date', required: true, value: d });
+      var time = el('input', { type: 'time', 'aria-label': t('Time (optional)') });
+      var rep = el('select', { 'aria-label': t('Repeat') });
+      [['none', 'Once'], ['week', 'Every week'], ['year', 'Every year']].forEach(function (o) { rep.appendChild(el('option', { value: o[0], text: t(o[1]) })); });
+      var rem = el('select', { 'aria-label': t('Reminder') });
+      [['none', 'No reminder'], ['0', 'Remind me at the time'], ['15', 'Remind me 15 minutes before'], ['60', 'Remind me 1 hour before'], ['eve', 'Remind me the evening before']].forEach(function (o) { rem.appendChild(el('option', { value: o[0], text: '🔔 ' + t(o[1]) })); });
+      var year = el('label', { cls: 'kt-inline', style: 'display:none' }, [el('input', { type: 'checkbox', checked: true }), ' ' + t('The date is the day of birth (to show the age)')]);
+      function kindChanged() {
+        var b = kind.value === 'birthday';
+        what.placeholder = b ? t('Whose birthday?') : t('What? (a trip, church, sport, a visit…)');
+        time.style.display = rep.style.display = b ? 'none' : ''; year.style.display = b ? '' : 'none';
+        rem.value = b ? 'eve' : 'none';
+      }
+      kind.addEventListener('change', kindChanged);
+      f.appendChild(el('div', { cls: 'kt-line' }, [kind, what]));
+      f.appendChild(el('div', { cls: 'kt-line' }, [date, time, rep]));
+      f.appendChild(el('div', { cls: 'kt-line' }, [rem, year]));
+      f.appendChild(el('div', { cls: 'kt-line' }, [btn(t('Save'), function () {}, 'is-main'), btn(t('Cancel'), function () { go(); }, 'is-ghost')]));
+      f.querySelector('.is-main').setAttribute('type', 'submit');
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); var w = what.value.trim(); if (!w || !date.value) return;
+        var b = kind.value === 'birthday';
+        a.events.push({ id: id(), kind: kind.value, t: w, date: date.value, time: b ? '' : time.value, repeat: b ? 'year' : rep.value, remind: rem.value, year: b ? year.querySelector('input').checked : false });
+        keep(); go();
+      });
+      setTimeout(function () { try { what.focus(); } catch (e) {} }, 50);
+      return f;
+    }
+    return wrap;
+  }
+
   function dueWord(d) {
     var today = iso();
-    if (d < today) return '⚠ ' + t('Late') + ' · ' + fmt(d, { weekday: 'short', day: 'numeric', month: 'short' });
+    if (d < today) return '⚠ ' + t('Late');
     if (d === today) return t('Today');
     if (d === add(today, 1)) return t('Tomorrow');
     return fmt(d, { weekday: 'long', day: 'numeric', month: 'short' });
   }
 
-  function homework(p, a, show) {
-    var redraw = function () { show('work'); };
-    var f = p.appendChild(el('form', { cls: 'kt-form' }));
-    var what = el('input', { type: 'text', required: true, maxlength: '120', placeholder: t('What do I have to do?') });
-    var subj = el('select', { 'aria-label': t('Subject') });
-    SUBJECTS.forEach(function (s, i) { subj.appendChild(el('option', { value: i, text: s[0] + ' ' + t(s[1]) })); });
-    var when = el('select', { 'aria-label': t('For when?') });
-    [['0', 'Today'], ['1', 'Tomorrow'], ['2', 'In 2 days'], ['3', 'In 3 days'], ['7', 'In a week']].forEach(function (o) { when.appendChild(el('option', { value: o[0], text: t(o[1]) })); }); when.value = '1';
-    var mins = el('input', { type: 'number', min: '1', max: '600', cls: 'kt-mini', placeholder: t('min') });
-    var steps = el('textarea', { rows: '2', maxlength: '500', placeholder: t('Big task? Write small steps, one per line (optional)') });
-    f.appendChild(what);
-    f.appendChild(el('div', { cls: 'kt-line' }, [subj, when, el('label', { cls: 'kt-inline' }, [t('How long will it take?') + ' ', mins])]));
-    f.appendChild(steps);
-    f.appendChild(btn('＋ ' + t('Add'), function () {}, 'is-main')).setAttribute('type', 'submit');
-    f.addEventListener('submit', function (e) {
-      e.preventDefault(); var w = what.value.trim(); if (!w) return;
-      var s = SUBJECTS[+subj.value];
-      a.tasks.push({ id: id(), t: w, icon: s[0], due: add(iso(), +when.value), mins: parseInt(mins.value, 10) || 0, done: false,
-        steps: steps.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 12).map(function (x) { return { t: x, done: false }; }) });
-      save(); redraw();
-    });
-    var today = iso(), groups = [['Late', function (x) { return !x.done && x.due < today; }], ['Today', function (x) { return !x.done && x.due === today; }], ['Tomorrow', function (x) { return !x.done && x.due === add(today, 1); }],
-      ['This week', function (x) { return !x.done && x.due > add(today, 1) && x.due <= add(today, 7); }], ['Later', function (x) { return !x.done && x.due > add(today, 7); }], ['Done', function (x) { return x.done; }]];
-    var any = false;
-    groups.forEach(function (g) {
-      var l = a.tasks.filter(g[1]).sort(function (x, y) { return x.due < y.due ? -1 : 1; }); if (!l.length) return; any = true;
-      p.appendChild(el('h3', { text: t(g[0]) }));
-      l.forEach(function (x) { p.appendChild(taskRow(x, a, redraw)); });
-    });
-    if (!any) p.appendChild(el('p', { cls: 'kt-sub', text: t('No homework written yet.') }));
-    // finished homework older than a month is let go
-    var old = add(today, -31); a.tasks = a.tasks.filter(function (x) { return !(x.done && x.due < old); });
-  }
-
-  function week(p, a, show) {
-    var start = S.agendaWeek || iso(); var d0 = day(start); var wd = (d0.getDay() + 6) % 7; start = add(start, -wd);
-    var nav = p.appendChild(el('div', { cls: 'kt-line kt-weeknav' }));
-    nav.appendChild(btn('‹', function () { S.agendaWeek = add(start, -7); save(); show('week'); }, 'is-ghost'));
-    nav.appendChild(el('b', { text: fmt(start, { day: 'numeric', month: 'short' }) + ' – ' + fmt(add(start, 6), { day: 'numeric', month: 'short', year: 'numeric' }) }));
-    nav.appendChild(btn('›', function () { S.agendaWeek = add(start, 7); save(); show('week'); }, 'is-ghost'));
-    if (S.agendaWeek) nav.appendChild(btn(t('This week'), function () { S.agendaWeek = ''; save(); show('week'); }, 'is-small'));
-    var list = p.appendChild(el('div', { cls: 'kt-week' }));
-    churchDays(function (D) {
-      for (var i = 0; i < 7; i++) {
-        var ds = add(start, i), c = el('div', { cls: 'kt-wday' + (ds === iso() ? ' is-today' : '') });
-        c.appendChild(el('b', { text: fmt(ds, { weekday: 'long', day: 'numeric', month: 'short' }) }));
-        var l = churchLine(D[ds]); if (l) c.appendChild(l);
-        a.events.filter(function (e) { return e.date === ds; }).sort(function (x, y) { return (x.time || '') < (y.time || '') ? -1 : 1; }).forEach(function (e) {
-          c.appendChild(el('div', { cls: 'kt-row' }, ['📌 ' + (e.time ? e.time + ' · ' : '') + e.t + ' ', btn('✕', function () { a.events = a.events.filter(function (y) { return y !== e; }); save(); show('week'); }, 'is-ghost is-small')]));
-        });
-        a.tasks.filter(function (x) { return x.due === ds && !x.done; }).forEach(function (x) { c.appendChild(el('div', { cls: 'kt-row', text: '📚 ' + x.t })); });
+  /* ----- a week ----- */
+  function weekView(p, a, go) {
+    var d = a.cursor, wd = (day(d).getDay() + 6) % 7, start = add(d, -wd), today = iso();
+    p.appendChild(navBar(fmt(start, { day: 'numeric', month: 'short' }) + ' – ' + fmt(add(start, 6), { day: 'numeric', month: 'short', year: 'numeric' }),
+      function () { go(null, add(d, -7)); }, function () { go(null, add(d, 7)); }, function () { go(null, today); }));
+    var list = p.appendChild(el('div'));
+    var s0 = day(start), s6 = day(add(start, 6)), need = [[s0.getFullYear(), s0.getMonth()]];
+    if (s6.getMonth() !== s0.getMonth()) need.push([s6.getFullYear(), s6.getMonth()]);
+    var M = {}, left = need.length;
+    need.forEach(function (n) { churchMonth(n[0], n[1], function (o) { for (var k in o) M[k] = o[k]; if (--left === 0) draw(); }); });
+    function draw() {
+      for (var i = 0; i < 7; i++) (function (ds) {
+        var c = el('button', { type: 'button', cls: 'kt-wrow' + (ds === today ? ' is-today' : ''), on: { click: function () { go('day', ds); } } });
+        c.appendChild(el('div', { cls: 'kt-wday-h', text: fmt(ds, { weekday: 'long', day: 'numeric', month: 'short' }) }));
+        c.appendChild(markLine(ds, a, M[ds]));
+        eventsOn(a, ds).forEach(function (e) { c.appendChild(el('div', { cls: 'kt-ev-s', text: (e.kind === 'birthday' ? '' : '📌 ') + evLabel(e, ds) })); });
+        homeworkOn(a, ds).forEach(function (x) { if (!x.done) c.appendChild(el('div', { cls: 'kt-ev-s', text: '📚 ' + x.t })); });
         list.appendChild(c);
-      }
-    });
-    var f = p.appendChild(el('form', { cls: 'kt-form' }, [el('h3', { text: '📌 ' + t('Add something to my week') })]));
-    var what = el('input', { type: 'text', required: true, maxlength: '100', placeholder: t('A birthday, a school trip, church on Sunday…') });
-    var date = el('input', { type: 'date', required: true, value: iso() }), time = el('input', { type: 'time' });
-    f.appendChild(what); f.appendChild(el('div', { cls: 'kt-line' }, [date, time]));
-    f.appendChild(btn('＋ ' + t('Add'), function () {}, 'is-main')).setAttribute('type', 'submit');
-    f.addEventListener('submit', function (e) { e.preventDefault(); if (!what.value.trim() || !date.value) return; a.events.push({ id: id(), t: what.value.trim(), date: date.value, time: time.value }); a.events = a.events.filter(function (x) { return x.date >= add(iso(), -60); }); save(); show('week'); });
-  }
-
-  function stars(p, a) {
-    p.appendChild(el('div', { cls: 'kt-big', text: '⭐ ' + a.stars }));
-    p.appendChild(el('p', { cls: 'kt-sub', text: t('A star for each finished routine and each finished homework.') }));
-    var g = p.appendChild(el('div', { cls: 'kt-badges' }));
-    BADGES.forEach(function (b) { g.appendChild(el('div', { cls: 'kt-badge' + (a.stars >= b[0] ? ' is-on' : '') }, [el('span', { text: b[1] }), el('b', { text: t(b[2]) }), el('small', { text: b[0] + ' ⭐' })])); });
-    // the week's look back (on Sunday, or any day)
-    var wk = add(iso(), -((new Date().getDay() + 6) % 7));
-    var r = a.review[wk] || (a.review[wk] = { good: '', change: '' });
-    p.appendChild(el('h3', { text: '🔁 ' + t('Looking back at my week') }));
-    var good = el('textarea', { rows: '2', maxlength: '400', placeholder: t('What went well this week?') }); good.value = r.good;
-    var chg = el('textarea', { rows: '2', maxlength: '400', placeholder: t('What will I do better next week?') }); chg.value = r.change;
-    good.addEventListener('input', function () { r.good = good.value; save(); }); chg.addEventListener('input', function () { r.change = chg.value; save(); });
-    p.appendChild(good); p.appendChild(chg);
-    p.appendChild(el('p', { cls: 'kt-prayer', text: t('Thank You, Lord, for this week. Help me to do my work well and to be kind to everyone. Amen.') }));
-  }
-
-  function grownups(p, a, show) {
-    function unlocked(go) {
-      if (!a.pin) return go();
-      var f = el('form', { cls: 'kt-form' }, [el('p', { text: '🔒 ' + t('For grown-ups: write the PIN') })]);
-      var pin = el('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'off' }); f.appendChild(pin); f.appendChild(btn('OK', function () {}, 'is-main')).setAttribute('type', 'submit');
-      f.addEventListener('submit', function (e) { e.preventDefault(); if (pin.value === a.pin) { clear(p); go(); } else say(t('That PIN is not right.')); });
-      p.appendChild(f);
+      })(add(start, i));
     }
-    unlocked(function () {
-      p.appendChild(el('p', { cls: 'kt-sub', text: t('Change the routines here. A PIN keeps these changes for grown-ups.') }));
-      a.routines.forEach(function (r) {
-        var box = p.appendChild(el('section', { cls: 'kt-routine' }));
-        var nm = el('input', { type: 'text', maxlength: '40', value: t(r.name) }); nm.addEventListener('change', function () { r.name = nm.value.trim() || r.name; save(); });
-        var wh = el('select'); [['morning', '🌅 Morning'], ['afternoon', '🏠 Afternoon'], ['evening', '🌙 Evening']].forEach(function (o) { wh.appendChild(el('option', { value: o[0], text: o[1].split(' ')[0] + ' ' + t(o[1].split(' ')[1]) })); }); wh.value = r.when;
-        wh.addEventListener('change', function () { r.when = wh.value; save(); });
-        box.appendChild(el('div', { cls: 'kt-line' }, [el('span', { cls: 'kt-step-i', text: r.icon }), nm, wh, btn('🗑', function () { a.routines = a.routines.filter(function (x) { return x !== r; }); save(); show('set'); }, 'is-ghost')]));
-        r.steps.forEach(function (s) {
-          var st = el('input', { type: 'text', maxlength: '40', value: t(s.t) }); st.addEventListener('change', function () { s.t = st.value.trim() || s.t; save(); });
-          var ic = el('input', { type: 'text', maxlength: '4', cls: 'kt-mini', value: s.icon }); ic.addEventListener('change', function () { s.icon = ic.value.trim() || '✔️'; save(); });
-          box.appendChild(el('div', { cls: 'kt-line' }, [ic, st, btn('✕', function () { r.steps = r.steps.filter(function (x) { return x !== s; }); save(); show('set'); }, 'is-ghost is-small')]));
-        });
-        box.appendChild(btn('＋ ' + t('Add a step'), function () { r.steps.push({ id: id(), t: t('New step'), icon: '✔️' }); save(); show('set'); }, 'is-small'));
-      });
-      p.appendChild(btn('＋ ' + t('Add a routine'), function () { a.routines.push({ id: id(), name: t('My routine'), icon: '⭐', when: 'afternoon', steps: [] }); save(); show('set'); }));
-      p.appendChild(btn('↺ ' + t('Back to the first routines'), function () { if (window.confirm ? confirm(t('Put back the first routines?')) : true) { a.routines = defaultRoutines(); save(); show('set'); } }, 'is-ghost'));
-      p.appendChild(el('h3', { text: '🔒 PIN' }));
-      var np = el('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'off', placeholder: a.pin ? t('A new PIN (empty: no PIN)') : t('A PIN for grown-ups (optional)') });
-      p.appendChild(el('div', { cls: 'kt-line' }, [np, btn(t('Save'), function () { a.pin = np.value.trim(); save(); say(a.pin ? t('The PIN is kept.') : t('No PIN now.')); }, 'is-small')]));
-      p.appendChild(el('p', { cls: 'kt-note', text: t('Everything in My Agenda stays on this device. Nothing is sent to the website.') }));
+  }
+
+  /* ----- a month ----- */
+  function weekdayNames() { var out = [], mon = add(iso(), -((new Date().getDay() + 6) % 7)); for (var i = 0; i < 7; i++) out.push(fmt(add(mon, i), { weekday: 'narrow' })); return out; }
+  function monthGrid(y, m, a, opts) {
+    var first = new Date(y, m, 1), lead = (first.getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate(), today = iso();
+    var g = el('div', { cls: 'kt-mgrid' + (opts.mini ? ' is-mini' : '') });
+    weekdayNames().forEach(function (w) { g.appendChild(el('span', { cls: 'kt-mh', text: w })); });
+    for (var i = 0; i < lead; i++) g.appendChild(el('span'));
+    for (var dd = 1; dd <= n; dd++) (function (ds) {
+      var sp = specialOn(ds), evs = eventsOn(a, ds), hw = homeworkOn(a, ds).filter(function (x) { return !x.done; }), ch = opts.church ? opts.church[ds] : null;
+      var cls = 'kt-md' + (ds === today ? ' is-today' : '') + (sp.some(function (x) { return x.great; }) ? ' is-feast' : sp.length ? ' is-special' : '') + (ch && ch.fast ? ' is-fast' : '') + (ds === opts.sel ? ' is-sel' : '');
+      var c = el('button', { type: 'button', cls: cls, title: sp.map(function (x) { return t(x.t); }).concat(evs.map(function (e) { return evLabel(e, ds); })).join(' · '), on: { click: function () { opts.pick(ds); } } }, [el('span', { cls: 'kt-mdn', text: String(+ds.slice(8)) })]);
+      if (!opts.mini) {
+        var dots = el('span', { cls: 'kt-dots' });
+        if (sp.length) dots.appendChild(el('i', { text: sp[0].icon }));
+        evs.slice(0, 2).forEach(function (e) { dots.appendChild(el('i', { text: e.kind === 'birthday' ? '🎂' : '•' })); });
+        if (hw.length) dots.appendChild(el('i', { text: '📚' }));
+        c.appendChild(dots);
+      } else if (evs.length) c.classList.add('has-ev');
+      g.appendChild(c);
+    })(y + '-' + ('0' + (m + 1)).slice(-2) + '-' + ('0' + dd).slice(-2));
+    return g;
+  }
+  function monthView(p, a, go) {
+    var d = a.cursor, dt = day(d), y = dt.getFullYear(), m = dt.getMonth(), today = iso();
+    var label = fmt(iso(new Date(y, m, 1)), { month: 'long', year: 'numeric' });
+    p.appendChild(navBar(label, function () { go(null, iso(new Date(y, m - 1, 1))); }, function () { go(null, iso(new Date(y, m + 1, 1))); }, function () { go(null, today); }));
+    var holder = p.appendChild(el('div')), detail = p.appendChild(el('div', { cls: 'kt-card2' }));
+    churchMonth(y, m, function (M) {
+      function pick(ds) { a.cursor = ds; save(); clear(holder).appendChild(monthGrid(y, m, a, { church: M, pick: pick, sel: ds })); showDay(ds); }
+      function showDay(ds) {
+        clear(detail);
+        detail.appendChild(el('h3', { text: fmt(ds) }));
+        detail.appendChild(markLine(ds, a, M[ds]));
+        eventsOn(a, ds).forEach(function (e) { detail.appendChild(el('div', { cls: 'kt-ev-s', text: (e.kind === 'birthday' ? '' : '📌 ') + evLabel(e, ds) })); });
+        homeworkOn(a, ds).forEach(function (x) { detail.appendChild(el('div', { cls: 'kt-ev-s', text: '📚 ' + x.t })); });
+        detail.appendChild(btn(t('Open this day') + ' →', function () { go('day', ds); }, 'is-small'));
+      }
+      pick(d.slice(0, 7) === iso(new Date(y, m, 1)).slice(0, 7) ? d : iso(new Date(y, m, 1)));
     });
+    p.appendChild(el('p', { cls: 'kt-legend' }, [el('span', { cls: 'kt-key is-feast' }), ' ' + t('Great feast') + '  ', el('span', { cls: 'kt-key is-fast' }), ' ' + t('Fast day') + '  🎂 ' + t('Birthday') + '  • ' + t('Plan') + '  📚 ' + t('Homework')]));
+  }
+
+  /* ----- a year ----- */
+  function yearView(p, a, go) {
+    var y = day(a.cursor).getFullYear(), today = iso();
+    p.appendChild(navBar(String(y), function () { go(null, (y - 1) + a.cursor.slice(4)); }, function () { go(null, (y + 1) + a.cursor.slice(4)); }, function () { go(null, today); }));
+    var g = p.appendChild(el('div', { cls: 'kt-year' }));
+    for (var m = 0; m < 12; m++) (function (m) {
+      var box = g.appendChild(el('div', { cls: 'kt-ym' }));
+      box.appendChild(el('button', { type: 'button', cls: 'kt-ymh', text: fmt(iso(new Date(y, m, 1)), { month: 'long' }), on: { click: function () { go('month', iso(new Date(y, m, 1))); } } }));
+      box.appendChild(monthGrid(y, m, a, { mini: true, pick: function (ds) { go('day', ds); } }));
+    })(m);
+    // the year's special days and birthdays, in order
+    var list = p.appendChild(el('section', { cls: 'kt-card2' }, [el('h3', { text: '✨ ' + t('Special days of the year') })]));
+    var all = [], sp = specialDays(y);
+    Object.keys(sp).forEach(function (k) { sp[k].forEach(function (x) { all.push([k, x.icon + ' ' + t(x.t), x.great]); }); });
+    a.events.forEach(function (e) { if (e.kind === 'birthday') all.push([y + e.date.slice(4), evLabel(e, y + e.date.slice(4)), false]); });
+    all.sort(function (x, z) { return x[0] < z[0] ? -1 : 1; }).forEach(function (r) {
+      list.appendChild(el('button', { type: 'button', cls: 'kt-yl' + (r[2] ? ' is-great' : ''), on: { click: function () { go('day', r[0]); } } }, [el('span', { cls: 'kt-yld', text: fmt(r[0], { day: 'numeric', month: 'short' }) }), el('span', { text: r[1] })]));
+    });
+    p.appendChild(el('p', { cls: 'kt-sub', text: t('The great feasts are given by the new calendar. On the old calendar the fixed feasts are 13 days later; Pascha is the same.') }));
+  }
+
+  /* ----- grown-ups ----- */
+  function grownups(p, a, redraw) {
+    var inner = p.appendChild(el('div'));
+    function locked() {
+      clear(inner);
+      if (!a.pin) return open();
+      var f = inner.appendChild(el('form', { cls: 'kt-line' }));
+      var pin = el('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'off', placeholder: 'PIN' }); f.appendChild(pin);
+      f.appendChild(btn('OK', function () {}, 'is-small')).setAttribute('type', 'submit');
+      f.addEventListener('submit', function (e) { e.preventDefault(); if (pin.value === a.pin) open(); else say(t('That PIN is not right.')); });
+    }
+    function open() {
+      clear(inner);
+      inner.appendChild(el('div', { cls: 'kt-line' }, [btn('🖨 ' + t('Print the lists for the fridge'), function () { printLists(a); }, 'is-main')]));
+      var hwc = el('input', { type: 'checkbox' }); hwc.checked = a.hwRemind;
+      hwc.addEventListener('change', function () { a.hwRemind = hwc.checked; keep(); });
+      inner.appendChild(el('label', { cls: 'kt-check' }, [hwc, ' 🔔 ' + t('Remind homework the evening before (18:00)')]));
+      a.routines.forEach(function (r) {
+        var box = inner.appendChild(el('section', { cls: 'kt-card2' }));
+        var nm = el('input', { type: 'text', maxlength: '40', value: t(r.name) }); nm.addEventListener('change', function () { r.name = nm.value.trim() || r.name; save(); redraw(); });
+        var wh = el('select'); [['morning', '🌅', 'Morning'], ['afternoon', '🏠', 'Afternoon'], ['evening', '🌙', 'Evening']].forEach(function (o) { wh.appendChild(el('option', { value: o[0], text: o[1] + ' ' + t(o[2]) })); }); wh.value = r.when;
+        wh.addEventListener('change', function () { r.when = wh.value; save(); redraw(); });
+        box.appendChild(el('div', { cls: 'kt-line' }, [nm, wh, btn('🗑', function () { a.routines = a.routines.filter(function (x) { return x !== r; }); save(); open(); redraw(); }, 'is-ghost is-small')]));
+        r.steps.forEach(function (st) {
+          var ic = el('input', { type: 'text', maxlength: '4', cls: 'kt-mini', value: st.icon }); ic.addEventListener('change', function () { st.icon = ic.value.trim() || '✔️'; save(); redraw(); });
+          var tx = el('input', { type: 'text', maxlength: '40', value: t(st.t) }); tx.addEventListener('change', function () { st.t = tx.value.trim() || st.t; save(); redraw(); });
+          box.appendChild(el('div', { cls: 'kt-line' }, [ic, tx, btn('✕', function () { r.steps = r.steps.filter(function (x) { return x !== st; }); save(); open(); redraw(); }, 'is-ghost is-small')]));
+        });
+        box.appendChild(btn('＋ ' + t('Add a step'), function () { r.steps.push({ id: id(), t: t('New step'), icon: '✔️' }); save(); open(); }, 'is-small'));
+      });
+      inner.appendChild(el('div', { cls: 'kt-line' }, [
+        btn('＋ ' + t('Add a routine'), function () { a.routines.push({ id: id(), name: t('My routine'), icon: '⭐', when: 'afternoon', steps: [] }); save(); open(); }, 'is-small'),
+        btn('↺ ' + t('Back to the first routines'), function () { a.routines = defaultRoutines(); save(); open(); redraw(); }, 'is-ghost is-small')]));
+      var np = el('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'off', placeholder: a.pin ? t('A new PIN (empty: no PIN)') : t('A PIN for grown-ups (optional)') });
+      inner.appendChild(el('div', { cls: 'kt-line' }, [np, btn(t('Save'), function () { a.pin = np.value.trim(); save(); say(a.pin ? t('The PIN is kept.') : t('No PIN now.')); }, 'is-small')]));
+      inner.appendChild(el('p', { cls: 'kt-note', text: t('Everything in My Agenda stays on this device. Nothing is sent to the website.') }));
+      inner.appendChild(btn('🔒 ' + t('Close'), function () { p.open = false; locked(); }, 'is-ghost is-small'));
+    }
+    locked();
+  }
+
+  /* the routines on one page, with boxes to tick by hand for a week, for the fridge */
+  function printLists(a) {
+    var css = 'body{font:16px/1.4 system-ui,sans-serif;margin:24px;color:#222}h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:18px 0 6px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:6px;text-align:center}td:first-child{text-align:left}small{color:#666}';
+    var mon = add(iso(), -((new Date().getDay() + 6) % 7)), days = [];
+    for (var i = 0; i < 7; i++) days.push(fmt(add(mon, i), { weekday: 'short' }));
+    var doc = el('div');
+    doc.appendChild(el('h1', { text: '🎒 ' + t('My Agenda') }));
+    a.routines.forEach(function (r) {
+      doc.appendChild(el('h2', { text: r.icon + ' ' + t(r.name) }));
+      var tb = doc.appendChild(el('table')), hr = tb.appendChild(el('tr')); hr.appendChild(el('th'));
+      days.forEach(function (x) { hr.appendChild(el('th', { text: x })); });
+      r.steps.forEach(function (st) { var tr = tb.appendChild(el('tr')); tr.appendChild(el('td', { text: st.icon + ' ' + t(st.t) })); days.forEach(function () { tr.appendChild(el('td', { text: '☐' })); }); });
+    });
+    doc.appendChild(el('p', {}, [el('small', { text: 'biblecorner.com' })]));
+    var html = '<!doctype html><html lang="' + LANG + '"' + (LANG === 'ar' ? ' dir="rtl"' : '') + '><head><meta charset="utf-8"><title>' + t('My Agenda') + '</title><style>' + css + '</style></head><body>' + doc.innerHTML + '</body></html>';
+    var f = el('iframe', { style: 'position:fixed;width:0;height:0;border:0', 'aria-hidden': 'true' }); document.body.appendChild(f);
+    f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+    setTimeout(function () { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) {} setTimeout(function () { f.remove(); }, 2000); }, 300);
   }
 
   /* ======================= PRAYER ROPE ======================= */

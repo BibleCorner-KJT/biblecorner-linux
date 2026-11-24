@@ -78,3 +78,52 @@
 .kt-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a0a2c;color:#fff;padding:10px 18px;border-radius:999px;z-index:99999;font:15px/1.4 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .kt[dir=rtl],[dir=rtl] .kt{text-align:right}
 @media print{.kt-tabs,.kt-btn,.kt-back,.kt-set,.kt h3,.kt-note,.kt-toast,select{display:none!important}.kt-routine{border:none}}
+.kt-grown{margin-top:18px;border-top:1px solid var(--kt-line);padding-top:8px}
+.kt-grown summary{cursor:pointer;color:var(--kt-dim);font-size:.92rem}
+.kt-line>input.kt-mini{flex:0 0 3.4em;width:3.4em;text-align:center;padding:8px 4px}
+/* 4.119.0 · My Agenda: calendar views */
+.kt-seg{display:flex;gap:0;border:1px solid var(--kt-line);border-radius:999px;overflow:hidden;margin:4px 0 12px;background:var(--kt-card)}
+.kt-segb{flex:1;padding:9px 4px;border:0;background:transparent;color:var(--kt-fg);font:inherit;font-weight:600;cursor:pointer}
+.kt-segb+.kt-segb{border-left:1px solid var(--kt-line)}
+.kt-segb[aria-selected=true]{background:var(--kt-brand);color:#fff}
+.kt-nav{display:flex;align-items:center;gap:6px;margin:4px 0 8px}
+.kt-nav b{flex:1;text-align:center;font-size:1.08rem}
+.kt-card2{border:1px solid var(--kt-line);border-radius:16px;background:var(--kt-card);padding:10px 14px;margin:10px 0}
+.kt-card2 h3{margin:4px 0 6px;font-size:1rem}
+.kt-marks{margin:2px 0 6px}
+.kt-special{font-weight:600;color:var(--kt-fg)}
+.kt-special.is-great{color:#b3261e}
+@media (prefers-color-scheme:dark){.kt-app .kt-special.is-great{color:#ff8a80}}
+.kt-fastline{color:#2e7d32}
+.kt-ev{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--kt-line)}
+.kt-ev-s{font-size:.92rem;padding:1px 0}
+.kt-wrow{display:block;width:100%;text-align:start;border:1px solid var(--kt-line);border-radius:14px;padding:9px 12px;margin:7px 0;background:var(--kt-card);color:var(--kt-fg);font:inherit;cursor:pointer}
+.kt-wrow.is-today{border-color:var(--kt-brand);box-shadow:inset 3px 0 0 var(--kt-brand)}
+.kt-wday-h{font-weight:700;margin-bottom:2px}
+.kt-mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.kt-mh{text-align:center;font-size:.75rem;color:var(--kt-dim);padding:2px 0}
+.kt-md{position:relative;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;padding:4px 2px;border:1px solid var(--kt-line);border-radius:10px;background:var(--kt-card);color:var(--kt-fg);font:inherit;cursor:pointer}
+.kt-mdn{font-weight:600;font-size:.95rem}
+.kt-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:1px;font-size:.7rem;line-height:1.1}
+.kt-dots i{font-style:normal}
+.kt-md.is-fast{background:rgba(46,125,50,.07)}
+.kt-md.is-special .kt-mdn{color:var(--kt-brand)}
+.kt-md.is-feast .kt-mdn{color:#b3261e}
+.kt-md.is-today{border:2px solid var(--kt-brand)}
+.kt-md.is-sel{box-shadow:0 0 0 2px var(--kt-gold)}
+.kt-mgrid.is-mini{gap:1px}
+.kt-mgrid.is-mini .kt-mh{font-size:.6rem;padding:0}
+.kt-mgrid.is-mini .kt-md{min-height:0;padding:2px 0;border:0;border-radius:6px;background:transparent}
+.kt-mgrid.is-mini .kt-mdn{font-size:.7rem;font-weight:500}
+.kt-mgrid.is-mini .kt-md.is-today{background:var(--kt-brand)}.kt-mgrid.is-mini .kt-md.is-today .kt-mdn{color:#fff}
+.kt-mgrid.is-mini .kt-md.has-ev{background:rgba(201,162,39,.28)}
+.kt-mgrid.is-mini .kt-md.is-feast .kt-mdn{font-weight:800}
+.kt-year{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.kt-ym{border:1px solid var(--kt-line);border-radius:12px;padding:6px;background:var(--kt-card)}
+.kt-ymh{display:block;width:100%;border:0;background:transparent;color:var(--kt-brand);font:inherit;font-weight:700;padding:2px 0 4px;cursor:pointer;text-transform:capitalize}
+.kt-yl{display:flex;gap:10px;width:100%;text-align:start;border:0;border-bottom:1px solid var(--kt-line);background:transparent;color:var(--kt-fg);font:inherit;padding:6px 0;cursor:pointer}
+.kt-yl.is-great{font-weight:600}
+.kt-yld{min-width:5.5em;color:var(--kt-dim)}
+.kt-legend{font-size:.8rem;color:var(--kt-dim);margin:8px 0}
+.kt-key{display:inline-block;width:.8em;height:.8em;border-radius:3px;vertical-align:-1px}
+.kt-key.is-feast{background:#b3261e}.kt-key.is-fast{background:rgba(46,125,50,.35)}

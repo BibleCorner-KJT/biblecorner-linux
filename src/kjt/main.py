@@ -587,6 +587,11 @@ class Window(Adw.ApplicationWindow):
             return True
         GLib.timeout_add_seconds(2, lambda: (tick(), False)[1])
         GLib.timeout_add_seconds(600, tick)
+        try:   # 2.50: My Agenda's reminders
+            from . import agenda_alarm
+            agenda_alarm.start(self.get_application())
+        except Exception:
+            pass
 
     def fill_gaps(self):
         """2.47: once each time the app starts: the King James Version's deuterocanonical books (the Maccabees, Tobit, Wisdom…)
