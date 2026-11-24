@@ -989,6 +989,14 @@ class BiblePage(Gtk.Box):
                 b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-pp'); b.get_child().set_ellipsize(Pango.EllipsizeMode.END)
                 b.connect('clicked', lambda _b, i=i: self.win.open_dict(i)); fb.append(b)
             self.info.append(fb)
+        elif not read_file('maps/places.json') or not read_file('dictionary/people.json'):
+            # 2.47: without the dictionary and the maps there are no names to show: say so, and keep them with one click
+            b = Gtk.Button(label='📚 ' + _('Show the people and places of each chapter'), halign=Gtk.Align.START, tooltip_text=_('Keeps the Bible Dictionary and the maps on this device'))
+            b.add_css_class('pill'); b.get_child().set_wrap(True); b.get_child().set_wrap_mode(Pango.WrapMode.WORD_CHAR)   # fits a phone
+            def keep(*_a):
+                from .downloads import DL
+                DL.start({'dict': [lang()], 'maps': True}); self.win.toast(_('Downloading…'))
+            b.connect('clicked', keep); self.info.append(b)
         d = read_file('fathers/%s.json.gz' % canon(self.book))
         n = len((d or {}).get('e', {}).get(str(self.ch), [])) if d else 0
         if n:

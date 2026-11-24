@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.47" date="2026-11-24"><description><p>The King James Version brings its deuterocanonical books (the Maccabees, Tobit, Judith, Wisdom, Sirach…) when they are missing, and the Bible Dictionary and the maps come by themselves, so the people and places of each chapter show again. Without them, a button under the chapter keeps them with one click.</p></description></release>
     <release version="2.46" date="2026-11-24"><description><p>Downloads: each kind (Bibles, books, recordings…) folds away, and every Bible says what it is (New Testament only, recommended). My Study: show only notes, Study Pads or bookmarks; search the words of the verses too; sort the Study Pads. Share a verse, a note or a whole Study Pad: copy, a picture, by email or by text message.</p></description></release>
     <release version="2.45" date="2026-11-23"><description><p>Phones: the Bible chapter no longer scrolls sideways. "Mark as read", "Next in my plan", your bookmarks and the people and places under the chapter now go onto more lines instead of widening the page.</p></description></release>
     <release version="2.44" date="2026-11-23"><description><p>The app no longer has any access to your files: only the internet, sound and the screen. GNOME Software now shows it as probably safe.</p></description></release>

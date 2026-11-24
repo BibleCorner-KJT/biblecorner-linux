@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.46'
+VERSION = '2.47'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -565,11 +565,28 @@ class Window(Adw.ApplicationWindow):
                         fav_sync()
                     if 'today' in self.pages:
                         self.today.refresh()
+                    self.fill_gaps()
                 run_bg(lambda: info(refresh=True), fin)
                 self.notices()
             return True
         GLib.timeout_add_seconds(2, lambda: (tick(), False)[1])
         GLib.timeout_add_seconds(600, tick)
+
+    def fill_gaps(self):
+        """2.47: once each time the app starts: the King James Version's deuterocanonical books (the Maccabees, Tobit, Wisdom…)
+        when they are missing, and the Bible Dictionary and the maps (the people and places under each chapter)"""
+        if getattr(self, 'gaps_done', False):
+            return
+        self.gaps_done = True
+        from .downloads import DL
+        from .core import read_file
+        plan = {}
+        if 'eng-kjv' in STORE.bibles() and not STORE.chapters('eng-kjv', '1MA'):
+            plan['bibles'] = ['eng-kjv']
+        if STORE.bibles() and (not read_file('maps/places.json') or not read_file('dictionary/people.json')):
+            plan['dict'] = [lang()]; plan['maps'] = True
+        if plan:
+            DL.start(plan)
 
     def notices(self):
         """2.40: as on Android: New Prayer Request and news from Bible Corner, as notifications (about every half hour
