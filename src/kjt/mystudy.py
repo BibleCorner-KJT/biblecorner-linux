@@ -189,7 +189,23 @@ class StudyPage(Gtk.Box):
         pads = STUDY.pads()
         # Study Pads: a grid of coloured cards
         grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True, min_children_per_line=1, max_children_per_line=1 if self.wide else 3, column_spacing=8, row_spacing=8)
-        self.section('pads', _('Study Pads'), len(pads), child=grid, parent=side)
+        # 2.46: the Study Pads sorted as you choose (A–Z, most passages, newest)
+        counts = {}
+        for r in recs:
+            for t in (r.get('tags') or []):
+                counts[t] = counts.get(t, 0) + 1
+        ps = SET.get('pad_sort', 'name')
+        if ps == 'count':
+            pads = sorted(pads, key=lambda p: (-counts.get(p['tag'], 0), STUDY.pad_name(p['tag']).casefold()))
+        elif ps == 'recent':
+            pads = sorted(pads, key=lambda p: -int(p.get('updated') or 0))
+        else:
+            pads = sorted(pads, key=lambda p: STUDY.pad_name(p['tag']).casefold())
+        PS = [('name', 'A–Z'), ('count', 'Most passages'), ('recent', 'Newest')]
+        pdd = Gtk.DropDown(model=Gtk.StringList.new([_(t) for _k, t in PS]), valign=Gtk.Align.CENTER, tooltip_text=_('Sort'))
+        pdd.set_selected([k for k, _t in PS].index(ps) if ps in dict(PS) else 0)
+        pdd.connect('notify::selected', lambda w, _p: (SET.set('pad_sort', PS[w.get_selected()][0]), GLib.idle_add(lambda: (self.fill(), False)[1])))
+        self.section('pads', _('Study Pads'), len(pads), pdd, child=grid, parent=side)
         for p in pads:
             grid.append(self.pad_card(p['tag'], sum(1 for r in recs if p['tag'] in (r.get('tags') or []))))
         add = Gtk.Button(); add.add_css_class('card'); add.set_tooltip_text(_('Make a new Study Pad'))
@@ -199,9 +215,16 @@ class StudyPage(Gtk.Box):
         if self.filter:
             allb = Gtk.Button(label=_('Show everything')); allb.add_css_class('pill'); allb.connect('clicked', lambda *_: self.set_filter('')); grid.append(allb)
         # bookmarks and notes, sorted as you choose
-        shown = [r for r in recs if (not self.filter or self.filter in (r.get('tags') or [])) and
+        kind = SET.get('study_kind', 'all')
+        def words(r):
+            rows = STORE.passage(r['translation'], r['book'], int(r['chapter']), int(r.get('verse') or 1), int(r['chapter']), int(r.get('verse_end') or r.get('verse') or 1))
+            return ' '.join(strip_tags(x[2]).strip() for x in rows)
+        def kind_ok(r):   # 2.46: show only some
+            note, pads_ = (r.get('note') or '').strip(), r.get('tags') or []
+            return kind == 'all' or (kind == 'notes' and note) or (kind == 'pads' and pads_) or (kind == 'plain' and not note and not pads_)
+        shown = [r for r in recs if (not self.filter or self.filter in (r.get('tags') or [])) and kind_ok(r) and
                  (not q or q in (r.get('note') or '').casefold() or q in book_name(r['book'], tr=r.get('translation')).casefold()
-                  or any(q in STUDY.pad_name(t).casefold() for t in (r.get('tags') or [])))]
+                  or any(q in STUDY.pad_name(t).casefold() for t in (r.get('tags') or [])) or q in words(r).casefold())]
         how = SET.get('study_sort', 'new')
         if how not in dict(self.SORTS):
             how = 'new'
@@ -209,7 +232,11 @@ class StudyPage(Gtk.Box):
         dd = Gtk.DropDown(model=Gtk.StringList.new([_(t) for _k, t in self.SORTS]), valign=Gtk.Align.CENTER, tooltip_text=_('Sort'))
         dd.set_selected([k for k, _ in self.SORTS].index(how))
         dd.connect('notify::selected', lambda w, _p: (SET.set('study_sort', self.SORTS[w.get_selected()][0]), GLib.idle_add(lambda: (self.fill(), False)[1])))
-        sbox = Gtk.Box(spacing=4); sbox.append(Gtk.Image(icon_name='kjt-sort-symbolic')); sbox.append(dd)
+        KINDS = [('all', 'All'), ('notes', 'With a note'), ('pads', 'In a Study Pad'), ('plain', 'Bookmarks only')]
+        kd = Gtk.DropDown(model=Gtk.StringList.new([_(t) for _k, t in KINDS]), valign=Gtk.Align.CENTER, tooltip_text=_('Show'))
+        kd.set_selected([k for k, _t in KINDS].index(kind) if kind in dict(KINDS) else 0)
+        kd.connect('notify::selected', lambda w, _p: (SET.set('study_kind', KINDS[w.get_selected()][0]), GLib.idle_add(lambda: (self.fill(), False)[1])))
+        sbox = Gtk.Box(spacing=4); sbox.append(kd); sbox.append(Gtk.Image(icon_name='kjt-sort-symbolic')); sbox.append(dd)
         title = ('Study Pad: ' + STUDY.pad_name(self.filter)) if self.filter else _('Bookmarks and notes')
         lb = self.section('marks', title, len(shown), sbox)
         if not recs:
@@ -258,6 +285,8 @@ class StudyPage(Gtk.Box):
         col(3, 140, pads, markup=True, lines=3)
         col(4, 92, self.day(r.get('created')))
         col(5, 92, self.day(r.get('updated') or r.get('created')))
+        sh = Gtk.Button(icon_name='kjt-share-symbolic', tooltip_text=_('Share'), valign=Gtk.Align.CENTER); sh.add_css_class('flat')
+        sh.connect('clicked', lambda *_: self.share(r)); box.append(sh)
         e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
         e.connect('clicked', lambda *_: edit(self.win, r)); box.append(e)
         d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
@@ -284,6 +313,8 @@ class StudyPage(Gtk.Box):
         row.set_subtitle_lines(4)
         if STUDY.colors_of(r):
             dot = Gtk.Label(); dot.set_markup(''.join('<span foreground="%s" size="large">●</span>' % c for c in STUDY.colors_of(r)[:3])); row.add_prefix(dot)
+        sh = Gtk.Button(icon_name='kjt-share-symbolic', tooltip_text=_('Share'), valign=Gtk.Align.CENTER); sh.add_css_class('flat')
+        sh.connect('clicked', lambda *_: self.share(r)); row.add_suffix(sh)
         e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Edit'), valign=Gtk.Align.CENTER); e.add_css_class('flat')
         e.connect('clicked', lambda *_: edit(self.win, r)); row.add_suffix(e)
         d = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Remove'), valign=Gtk.Align.CENTER); d.add_css_class('flat')
@@ -303,6 +334,8 @@ class StudyPage(Gtk.Box):
         nm = Gtk.Label(label=STUDY.pad_name(tag), xalign=0, ellipsize=Pango.EllipsizeMode.END, css_classes=['heading']); nm.set_tooltip_text(STUDY.pad_name(tag)); txt.append(nm)
         txt.append(Gtk.Label(label='%d passage%s' % (n, '' if n == 1 else 's'), xalign=0, css_classes=['dim-label', 'caption']))
         card.append(txt)
+        sh = Gtk.Button(icon_name='kjt-share-symbolic', tooltip_text=_('Share'), valign=Gtk.Align.CENTER); sh.add_css_class('flat'); sh.add_css_class('circular')
+        sh.connect('clicked', lambda *_: self.share_pad(tag)); card.append(sh)
         e = Gtk.Button(icon_name='kjt-edit-symbolic', tooltip_text=_('Name, colour, emoji'), valign=Gtk.Align.CENTER); e.add_css_class('flat'); e.add_css_class('circular')
         e.connect('clicked', lambda *_: pad_dialog(self.win, tag)); card.append(e)
         g = Gtk.GestureClick(); g.connect('released', lambda *_: self.set_filter('' if self.filter == tag else tag)); txt.add_controller(g)
@@ -310,6 +343,30 @@ class StudyPage(Gtk.Box):
         card.set_tooltip_text(_('Click to show only this Study Pad'))
         card.set_cursor(Gdk.Cursor.new_from_name('pointer'))
         return card
+
+    def words_of(self, r):
+        rows = STORE.passage(r['translation'], r['book'], int(r['chapter']), int(r.get('verse') or 1), int(r['chapter']), int(r.get('verse_end') or r.get('verse') or 1))
+        return ' '.join(strip_tags(x[2]).strip() for x in rows)
+
+    def share(self, r):
+        """2.46: a bookmark or note: copy, a picture, email or a text message"""
+        from . import share
+        from .bible import bible_name
+        txt, note = self.words_of(r), (r.get('note') or '').strip()
+        ref = '%s (%s)' % (self.ref(r), bible_name(r.get('translation') or '').split(' · ')[0])
+        share.menu(self.win, '“%s”\n— %s%s\n\nbiblecorner.com' % (txt, ref, ('\n\n' + note) if note else ''), txt, ref)
+
+    def share_pad(self, tag):
+        """2.46: a whole Study Pad, as text"""
+        from . import share
+        out = ['🗂 ' + STUDY.pad_name(tag)]
+        for r in STUDY.records():
+            if tag in (r.get('tags') or []):
+                out.append('\n“%s”\n— %s' % (self.words_of(r), self.ref(r)))
+                if (r.get('note') or '').strip():
+                    out.append('✎ ' + r['note'].strip())
+        out.append('\nbiblecorner.com')
+        share.menu(self.win, '\n'.join(out), None, STUDY.pad_name(tag))
 
     def rename(self, tag):
         d = Adw.AlertDialog(heading=_('Rename the Study Pad'))

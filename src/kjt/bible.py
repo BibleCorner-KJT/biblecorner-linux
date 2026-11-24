@@ -170,7 +170,7 @@ class BiblePage(Gtk.Box):
             return b
         self.act_labels = []
         for icon, tip, fn in (('kjt-route-symbolic', 'Cross-references', lambda: self.side_show('xref')), ('kjt-globe-symbolic', 'Greek and Hebrew words', lambda: self.side_show('words')),
-                              ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-picture-symbolic', 'Share as picture', self.share_picture),
+                              ('kjt-copy-symbolic', 'Copy (Ctrl+C)', self.copy), ('kjt-share-symbolic', 'Share', self.share), ('kjt-picture-symbolic', 'Share as picture', self.share_picture),
                               ('kjt-study-symbolic', 'Bookmark', self.bookmark), ('kjt-edit-symbolic', 'Edit', self.edit), ('kjt-note-symbolic', 'Note', self.note),
                               ('kjt-tag-symbolic', 'Study Pads', self.pads), ('kjt-listen-symbolic', 'Listen from here', self.listen_here),
                               ('kjt-close-symbolic', 'Clear the choice (Esc)', self.unselect)):
@@ -1015,6 +1015,15 @@ class BiblePage(Gtk.Box):
         b = max(self.sel)
         if b < last:
             self.anchor = min(self.sel); self.sel = list(range(min(self.sel), b + 2)); self.mark_selection()
+
+    def share(self):
+        """2.46: copy, a picture, email or a text message"""
+        from . import share
+        rows = dict(STORE.chapter(self.tr, self.book, self.ch))
+        a, b = min(self.sel), max(self.sel)
+        txt = ' '.join(re.sub(r'<[^>]+>', '', rows.get(v, '')).strip() for v in range(a, b + 1) if v in rows)
+        ref = '%s (%s)' % (self.sel_label.get_label(), bible_name(self.tr).split(' · ')[0])
+        share.menu(self.win, '“%s”\n— %s\n\nbiblecorner.com' % (txt, ref), txt, ref)
 
     def share_picture(self):
         from . import picture

@@ -123,7 +123,10 @@ class TodayPage(Gtk.Box):
         def copy():
             text, ref = get()
             Gdk.Display.get_default().get_clipboard().set('%s\n— %s' % (text, ref)); self.win.toast(_('Copied: paste it in a message or a post'))
-        for lab, fn in (('Share as a picture…', pic), ('Copy the text', copy)):
+        def other():
+            from . import share
+            text, ref = get(); share.menu(self.win, '%s\n— %s\n\nbiblecorner.com' % (text, ref), text, ref)
+        for lab, fn in (('Share as a picture…', pic), ('Copy the text', copy), ('Share', other)):
             b = Gtk.Button(label=_(lab)); b.add_css_class('flat'); b.get_child().set_xalign(0)
             b.connect('clicked', lambda _b, fn=fn: (pop.popdown(), fn())); bx.append(b)
         pop.set_child(bx); mb.set_popover(pop)

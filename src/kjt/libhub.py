@@ -10,7 +10,7 @@ The downloads show at the bottom of every page of the Library, each with its pro
 a stopped or interrupted download goes on from where it stopped."""
 import json, os, shutil
 from gi.repository import Gtk, Adw, GLib
-from .core import STORE, SET, NET, FILES, DATA, lang, read_file, run_bg, book_name
+from .core import STORE, SET, NET, FILES, DATA, lang, read_file, run_bg, book_name, DEFAULT_BIBLES
 from .i18n import _
 from .downloads import DL
 
@@ -382,6 +382,19 @@ class LibHub(Gtk.Box):
         r = Adw.ActionRow(title=esc(text)); r.add_css_class('dim-label'); r.add_css_class('kjt-lib-none'); return r
 
     # ---------- the two columns
+    def fold_group(self, key, title):
+        """2.46: a kind of thing that opens and closes (remembered)"""
+        open_ = not SET.get('libfold_' + key)
+        g = Adw.PreferencesGroup(title=title)
+        b = Gtk.Button(icon_name='pan-down-symbolic' if open_ else 'pan-end-symbolic', valign=Gtk.Align.CENTER, tooltip_text=_('Fold away or show'))
+        b.add_css_class('flat')
+        b.connect('clicked', lambda *_a: (SET.set('libfold_' + key, 1 if open_ else 0), GLib.idle_add(lambda: (self.refresh(), False)[1])))
+        try:
+            g.set_header_suffix(b)
+        except Exception:
+            pass
+        return g, open_
+
     def short(self, g, rows, first=5):
         """a long list shows 5 and "Show all (N)" """
         for r in rows[:first] if len(rows) > first + 1 else rows:
@@ -404,8 +417,9 @@ class LibHub(Gtk.Box):
             if not n:
                 continue
             have += n
-            g = Adw.PreferencesGroup(title='%s  ·  %d' % (_(title), n))
-            self.short(g, c.rows)
+            g, open_ = self.fold_group('here_' + key, '%s  ·  %d' % (_(title), n))   # 2.46: each kind folds away
+            if open_:
+                self.short(g, c.rows)
             groups.append(g)
         # the summary
         g = Adw.PreferencesGroup()
@@ -456,7 +470,9 @@ class LibHub(Gtk.Box):
             rows = [r for r in c.rows if 'kjt-lib-none' not in r.get_css_classes()]
             if not rows and not extra:
                 continue
-            g = Adw.PreferencesGroup(title=_(title))
+            g, open_ = self.fold_group('get_' + key, _(title))   # 2.46
+            if not open_:
+                add(g); shown += 1; continue
             self.short(g, rows)
             for x in extra:          # e.g. "More Bibles from CrossWire and AndBible"
                 r = x.get_row(0) if hasattr(x, 'get_row') else None
@@ -531,8 +547,12 @@ class LibHub(Gtk.Box):
             ex = Adw.ExpanderRow(title=esc(_(lg)), subtitle='%d' % len(by_lang[lg])); ex.add_css_class('kjt-lib-lang')
             if q or lg == ({'en': 'English', 'ar': 'Arabic', 'el': 'Greek', 'ru': 'Russian', 'fr': 'French', 'es': 'Spanish', 'zh': 'Chinese', 'hi': 'Hindi', 'tl': 'Tagalog'}).get(lang()):
                 ex.set_expanded(True)
-            for tr, v in sorted(by_lang[lg], key=lambda x: x[1][1]):
-                row = Adw.ActionRow(title=esc(v[1])); row.add_suffix(self.get_btn({'bibles': [tr]})); ex.add_row(row)
+            for tr, v in sorted(by_lang[lg], key=lambda x: (x[0] != DEFAULT_BIBLES.get(lang()), x[1][1])):
+                name = (v[1] or tr).rsplit(' · ', 1)[0]; nt = '(New Testament)' in name; name = name.replace(' (New Testament)', '')
+                sub = [_('New Testament only')] if nt else []   # 2.46: what each Bible is, under its name
+                if tr in DEFAULT_BIBLES.values():
+                    sub.append('☦ ' + _('recommended'))
+                row = Adw.ActionRow(title=esc(name), subtitle=esc(' · '.join(sub))); row.add_suffix(self.get_btn({'bibles': [tr]})); ex.add_row(row)
             g.add(ex)
         g2 = Adw.PreferencesGroup()
         r = Adw.ActionRow(title=esc(_('More Bibles from CrossWire and AndBible')), subtitle=esc(_('Hundreds of Bibles in many languages')), activatable=True)

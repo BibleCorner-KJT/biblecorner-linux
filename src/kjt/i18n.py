@@ -882,6 +882,17 @@ _T = {
     'Thank you! Your report was sent.': ('شكرًا لك! أُرسل بلاغك.', 'Ευχαριστούμε! Η αναφορά σου στάλθηκε.', '¡Gracias! Tu informe se envió.', 'Merci ! Ton signalement a été envoyé.', 'धन्यवाद! आपकी रिपोर्ट भेज दी गई।', 'Спасибо! Ваше сообщение отправлено.', 'Salamat! Naipadala ang iyong ulat.', '谢谢！你的报告已发送。'),
     'Could not send. Please try again later.': ('تعذّر الإرسال. حاول مرة أخرى لاحقًا.', 'Δεν στάλθηκε. Δοκίμασε ξανά αργότερα.', 'No se pudo enviar. Inténtalo más tarde.', 'Envoi impossible. Réessaie plus tard.', 'भेजा नहीं जा सका। कृपया बाद में फिर कोशिश करें।', 'Не удалось отправить. Попробуйте позже.', 'Hindi maipadala. Pakisubukan muli mamaya.', '无法发送。请稍后再试。'),
     'On the website': ('على الموقع', 'Στον ιστότοπο', 'En el sitio web', 'Sur le site', 'वेबसाइट पर', 'На сайте', 'Sa website', '在网站上'),
+    'New Testament only': ('العهد الجديد فقط', 'Μόνο η Καινή Διαθήκη', 'Solo el Nuevo Testamento', 'Nouveau Testament seulement', 'केवल नया नियम', 'Только Новый Завет', 'Bagong Tipan lamang', '仅新约'),
+    'recommended': ('موصى به', 'προτεινόμενη', 'recomendada', 'recommandée', 'अनुशंसित', 'рекомендуется', 'inirerekomenda', '推荐'),
+    'A–Z': ('أ–ي', 'Α–Ω', 'A–Z', 'A–Z', 'अ–ज्ञ', 'А–Я', 'A–Z', 'A–Z'),
+    'By email': ('بالبريد الإلكتروني', 'Με email', 'Por correo', 'Par e-mail', 'ईमेल से', 'По электронной почте', 'Sa email', '通过电子邮件'),
+    'By text message': ('برسالة نصية', 'Με γραπτό μήνυμα', 'Por mensaje de texto', 'Par SMS', 'संदेश से', 'Сообщением', 'Sa text message', '通过短信'),
+    'No app here can open it': ('لا يوجد تطبيق هنا يمكنه فتحه', 'Καμία εφαρμογή εδώ δεν μπορεί να το ανοίξει', 'Ninguna aplicación puede abrirlo', 'Aucune application ici ne peut l’ouvrir', 'यहाँ कोई ऐप इसे नहीं खोल सकता', 'Здесь нет приложения, чтобы открыть это', 'Walang app dito na makakabukas nito', '这里没有应用可以打开它'),
+    'With a note': ('مع ملاحظة', 'Με σημείωση', 'Con una nota', 'Avec une note', 'टिप्पणी के साथ', 'С заметкой', 'May tala', '有笔记'),
+    'In a Study Pad': ('في دفتر دراسة', 'Σε ένα Σημειωματάριο', 'En una libreta de estudio', 'Dans un carnet d’étude', 'अध्ययन पैड में', 'В блокноте', 'Nasa isang Study Pad', '在学习本中'),
+    'Bookmarks only': ('العلامات فقط', 'Μόνο σελιδοδείκτες', 'Solo marcadores', 'Signets seulement', 'केवल बुकमार्क', 'Только закладки', 'Mga bookmark lamang', '仅书签'),
+    'Most passages': ('الأكثر مقاطع', 'Περισσότερα χωρία', 'Más pasajes', 'Le plus de passages', 'सबसे अधिक अंश', 'Больше всего отрывков', 'Pinakamaraming talata', '经文最多'),
+    'Newest': ('الأحدث', 'Νεότερα', 'Más recientes', 'Les plus récents', 'सबसे नया', 'Новые', 'Pinakabago', '最新'),
 }
 _ORDER = ('ar', 'el', 'es', 'fr', 'hi', 'ru', 'tl', 'zh')
 
