@@ -11,7 +11,7 @@ from .study import STUDY, COLORS
 from .richtext import verse_link
 
 APP_ID = 'today.knowingjesus.KJT'
-VERSION = '2.48'
+VERSION = '2.49'
 
 CSS = '''
 .kjt-brand { font-family: Serif; font-weight: 800; font-size: 1.3em; color: #c99a1d; letter-spacing: 1px; }
@@ -128,7 +128,7 @@ PAGES = [('today', 'Today with God', 'kjt-today-symbolic'), ('bible', 'The Holy 
          ('study', 'Study Journey', 'kjt-study-symbolic'), ('you', 'You Today', 'kjt-you-symbolic'),
          ('fathers', 'The Church Fathers', 'kjt-cross-symbolic'), ('dict', 'Bible Dictionary', 'kjt-dict-symbolic'),
          ('maps', 'Bible Maps', 'kjt-map-symbolic'), ('library', 'Library', 'kjt-library-symbolic'),
-         ('pray', 'Prayer', 'kjt-pray-symbolic'), ('fun', 'Good Fun', 'kjt-fun-symbolic'), ('church', 'Churches near me', 'kjt-church-symbolic'),
+         ('pray', 'Prayer', 'kjt-pray-symbolic'), ('helps', 'Daily Helps', 'kjt-heart-symbolic'), ('fun', 'Good Fun', 'kjt-fun-symbolic'), ('church', 'Churches near me', 'kjt-church-symbolic'),
          ('settings', 'Settings', 'kjt-settings-symbolic')]   # 2.27: the Offline library is now in the Library ("On This Device")
 
 
@@ -239,6 +239,8 @@ class Window(Adw.ApplicationWindow):
                 from .church import ChurchPage as P
             elif key == 'fun':
                 from .fun import FunPage as P
+            elif key == 'helps':
+                from .helps import HelpsPage as P
             elif key == 'settings':
                 from .settings import SettingsPage as P
             else:
@@ -306,7 +308,7 @@ class Window(Adw.ApplicationWindow):
             page = self.page(key)
             self.stack.set_visible_child_name(key)
             SET.set('page', key)
-            if getattr(page, 'fresh', False) or key in ('study', 'library', 'settings', 'today', 'you', 'pray', 'fun', 'church'):
+            if getattr(page, 'fresh', False) or key in ('study', 'library', 'settings', 'today', 'you', 'pray', 'fun', 'church', 'helps'):
                 page.fresh = False
                 if hasattr(page, 'refresh'):
                     page.refresh()

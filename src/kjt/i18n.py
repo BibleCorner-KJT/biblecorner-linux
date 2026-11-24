@@ -895,6 +895,9 @@ _T = {
     'Bookmarks only': ('العلامات فقط', 'Μόνο σελιδοδείκτες', 'Solo marcadores', 'Signets seulement', 'केवल बुकमार्क', 'Только закладки', 'Mga bookmark lamang', '仅书签'),
     'Most passages': ('الأكثر مقاطع', 'Περισσότερα χωρία', 'Más pasajes', 'Le plus de passages', 'सबसे अधिक अंश', 'Больше всего отрывков', 'Pinakamaraming talata', '经文最多'),
     'Newest': ('الأحدث', 'Νεότερα', 'Más recientes', 'Les plus récents', 'सबसे नया', 'Новые', 'Pinakabago', '最新'),
+    'Daily Helps': ('مساعدات يومية', 'Καθημερινά βοηθήματα', 'Ayudas diarias', 'Aides du jour', 'दैनिक सहायक', 'Помощники на каждый день', 'Pang-araw-araw na tulong', '每日助手'),
+    'All the helps': ('كل المساعدات', 'Όλα τα βοηθήματα', 'Todas las ayudas', 'Toutes les aides', 'सभी सहायक', 'Все помощники', 'Lahat ng tulong', '全部助手'),
+    'This computer cannot show the Daily Helps here. They are on the website: biblecorner.com/daily-helps/': ('لا يستطيع هذا الحاسوب عرض المساعدات اليومية هنا. إنها على الموقع: biblecorner.com/daily-helps/', 'Αυτός ο υπολογιστής δεν μπορεί να δείξει εδώ τα Καθημερινά βοηθήματα. Είναι στον ιστότοπο: biblecorner.com/daily-helps/', 'Este ordenador no puede mostrar aquí las Ayudas diarias. Están en el sitio: biblecorner.com/daily-helps/', 'Cet ordinateur ne peut pas afficher ici les Aides du jour. Elles sont sur le site : biblecorner.com/daily-helps/', 'यह कंप्यूटर दैनिक सहायक यहाँ नहीं दिखा सकता। वे वेबसाइट पर हैं: biblecorner.com/daily-helps/', 'Этот компьютер не может показать здесь помощников. Они на сайте: biblecorner.com/daily-helps/', 'Hindi maipakita ng computer na ito ang Pang-araw-araw na tulong dito. Nasa website ito: biblecorner.com/daily-helps/', '这台电脑无法在此显示每日助手。请访问网站：biblecorner.com/daily-helps/'),
 }
 _ORDER = ('ar', 'el', 'es', 'fr', 'hi', 'ru', 'tl', 'zh')
 

@@ -151,8 +151,41 @@ def fetch(url, method='GET', body=None, ctype=None):
                               'This needs the internet once, then it is kept on this computer.</body></html>').encode()
 
 
+TOOLS = '/wp-content/plugins/kjt-local-bible/assets/tools/'
+TOOLS_DIR = os.path.join(os.path.dirname(__file__), 'tools')
+
+
+def _tools(url):
+    """2.49: the Daily Helps from inside the app (the same version as the app, with or without the internet), and the
+    Church's days they ask for"""
+    from urllib.parse import urlsplit, parse_qs
+    u = urlsplit(url)
+    if TOOLS in u.path:
+        name = u.path.split(TOOLS, 1)[1] or 'tools.html'
+        if '/' in name or '..' in name:
+            name = 'tools.html'
+        try:
+            with open(os.path.join(TOOLS_DIR, name), 'rb') as f:
+                data = f.read()
+        except Exception:
+            return None
+        ct = 'application/javascript' if name.endswith('.js') else 'text/css' if name.endswith('.css') else 'text/html'
+        return 200, ct, data
+    q = parse_qs(u.query)
+    if u.path.endswith('/admin-ajax.php') and q.get('action') == ['kjtb_desk'] and q.get('op') == ['today'] and q.get('helps') == ['1']:
+        try:
+            from .today import days_for_helps
+            return 200, 'application/json', json.dumps({'success': True, 'data': {'days': days_for_helps((q.get('lang') or ['en'])[0])}}).encode('utf-8')
+        except Exception:
+            return 200, 'application/json', b'{"success":true,"data":{"days":[]}}'
+    return None
+
+
 def _answer(req):
     uri = req.get_uri(); url = to_site(uri)
+    local = _tools(url)
+    if local:
+        return _finish(req, *local)
     method = req.get_http_method() or 'GET'; body = None; ctype = None
     if method == 'POST':
         try:

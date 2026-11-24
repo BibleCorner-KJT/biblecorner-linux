@@ -272,3 +272,20 @@ class TodayPage(Gtk.Box):
             acts.append(self.share_btn(lambda: (words, ref + ' (%s)' % bible_name(tr).split(' · ')[0])))
         inner.append(acts)
         ex.set_child(inner); box.append(ex)
+
+
+def days_for_helps(lg):
+    """2.49: the Church's days from a month ago to two months ahead, for the Daily Helps (what the website gave last,
+    then the days inside the app)"""
+    import datetime
+    from . import pack
+    have = {x.get('date'): x for x in ((STORE.kv('today_' + lg) or {}).get('days') or [])}
+    have.update({k: v for k, v in (STORE.kv('today_more_' + lg) or {}).items() if k not in have})
+    out, d = [], datetime.date.today() - datetime.timedelta(days=31)
+    for _i in range(92):
+        k = d.isoformat()
+        x = have.get(k) or (pack.day(lg, k) if pack.present() else None) or (pack.day('en', k) if pack.present() else None)
+        if x:
+            out.append(x)
+        d += datetime.timedelta(days=1)
+    return out

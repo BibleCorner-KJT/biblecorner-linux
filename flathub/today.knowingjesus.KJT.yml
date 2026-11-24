@@ -20,6 +20,8 @@ modules:
       - install -Dm644 kjt/icons/hicolor/scalable/actions/*.svg -t /app/share/kjt/kjt/icons/hicolor/scalable/actions/
       - install -Dm644 kjt/appicons/*.png -t /app/share/kjt/kjt/appicons/
       - install -Dm644 kjt/gameart/*.svg -t /app/share/kjt/kjt/gameart/
+      - if [ -d kjt/pack ]; then cp -r kjt/pack /app/share/kjt/kjt/pack; fi   # 2.48: everything without the internet
+      - mkdir -p /app/share/kjt/kjt/tools && install -Dm644 kjt/tools/* -t /app/share/kjt/kjt/tools/   # 2.49: the Daily Helps
       - install -Dm755 kjt-app /app/bin/kjt
       - install -Dm644 today.knowingjesus.KJT.desktop /app/share/applications/today.knowingjesus.KJT.desktop
       - install -Dm644 today.knowingjesus.KJT.metainfo.xml /app/share/metainfo/today.knowingjesus.KJT.metainfo.xml
@@ -29,3 +31,7 @@ modules:
       - type: git
         url: https://github.com/BibleCorner-KJT/biblecorner-linux.git
         commit: 5957fef13ad55328a4f2dd0c487b408949949527
+      - type: archive   # 2.48: the offline pack (Bibles, dictionary, maps, Church Fathers, Today…), made from the website
+        url: https://github.com/BibleCorner-KJT/biblecorner-linux/archive/151b5affe7b414e571c82a6ebf951160b9f06ba1.tar.gz   # kept by the branch pack-2026-11-24
+        sha256: 226578028cec05ff0a2de4ad68ce549cdb6f2b970b3a87043972f7887d616390
+        dest: src/kjt/pack

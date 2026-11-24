@@ -33,6 +33,25 @@ def url(game='', web=False):
     return (SITE if web else BASE) + '/fun-and-games/' + q + ('#play-' + game if game else '')
 
 
+def view_url(u):
+    """2.49: a page of this app's own (the Daily Helps), with the same storage as the games"""
+    if not WebKit:
+        return None
+    from . import sitecache
+    sitecache.register(WebKit)
+    wv = WebKit.WebView(network_session=session(), vexpand=True, hexpand=True)
+    def decide(v, dec, kind):
+        try:
+            if kind == WebKit.PolicyDecisionType.NEW_WINDOW_ACTION:
+                dec.ignore(); return True
+        except Exception:
+            pass
+        return False
+    wv.connect('decide-policy', decide)
+    wv.load_uri(u)
+    return wv
+
+
 def view(game, on_title=None):
     """the game in a web view; None when this computer cannot show one (then the browser is offered)"""
     if not WebKit:
