@@ -47,6 +47,11 @@ def atr(tr):
         return SHARE[tr]
     if re.match(r'^sw-KJVA?(1769|2006|PCE)?$', tr or '', re.I):
         return 'eng-kjv'
+    # 2.52: the Reina-Valera 1909 and the Louis Segond 1910 from CrossWire play the Spanish and French recordings
+    if re.match(r'^sw-SpaRV(1909)?$', tr or '', re.I):
+        return 'spaRV1909'
+    if re.match(r'^sw-Fre(Segond|LSG)$', tr or '', re.I):
+        return 'fraLSG'
     return tr
 
 class Audio(Gtk.Revealer):
@@ -168,7 +173,7 @@ class Audio(Gtk.Revealer):
             return ((r.get('data') or {}).get('tracks') or []) if r.get('success') else []
         def done(ts):
             self.asking = None
-            if isinstance(ts, list):
+            if isinstance(ts, list) and ts:   # 2.52: "no recordings" is asked again later
                 self.tracks[tr] = ts
         run_bg(work, done)
 
@@ -212,7 +217,7 @@ class Audio(Gtk.Revealer):
         self.draw_mark()
 
         def find():
-            if tr not in self.tracks:
+            if not self.tracks.get(tr):   # 2.52: "no recordings" is asked again (recordings added later are found)
                 r = NET.ajax('kjtb_audio', tr=atr(tr))
                 self.tracks[tr] = ((r.get('data') or {}).get('tracks') or []) if r.get('success') else []
             return True
