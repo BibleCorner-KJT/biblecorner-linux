@@ -30,7 +30,7 @@ modules:
     sources:
       - type: git
         url: https://github.com/BibleCorner-KJT/biblecorner-linux.git
-        commit: a3c250048cdd91e8a921cc9353a983c7491860fe   # 2.51
+        commit: ec2c59ac3a3cb4d1209091d5ef1b134f93ce8b56   # 2.52
       - type: archive   # 2.48: the offline pack (Bibles, dictionary, maps, Church Fathers, Today…), made from the website
         url: https://github.com/BibleCorner-KJT/biblecorner-linux/archive/de1e48bbf27269c946df63ae2cfe582fe9e26741.tar.gz   # kept by the branch pack-2026-11-24c
         sha256: 9a132d9a7fe89cee1afd26d61003cce3fc8a4ffdd640fd68feaa2ebc83860dac
