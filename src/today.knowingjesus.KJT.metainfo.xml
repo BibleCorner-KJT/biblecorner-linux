@@ -50,6 +50,7 @@
   <branding><color type="primary" scheme_preference="light">#f3e2b8</color><color type="primary" scheme_preference="dark">#3e093f</color></branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.53" date="2026-11-25"><description><p>People and places in this chapter: one folded line above the Bible text with how many people and places the chapter names, the same as on the website and in the Android app; the best-known people (Abraham, Moses, the Apostles) are included.</p></description></release>
     <release version="2.52" date="2026-11-25"><description><p>Listening finds recordings added to the website without restarting the app, and the Spanish and French Bibles from CrossWire play the Spanish and French recordings.</p></description></release>
     <release version="2.51" date="2026-11-24"><description><p>The Arabic Bible has its deuterocanonical books (Tobit, Judith, Wisdom, Sirach, Baruch, Maccabees and the others), also without the internet, and the whole Arabic Bible can be listened to with each verse highlighted as it is read.</p></description></release>
     <release version="2.50" date="2026-11-24"><description><p>My Agenda is a calm calendar: day, week, month and year views, the Church's great feasts, Pascha and New Year marked, fast days shaded, plans once, weekly or yearly, birthdays with the age, homework, and reminders as notifications. Today with God inside the app now has no missing days.</p></description></release>

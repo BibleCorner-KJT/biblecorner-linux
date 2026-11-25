@@ -46,6 +46,25 @@ def ib(icon, tip, fn=None, toggle=False):
     return b
 
 
+
+PPW = {
+    'en': ('person', 'people', 'place', 'places', ' & ', ' in this chapter'), 'fr': ('personne', 'personnes', 'lieu', 'lieux', ' et ', ' dans ce chapitre'),
+    'es': ('persona', 'personas', 'lugar', 'lugares', ' y ', ' en este capítulo'),
+    'ar': ('الأشخاص', 'الأماكن', 'في هذا الأصحاح'), 'el': ('Πρόσωπα', 'Τόποι', 'σε αυτό το κεφάλαιο'), 'ru': ('Люди', 'Места', 'в этой главе'),
+    'hi': ('लोग', 'स्थान', 'इस अध्याय में'), 'tl': ('Mga tao', 'Mga lugar', 'sa kabanatang ito'), 'zh': ('人物', '地点', '本章中')}
+
+
+def pp_title(np, nl, lg):
+    """2.53: "👤 10 people & 📍 5 places in this chapter", the same words as the website and the Android app"""
+    w = PPW.get(lg) or PPW['en']; a = []
+    if len(w) == 6:
+        if np: a.append('👤 %d %s' % (np, w[0] if np == 1 else w[1]))
+        if nl: a.append('📍 %d %s' % (nl, w[2] if nl == 1 else w[3]))
+        return w[4].join(a) + w[5]
+    if np: a.append('👤 %s: %d' % (w[0], np))
+    if nl: a.append('📍 %s: %d' % (w[1], nl))
+    return ' · '.join(a) + ' — ' + w[2]
+
 class BiblePage(Gtk.Box):
     def __init__(self, win):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -981,22 +1000,31 @@ class BiblePage(Gtk.Box):
                 fb.append(b)
             self.info.append(fb)
         names = self.chapter_names()
-        if names:
-            # 2.18: easier to read: a real heading, and larger names on a soft background
-            self.info.append(Gtk.Label(label=_('People and places in this chapter'), xalign=0, css_classes=['kjt-pp-head']))
-            fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=6, row_spacing=6)
-            for i, n, kind in names[:60]:
-                b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-pp'); b.get_child().set_ellipsize(Pango.EllipsizeMode.END)
-                b.connect('clicked', lambda _b, i=i: self.win.open_dict(i)); fb.append(b)
-            self.info.append(fb)
-        elif not read_file('maps/places.json') or not read_file('dictionary/people.json'):
-            # 2.47: without the dictionary and the maps there are no names to show: say so, and keep them with one click
-            b = Gtk.Button(label='📚 ' + _('Show the people and places of each chapter'), halign=Gtk.Align.START, tooltip_text=_('Keeps the Bible Dictionary and the maps on this device'))
-            b.add_css_class('pill'); b.get_child().set_wrap(True); b.get_child().set_wrap_mode(Pango.WrapMode.WORD_CHAR)   # fits a phone
-            def keep(*_a):
-                from .downloads import DL
-                DL.start({'dict': [lang()], 'maps': True}); self.win.toast(_('Downloading…'))
-            b.connect('clicked', keep); self.info.append(b)
+        missing = not read_file('maps/places.json') or not read_file('dictionary/people.json')
+        if names or missing:
+            # 2.53: one folded line, the same on the website and in the Android app: "👤 10 people & 📍 5 places in this
+            # chapter ▸"; opened, a button for each name. Folded or open is remembered.
+            np = sum(1 for n in names if n[2] == 'person'); nl = len(names) - np
+            ex = Gtk.Expander(label=pp_title(np, nl, lang()) if names else _('People and places in this chapter'), expanded=bool(SET.get('pp_open')))
+            ex.add_css_class('kjt-pp-head'); ex.get_label_widget().set_wrap(True); ex.get_label_widget().set_xalign(0)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_top=6)
+            if names:
+                fb = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=12, min_children_per_line=1, column_spacing=6, row_spacing=6)
+                for i, n, kind in names:
+                    b = Gtk.Button(label=('📍 ' if kind == 'place' else '👤 ') + n, tooltip_text=_('Open in the Bible Dictionary')); b.add_css_class('kjt-pp'); b.get_child().set_ellipsize(Pango.EllipsizeMode.END)
+                    b.connect('clicked', lambda _b, i=i: self.win.open_dict(i)); fb.append(b)
+                box.append(fb)
+            if missing:
+                # 2.47: without the dictionary and the maps only the best-known people are known: keep the rest with one click
+                b = Gtk.Button(label='📚 ' + _('Show the people and places of each chapter'), halign=Gtk.Align.START, tooltip_text=_('Keeps the Bible Dictionary and the maps on this device'))
+                b.add_css_class('pill'); b.get_child().set_wrap(True); b.get_child().set_wrap_mode(Pango.WrapMode.WORD_CHAR)   # fits a phone
+                def keep(*_a):
+                    from .downloads import DL
+                    DL.start({'dict': [lang()], 'maps': True}); self.win.toast(_('Downloading…'))
+                b.connect('clicked', keep); box.append(b)
+            ex.set_child(box)
+            ex.connect('notify::expanded', lambda e, _p: SET.set('pp_open', e.get_expanded()))
+            self.info.append(ex)
         d = read_file('fathers/%s.json.gz' % canon(self.book))
         n = len((d or {}).get('e', {}).get(str(self.ch), [])) if d else 0
         if n:
@@ -1050,16 +1078,22 @@ class BiblePage(Gtk.Box):
         self.choose_range(nxt)
 
     def chapter_names(self):
+        """2.53: the people first (with the best-known ones, who have a full dictionary entry), then the places; as on the website"""
+        from .chapter_people import PEOPLE
         key = '%s.%d.' % (canon(self.book), self.ch)
         found = []
-        pl = read_file('maps/places.json') or {}
-        for r in pl.get('p', []):
-            if (' ' + r[6]).find(' ' + key) >= 0:
-                found.append((r[7] or 'p-' + r[0], r[1], 'place'))
+        for r in PEOPLE:
+            if (' ' + r[2] + ' ').find(' ' + key[:-1] + ' ') >= 0:
+                found.append((r[0], r[1], 'person'))
         pe = read_file('dictionary/people.json') or {}
         for r in pe.get('p', []):
             if (' ' + r[5]).find(' ' + key) >= 0:
                 found.append((r[0], r[2] or r[1], 'person'))
+        pl = read_file('maps/places.json') or {}
+        nm = (read_file('maps/names-%s.json' % lang()) or {}) if lang() != 'en' else {}
+        for r in pl.get('p', []):
+            if (' ' + r[6]).find(' ' + key) >= 0:
+                found.append((r[7] or 'p-' + r[0], nm.get(r[0]) or r[1], 'place'))
         seen, items = set(), []
         for i, n, kind in found:
             if i not in seen:
