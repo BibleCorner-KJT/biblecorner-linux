@@ -10,6 +10,7 @@ finish-args:
   - --socket=fallback-x11
   - --device=dri
   - --socket=pulseaudio
+  - --own-name=org.mpris.MediaPlayer2.today.knowingjesus.KJT   # 2.54: the player on the lock screen
 modules:
   - name: kjt
     buildsystem: simple
@@ -30,7 +31,7 @@ modules:
     sources:
       - type: git
         url: https://github.com/BibleCorner-KJT/biblecorner-linux.git
-        commit: ab634dafcffb3eab0e3955d7e7e488b9f7e19327   # 2.53
+        commit: a1b8357161993aa6daf320fd5c011f6ba0534228   # 2.54
       - type: archive   # 2.48: the offline pack (Bibles, dictionary, maps, Church Fathers, Today…), made from the website
         url: https://github.com/BibleCorner-KJT/biblecorner-linux/archive/de1e48bbf27269c946df63ae2cfe582fe9e26741.tar.gz   # kept by the branch pack-2026-11-24c
         sha256: 9a132d9a7fe89cee1afd26d61003cce3fc8a4ffdd640fd68feaa2ebc83860dac
