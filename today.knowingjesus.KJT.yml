@@ -10,6 +10,7 @@ finish-args:
   - --socket=fallback-x11
   - --device=dri
   - --socket=pulseaudio
+  - --own-name=org.mpris.MediaPlayer2.today.knowingjesus.KJT   # 2.54: the player on the lock screen
   # 2.44: no access to your files and no tray: only the internet, sound, the graphics card and the screen.
   # GNOME Software shows the app as "probably safe" (it uses the internet), no longer "potentially unsafe".
 modules:

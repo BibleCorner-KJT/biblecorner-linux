@@ -456,6 +456,17 @@ class Audio(Gtk.Revealer):
             GLib.idle_add(lambda: (self.show_verse(self.verse), False)[1])
 
     def tick(self):
+        if self.player and getattr(self, 'mpris', None) is None:
+            try:
+                from .mpris import Mpris
+                self.mpris = Mpris(self)   # 2.54: lock screen and media controls, with the bar
+            except Exception:
+                self.mpris = False
+        if self.mpris:
+            try:
+                self.mpris.update()
+            except Exception:
+                pass
         if not self.player or not self.get_reveal_child() or not self.cur:
             return True
         ok1, pos = self.player.query_position(Gst.Format.TIME)
