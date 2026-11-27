@@ -11,6 +11,8 @@ permissions:
   contents: write
 jobs:
   flatpak:
+    # the Android releases (android-…) are not Linux builds
+    if: ${{ !(github.event_name == 'release' && startsWith(github.event.release.tag_name, 'android-')) }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
