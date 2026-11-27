@@ -1,0 +1,10 @@
+{
+ "version": "4.14",
+ "code": 4140,
+ "file": "bible-corner-kjt-4.14.apk",
+ "size": 98706076,
+ "sha256": "b6087c37dd3927f5a2bf75a7200efb1d7064c7e5caadc7cd979de1c13f51e5b0",
+ "url": "https://github.com/BibleCorner-KJT/biblecorner-linux/releases/download/android-4.14/bible-corner-kjt-4.14.apk",
+ "notes": "Downloading a new version shows its progress; the lock-screen player has a bar to go back or forward.",
+ "signer_sha256": "98:59:A7:5D:2F:2D:76:1B:CA:5A:8F:E3:33:14:26:C8:14:BC:FE:66:FE:11:C2:80:A7:11:98:6A:6D:EE:61:9E"
+}

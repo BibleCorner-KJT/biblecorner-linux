@@ -1,0 +1,32 @@
+# Bible Corner - KJT for Android: each finished, signed app goes on the Releases page (android-<version>), and the
+# branch "android-release" keeps latest.json (version, size, SHA-256, notes, address). The website and the app read it.
+# The app is built and signed elsewhere; neither its signing key nor its source code is here.
+name: Android release
+on:
+  push:
+    branches: [android-release]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: android-release
+      - name: Put the app on the Releases page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          V=$(python3 -c "import json;print(json.load(open('latest.json'))['version'])")
+          F=bible-corner-kjt-$V.apk
+          test -f "$F"
+          python3 -c "import json,hashlib;d=json.load(open('latest.json'));h=hashlib.sha256(open('$F','rb').read()).hexdigest();assert h==d['sha256'],'checksum'"
+          N=$(python3 -c "import json;print(json.load(open('latest.json')).get('notes',''))")
+          if gh release view "android-$V" >/dev/null 2>&1; then
+            gh release upload "android-$V" "$F" --clobber
+          else
+            gh release create "android-$V" "$F" --title "Bible Corner - KJT $V (Android)" --notes "$N" --target android-release --latest=false
+          fi
+          gh release view "android-$V" --json assets -q '.assets[].url'
