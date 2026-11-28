@@ -1,0 +1,10 @@
+{
+ "version": "4.15",
+ "code": 4150,
+ "file": "bible-corner-kjt-4.15.apk",
+ "size": 98710172,
+ "sha256": "26e94a89ac2be2f8c4bb0001a60fa439d9ade9df01522c99d74f4cdbf987e5c0",
+ "url": "https://github.com/BibleCorner-KJT/biblecorner-linux/releases/download/android-4.15/bible-corner-kjt-4.15.apk",
+ "notes": "The Bible search answers while you type, and a typed reference (John 3:16) goes straight there.",
+ "signer_sha256": "98:59:A7:5D:2F:2D:76:1B:CA:5A:8F:E3:33:14:26:C8:14:BC:FE:66:FE:11:C2:80:A7:11:98:6A:6D:EE:61:9E"
+}
