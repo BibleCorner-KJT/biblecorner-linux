@@ -40,6 +40,10 @@ _T = {
     'The Church Fathers on it': ('آباء الكنيسة عنها', 'Οι Πατέρες της Εκκλησίας γι’ αυτό', 'Los Padres de la Iglesia sobre esto', 'Les Pères de l’Église à ce sujet', 'इस पर कलीसिया के पिता', 'Отцы Церкви об этом', 'Ang mga Ama ng Simbahan tungkol dito', '教父论此'),
     'Compare with another Bible': ('قارن بترجمة أخرى', 'Σύγκριση με άλλη Γραφή', 'Comparar con otra Biblia', 'Comparer avec une autre Bible', 'दूसरी बाइबल से तुलना करें', 'Сравнить с другим переводом', 'Ihambing sa ibang Bibliya', '与其他译本对照'),
     # the reader's tools
+    'Go to': ('اذهب إلى', 'Μετάβαση στο', 'Ir a', 'Aller à', 'यहाँ जाएँ', 'Перейти к', 'Pumunta sa', '转到'),
+    'found': ('نتيجة', 'βρέθηκαν', 'encontrados', 'trouvés', 'मिले', 'найдено', 'nahanap', '条结果'),
+    'Nothing found': ('لم يُعثر على شيء', 'Δεν βρέθηκε τίποτα', 'No se encontró nada', 'Rien trouvé', 'कुछ नहीं मिला', 'Ничего не найдено', 'Walang nahanap', '未找到'),
+    'Press Enter for all the results': ('اضغط Enter لكل النتائج', 'Πατήστε Enter για όλα τα αποτελέσματα', 'Pulse Intro para ver todo', 'Appuyez sur Entrée pour tout voir', 'सभी परिणामों के लिए Enter दबाएँ', 'Нажмите Enter, чтобы увидеть всё', 'Pindutin ang Enter para sa lahat', '按回车键查看全部'),
     'Search the Bible (Ctrl+F)': ('ابحث في الكتاب المقدس (Ctrl+F)', 'Αναζήτηση στη Γραφή (Ctrl+F)', 'Buscar en la Biblia (Ctrl+F)', 'Chercher dans la Bible (Ctrl+F)', 'बाइबल में खोजें (Ctrl+F)', 'Поиск по Писанию (Ctrl+F)', 'Hanapin sa Bibliya (Ctrl+F)', '搜索圣经（Ctrl+F）'),
     'The Church Fathers on this chapter': ('آباء الكنيسة عن هذا الأصحاح', 'Οι Πατέρες της Εκκλησίας για αυτό το κεφάλαιο', 'Los Padres de la Iglesia sobre este capítulo', 'Les Pères de l’Église sur ce chapitre', 'इस अध्याय पर कलीसिया के पिता', 'Отцы Церкви об этой главе', 'Ang mga Ama ng Simbahan sa kabanatang ito', '教父论本章'),
     'Listen': ('استمع', 'Άκουσε', 'Escuchar', 'Écouter', 'सुनें', 'Слушать', 'Makinig', '收听'),

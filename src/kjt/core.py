@@ -184,7 +184,8 @@ class Store:
             rows = self.db.execute('SELECT ch, v, text FROM verse WHERE tr=? AND book=? AND ch BETWEEN ? AND ? ORDER BY ch, v', (tr, b, c1, c2)).fetchall()
         return [r for r in rows if (r[0], r[1]) >= (c1, v1) and (r[0], r[1]) <= (c2, v2 if v2 else 999)]
 
-    def search(self, tr, q, limit=300):
+    def search(self, tr, q, limit=300, prefix=False):
+        """2.55: prefix=True while typing, so 'lov' already finds love and loved"""
         q = q.strip()
         if not q:
             return []
@@ -192,6 +193,8 @@ class Store:
             if any('一' <= ch <= '鿿' for ch in q):
                 return self.db.execute('SELECT book, ch, v, text FROM verse WHERE tr=? AND text LIKE ? LIMIT ?', (tr, '%' + q + '%', limit)).fetchall()
             words = ['"' + w.replace('"', '') + '"' for w in q.split() if w]
+            if prefix and words and len(words[-1]) > 3:
+                words[-1] += '*'
             try:
                 return self.db.execute('SELECT book, ch, v, text FROM vsearch WHERE vsearch MATCH ? AND tr=? LIMIT ?', (' '.join(words), tr, limit)).fetchall()
             except sqlite3.OperationalError:

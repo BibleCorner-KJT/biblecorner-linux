@@ -110,6 +110,11 @@ class BiblePage(Gtk.Box):
         self.sbar = Gtk.SearchBar(); self.sentry = Gtk.SearchEntry(placeholder_text=_('Search words in this Bible'), hexpand=True)
         self.sbar.set_child(self.sentry); self.sbar.connect_entry(self.sentry); tv.add_top_bar(self.sbar)
         self.sentry.connect('activate', self.do_search)
+        self.sentry.connect('search-changed', self.live_search)   # 2.55: results while you type
+        try:
+            self.sentry.set_search_delay(300)
+        except Exception:
+            pass
         self.search_btn.connect('toggled', lambda b: self.toggle_search(b.get_active()))
         self.hf_btn.connect('toggled', lambda b: self.toggle_fathers(b.get_active()))
 
@@ -1229,21 +1234,75 @@ class BiblePage(Gtk.Box):
             print('library side', e)
         html_into(self.hf_view, ''.join(h), self.on_link, 0.95)
 
-    def do_search(self, *_):
+    # 2.55: the search answers while you type. A reference ("John 3:16", "Ps 23", "Jean 3") shows "Go to …" at once;
+    # words show the verses (the words marked) after the entry's short pause; Enter lists everything, or opens the reference.
+    def ref_of(self, s):
+        m = re.match(r'^([1-4]?\s*[^\W\d_][\w\s.]*?)\.?\s+(\d{1,3})(?:\s*[:.,]\s*(\d{1,3})(?:\s*[-\u2013\u2014]\s*(\d{1,3}))?)?$', s.strip())
+        if not m:
+            return None
+        n = re.sub(r'[\W_]', '', fold(m.group(1)))
+        if len(n) < 2:
+            return None
+        best, bl = None, 999
+        for code, name in STORE.books(self.tr):
+            for lab in (book_name(code, tr=self.tr), name, code):
+                x = re.sub(r'[\W_]', '', fold(lab or ''))
+                if not x:
+                    continue
+                if x == n:
+                    best, bl = code, 0
+                elif bl and x.startswith(n) and len(x) < bl:
+                    best, bl = code, len(x)
+        if not best:
+            return None
+        c, v = int(m.group(2)), int(m.group(3) or 0)
+        if c not in STORE.chapters(self.tr, best):
+            return None
+        return best, c, v
+
+    def live_search(self, *_):
         q = self.sentry.get_text().strip()
+        if not q:
+            while self.results.get_first_child():
+                self.results.remove(self.results.get_first_child())
+            return
+        r = self.ref_of(q)
+        cjk = any('\u3400' <= ch <= '\u9fff' or '\u3040' <= ch <= '\u30ff' or '\uac00' <= ch <= '\ud7af' for ch in q)
+        if r or len(q) >= 3 or cjk:
+            self.do_search(live=True)
+
+    def do_search(self, *_, live=False):
+        q = self.sentry.get_text().strip()
+        if not live:
+            r = self.ref_of(q)
+            if r:
+                self.go(r[0], r[1], r[2]); self.compact and self.close_side(); return
         while self.results.get_first_child():
             self.results.remove(self.results.get_first_child())
         if not q:
             return
-        res = STORE.search(self.tr, q)
-        self.results.append(Gtk.Label(label=('%d found' % len(res)) if res else 'Nothing found', xalign=0, css_classes=['dim-label'], margin_start=12, margin_top=8, margin_bottom=4))
+        r = self.ref_of(q)
+        if r:
+            row = Gtk.Button(); row.add_css_class('flat')
+            row.set_child(Gtk.Label(label='📖 %s %s %d%s' % (_('Go to'), book_name(r[0], tr=self.tr), r[1], (':%d' % r[2]) if r[2] else ''), xalign=0, css_classes=['heading']))
+            row.connect('clicked', lambda _b, r=r: (self.go(*r), self.compact and self.close_side()))
+            self.results.append(row)
+            self.side_show('search')
+            return
+        limit = 60 if live else 300
+        res = STORE.search(self.tr, q, limit, prefix=live)
+        cnt = ('%d%s %s' % (len(res), '+' if len(res) >= limit else '', _('found'))) if res else _('Nothing found')
+        if live and len(res) >= limit:
+            cnt += ' · ' + _('Press Enter for all the results')
+        self.results.append(Gtk.Label(label=cnt, xalign=0, css_classes=['dim-label'], margin_start=12, margin_top=8, margin_bottom=4, wrap=True))
+        words = [fold(w) for w in q.split() if len(w) > 1]
         names = {}
         for b, c, v, t in res:
             nm = names.get(b) or names.setdefault(b, book_name(b, tr=self.tr))
             row = Gtk.Button(); row.add_css_class('flat')
             bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
             bx.append(Gtk.Label(label='%s %d:%d' % (nm, c, v), xalign=0, css_classes=['heading']))
-            bx.append(Gtk.Label(label=re.sub(r'<[^>]+>', '', t), xalign=0, wrap=True, lines=3, ellipsize=Pango.EllipsizeMode.END, max_width_chars=40))
+            bx.append(Gtk.Label(label=marked(re.sub(r'<[^>]+>', '', t), words), use_markup=True, xalign=0, wrap=True, lines=3, ellipsize=Pango.EllipsizeMode.END, max_width_chars=40))
             row.set_child(bx)
             row.connect('clicked', lambda _b, b=b, c=c, v=v: (self.go(b, c, v), self.compact and self.close_side()))
             self.results.append(row)
@@ -1269,6 +1328,24 @@ class BiblePage(Gtk.Box):
 
     compact = False
 
+
+def marked(t, words):
+    """the verse with the searched words marked (Pango markup); 2.55"""
+    f = fold(t)
+    if len(f) != len(t):
+        return esc(t)
+    spans = []
+    for w in words:
+        i = f.find(w)
+        while i >= 0:
+            spans.append((i, i + len(w))); i = f.find(w, i + len(w))
+    out, at = [], 0
+    for a, b in sorted(spans):
+        if a < at:
+            continue
+        out.append(esc(t[at:a])); out.append('<span background="#ffe9a8" foreground="#2a2135">%s</span>' % esc(t[a:b])); at = b
+    out.append(esc(t[at:]))
+    return ''.join(out)
 
 def esc(s):
     return (s or '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
